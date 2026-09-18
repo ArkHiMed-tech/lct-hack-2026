@@ -1,27 +1,37 @@
-from fastapi import FastAPI
-from fastapi.responses import Response, FileResponse
-from fastapi.exceptions import HTTPException
-from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-app = FastAPI()
+BASE_DIR = Path(__file__).resolve().parent
+FRONTEND_DIR = BASE_DIR / "frontend"
+FRONTEND_DIST = FRONTEND_DIR / "dist"
+
+app = FastAPI(title="LCT Hack 2026 API")
+
 
 class User(BaseModel):
-    login: str 
+    login: str
     password: str
     email: str
 
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+@app.get("/api/health")
+async def health():
+    return {
+        "status": "ok",
+        "frontend_build_exists": FRONTEND_DIST.exists(),
+    }
 
-@app.get("/")
-async def root():
-    return FileResponse("static/index.html")
 
-@app.post("/users/create")
+@app.post("/api/users/create")
 async def create_user(user: User):
     return {
-        'message': f'User {user.login} created',
-        'info': user.model_dump(mode = 'json')
+        "message": f"User {user.login} created",
+        "info": user.model_dump(mode="json"),
     }
+
+
+if FRONTEND_DIST.exists():
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
