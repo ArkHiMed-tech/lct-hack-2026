@@ -1,0 +1,37 @@
+{
+  "id": "scn-002",
+  "title": "ДТП с пострадавшими",
+  "category": "dth",
+  "difficulty": "medium",
+  "severity": "high",
+  "rubric_id": "rubric-112-base",
+  "sla_answer_sec": 8,
+  "call": {
+    "phone": "+7 (915) 220-88-01",
+    "caller_name_known": false,
+    "address_auto": { "known": false }
+  },
+  "expected": {
+    "incident_category": "dth",
+    "expected_services": ["fire", "ambulance", "police"],
+    "address": { "city": "Воронеж", "street": "Московский проспект", "house": "112", "flat": null },
+    "victims_count": "3",
+    "time": "только что",
+    "factors": ["Утечка топлива", "Риск возгорания"],
+    "landmarks": ["поворот на АЗС"]
+  },
+  "required_fields": ["what", "incident_category", "address", "time", "caller_name", "victims", "conditions", "threat", "factors", "actions", "landmarks"],
+  "timeline": [
+    { "seq": 1, "t_sec": 0, "speaker": "citizen", "emotion": "возбуждение", "text": "ДТП! Две машины столкнулись, люди зажаты!" },
+    { "seq": 2, "t_sec": 4, "speaker": "citizen", "emotion": "возбуждение", "text": "Прямо на Московском проспекте, у поворота на заправку!" },
+    { "seq": 3, "t_sec": 15, "speaker": "citizen", "emotion": "тревога", "text": "Водитель одной машины не двигается, из-под капота дым и пахнет бензином!" },
+    { "seq": 4, "t_sec": 50, "speaker": "citizen", "emotion": "тревога", "text": "Сзади уже пробка, машины сигналят. Что делать, я стою рядом?!" }
+  ],
+  "quick_replies": [
+    { "label": "Уточнить адрес", "text": "Уточните точное место: проспект, дом, ближайший ориентир и направление движения." },
+    { "label": "Пострадавшие", "text": "Сколько всего человек пострадало, есть ли пострадавшие в сознании?" },
+    { "label": "Не трогать", "text": "Не перемещайте пострадавших без необходимости — кроме угрозы возгорания." },
+    { "label": "Отойти", "text": "Отойдите подальше от машин, не курите, оставьте проезд для техники." },
+    { "label": "Стоп-краны", "text": "Не глушите моторы у рядом стоящих машин, не приближайтесь к луже топлива." }
+  ]
+}

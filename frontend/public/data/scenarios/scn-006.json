@@ -1,0 +1,37 @@
+{
+  "id": "scn-006",
+  "title": "Потерявший сознание ребёнок",
+  "category": "medical",
+  "difficulty": "medium",
+  "severity": "high",
+  "rubric_id": "rubric-112-base",
+  "sla_answer_sec": 8,
+  "call": {
+    "phone": "+7 (980) 512-09-71",
+    "caller_name_known": false,
+    "address_auto": { "known": false }
+  },
+  "expected": {
+    "incident_category": "medical",
+    "expected_services": ["ambulance"],
+    "address": { "city": "Воронеж", "street": "Владимира Невского", "house": "43", "flat": "15" },
+    "victims_count": "1",
+    "time": "прямо сейчас",
+    "factors": [],
+    "landmarks": null
+  },
+  "required_fields": ["what", "incident_category", "address", "time", "caller_name", "victims", "conditions", "threat", "actions"],
+  "timeline": [
+    { "seq": 1, "t_sec": 0, "speaker": "citizen", "emotion": "паника", "text": "Ребёнок не дышит! Он без сознания, я не знаю что делать!" },
+    { "seq": 2, "t_sec": 4, "speaker": "citizen", "emotion": "плач", "text": "Владимира Невского, 43, квартира 15. Мне сказали, что он чем-то подавился!" },
+    { "seq": 3, "t_sec": 20, "speaker": "citizen", "emotion": "паника", "text": "Я его трясу, не отвечает! Грудь не поднимается!" },
+    { "seq": 4, "t_sec": 55, "speaker": "system", "emotion": null, "text": "Линия устойчива. Оставайтесь на линии с вызывающим." }
+  ],
+  "quick_replies": [
+    { "label": "Уточнить адрес", "text": "Назовите точный адрес и код домофона, как быстрее подняться." },
+    { "label": "Дыхание", "text": "Посмотрите внимательно: шевелится ли грудная клетка, дышит ли ребёнок?" },
+    { "label": "Крик о помощи", "text": "Попросите кого-нибудь из близких открыть подъезд и встретить бригаду." },
+    { "label": "СЛР", "text": "Положите ребёнка на спину на твёрдое, начните надавливания на грудь до прибытия скорой. Я помогу считать!" },
+    { "label": "Скорая едет", "text": "Скорая уже выехала. Не кладите трубку, я буду рядом до прибытия бригады." }
+  ]
+}

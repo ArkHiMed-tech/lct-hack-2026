@@ -1,0 +1,7 @@
+[
+  { "session_id": "s-010", "scenario_id": "scn-001", "user_id": "u-001", "date": "2026-09-12", "score": 65, "verdict": "pass" },
+  { "session_id": "s-011", "scenario_id": "scn-004", "user_id": "u-001", "date": "2026-09-13", "score": 91, "verdict": "excellent" },
+  { "session_id": "s-012", "scenario_id": "scn-001", "user_id": "u-001", "date": "2026-09-15", "score": 82, "verdict": "excellent" },
+  { "session_id": "s-020", "scenario_id": "scn-002", "user_id": "u-002", "date": "2026-09-14", "score": 58, "verdict": "fail" },
+  { "session_id": "s-021", "scenario_id": "scn-004", "user_id": "u-002", "date": "2026-09-16", "score": 74, "verdict": "pass" }
+]

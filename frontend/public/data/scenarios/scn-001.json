@@ -1,0 +1,41 @@
+{
+  "id": "scn-001",
+  "title": "Пожар в многоквартирном доме",
+  "category": "fire",
+  "difficulty": "medium",
+  "severity": "high",
+  "rubric_id": "rubric-112-base",
+  "sla_answer_sec": 8,
+  "call": {
+    "phone": "+7 (903) 112-45-67",
+    "caller_name_known": false,
+    "address_auto": { "known": false }
+  },
+  "expected": {
+    "incident_category": "fire",
+    "expected_services": ["fire", "ambulance"],
+    "address": { "city": "Воронеж", "street": "Ленина", "house": "10", "flat": "42" },
+    "victims_count": "2",
+    "time": "несколько минут назад",
+    "factors": ["Открытое пламя", "Дым"],
+    "landmarks": ["шлагбаум"]
+  },
+  "required_fields": ["what", "incident_category", "address", "time", "caller_name", "victims", "conditions", "threat", "factors", "actions", "landmarks"],
+  "timeline": [
+    { "seq": 1, "t_sec": 0, "speaker": "citizen", "emotion": "паника", "text": "Пожар! Квартира горит, помогите!" },
+    { "seq": 2, "t_sec": 3, "speaker": "citizen", "emotion": "испуг", "text": "Я уже на улице, из окон пятого этажа дым валит!" },
+    { "seq": 3, "t_sec": 12, "speaker": "citizen", "emotion": "испуг", "text": "В квартире остались муж и ребёнок!" },
+    { "seq": 4, "t_sec": 35, "speaker": "citizen", "emotion": "тревога", "text": "Соседи сверху не выходят, слышно, что ругаются." },
+    { "seq": 5, "t_sec": 75, "speaker": "citizen", "emotion": "тревога", "text": "Лифт гудит, кажется, кто-то поехал вверх!" },
+    { "seq": 6, "t_sec": 120, "speaker": "system", "emotion": null, "text": "От соседей поступило повторное сообщение о задымлении с 1-го по 5-й этаж." },
+    { "seq": 7, "t_sec": 150, "speaker": "citizen", "emotion": "увереннее", "text": "Мы у подъезда, двор проездной, но перед ним шлагбаум." }
+  ],
+  "quick_replies": [
+    { "label": "Уточнить адрес", "text": "Назовите, пожалуйста, точный адрес: город, улица, дом, квартира и подъезд." },
+    { "label": "Кто пострадал?", "text": "Скажите, кто сейчас находится в горящей квартире и сколько всего пострадавших?" },
+    { "label": "Инструкция: покинуть", "text": "Покидайте помещение немедленно, не пользуйтесь лифтом, только по лестнице." },
+    { "label": "Инструкция: дым", "text": "При сильном задымлении двигайтесь пригнувшись, закройте рот и нос влажной тканью." },
+    { "label": "Окна", "text": "Не открывайте окна без необходимости." },
+    { "label": "Службы едут", "text": "Пожарно-спасательная служба и скорая помощь уже направлены, выехали. Оставайтесь на связи!" }
+  ]
+}

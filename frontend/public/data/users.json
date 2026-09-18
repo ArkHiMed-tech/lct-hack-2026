@@ -1,0 +1,6 @@
+[
+  { "id": "u-001", "name": "Иванова Мария Петровна", "role": "student", "group": "Группа 1", "last_name": "Иванова", "active": true },
+  { "id": "u-002", "name": "Смирнов Алексей Сергеевич", "role": "student", "group": "Группа 1", "last_name": "Смирнов", "active": true },
+  { "id": "u-003", "name": "Кузнецов Никита Андреевич", "role": "teacher", "group": null, "last_name": "Кузнецов", "active": true },
+  { "id": "u-004", "name": "Соколова Дарья Викторовна", "role": "admin", "group": null, "last_name": "Соколова", "active": true }
+]

@@ -1,0 +1,37 @@
+{
+  "id": "scn-003",
+  "title": "Плохо человеку: сердечный приступ",
+  "category": "medical",
+  "difficulty": "easy",
+  "severity": "medium",
+  "rubric_id": "rubric-112-base",
+  "sla_answer_sec": 8,
+  "call": {
+    "phone": "+7 (950) 334-15-20",
+    "caller_name_known": false,
+    "address_auto": { "known": false }
+  },
+  "expected": {
+    "incident_category": "medical",
+    "expected_services": ["ambulance"],
+    "address": { "city": "Воронеж", "street": "Плехановская", "house": "48", "flat": "7" },
+    "victims_count": "1",
+    "time": "минуту назад",
+    "factors": [],
+    "landmarks": null
+  },
+  "required_fields": ["what", "incident_category", "address", "time", "caller_name", "victims", "conditions", "threat", "actions"],
+  "timeline": [
+    { "seq": 1, "t_sec": 0, "speaker": "citizen", "emotion": "тревога", "text": "Помогите, отцу плохо! Схватился за грудь, упал!" },
+    { "seq": 2, "t_sec": 6, "speaker": "citizen", "emotion": "испуг", "text": "Мы дома, он не двигается, но вроде дышит. Глаза открыты, но не отвечает!" },
+    { "seq": 3, "t_sec": 30, "speaker": "citizen", "emotion": "волнение", "text": "Плехановская, 48, квартира 7, подъезд 2, код домофона 48!" },
+    { "seq": 4, "t_sec": 70, "speaker": "citizen", "emotion": "растерянность", "text": "Что мне делать, пока едет скорая?" }
+  ],
+  "quick_replies": [
+    { "label": "Уточнить адрес", "text": "Назовите точный адрес и как пройти в подъезд (код домофона)." },
+    { "label": "Сознание/дыхание", "text": "Постарайтесь успокоиться. Человек в сознании? Дышит ли он?" },
+    { "label": "Наблюдение", "text": "Не оставляйте его одного, следите за дыханием до прибытия скорой." },
+    { "label": "Не перемещать", "text": "Не перемещайте и не поднимайте его без необходимости." },
+    { "label": "Скорая едет", "text": "Скорая помощь выехала к вам, ожидайте её у подъезда." }
+  ]
+}

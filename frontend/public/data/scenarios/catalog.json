@@ -1,0 +1,68 @@
+[
+  {
+    "id": "scn-001",
+    "title": "Пожар в многоквартирном доме",
+    "category": "fire",
+    "difficulty": "medium",
+    "severity": "high",
+    "estimate_sec": 240,
+    "status": "done",
+    "best_score": 82,
+    "summary": "Жалоба на сильное задымление и возгорание квартиры на 5 этаже, есть пострадавшие."
+  },
+  {
+    "id": "scn-002",
+    "title": "ДТП с пострадавшими",
+    "category": "dth",
+    "difficulty": "medium",
+    "severity": "high",
+    "estimate_sec": 300,
+    "status": "in_progress",
+    "best_score": null,
+    "summary": "Столкновение двух легковых автомобилей, есть заблокированные пассажиры."
+  },
+  {
+    "id": "scn-003",
+    "title": "Плохо человеку: сердечный приступ",
+    "category": "medical",
+    "difficulty": "easy",
+    "severity": "medium",
+    "estimate_sec": 180,
+    "status": "new",
+    "best_score": null,
+    "summary": "Мужчина с болью в груди, потерял сознание, вызывающий рядом."
+  },
+  {
+    "id": "scn-004",
+    "title": "Запах газа в подъезде",
+    "category": "gas",
+    "difficulty": "easy",
+    "severity": "medium",
+    "estimate_sec": 180,
+    "status": "done",
+    "best_score": 91,
+    "summary": "Жители ощущают резкий запах газа на 1 этаже дома."
+  },
+  {
+    "id": "scn-005",
+    "title": "Горит гаражный кооператив",
+    "category": "fire",
+    "difficulty": "hard",
+    "severity": "high",
+    "estimate_sec": 360,
+    "status": "new",
+    "best_score": null,
+    "summary": "Множественные очаги возгорания, угроза распространения на соседние строения."
+  },
+  {
+    "id": "scn-006",
+    "title": "Потерявший сознание ребёнок",
+    "category": "medical",
+    "difficulty": "medium",
+    "severity": "high",
+    "estimate_sec": 300,
+    "status": "new",
+    "best_score": null,
+    "summary": "Ребёнок без сознания, признаков дыхания нет, мать в панике."
+  }
+]

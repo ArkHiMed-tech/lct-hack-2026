@@ -1,0 +1,38 @@
+{
+  "id": "scn-005",
+  "title": "Горит гаражный кооператив",
+  "category": "fire",
+  "difficulty": "hard",
+  "severity": "high",
+  "rubric_id": "rubric-112-base",
+  "sla_answer_sec": 8,
+  "call": {
+    "phone": "+7 (920) 445-77-32",
+    "caller_name_known": false,
+    "address_auto": { "known": false }
+  },
+  "expected": {
+    "incident_category": "fire",
+    "expected_services": ["fire", "ambulance", "police"],
+    "address": { "city": "Воронеж", "street": "ул. Острогожская", "house": "о. 1а", "flat": null },
+    "victims_count": "1",
+    "time": "минут пять назад",
+    "factors": ["Открытое пламя", "Разлив опасных веществ", "Угроза обрушения"],
+    "landmarks": ["железная дорога", "лесополоса"]
+  },
+  "required_fields": ["what", "incident_category", "address", "time", "caller_name", "victims", "conditions", "threat", "factors", "actions", "landmarks"],
+  "timeline": [
+    { "seq": 1, "t_sec": 0, "speaker": "citizen", "emotion": "возбуждение", "text": "Горит гаражный кооператив! Огонь по крышам идёт!" },
+    { "seq": 2, "t_sec": 5, "speaker": "citizen", "emotion": "возбуждение", "text": "Находимся недалеко от железной дороги, за лесополосой, Острогожская, первый ряд гаражей!" },
+    { "seq": 3, "t_sec": 18, "speaker": "citizen", "emotion": "тревога", "text": "В гараже был человек — подошёл, чтобы что-то взять. Его пока не видно!" },
+    { "seq": 4, "t_sec": 50, "speaker": "citizen", "emotion": "тревога", "text": "Пахнет не только дымом, слышно шипение, кажется, баллоны." },
+    { "seq": 5, "t_sec": 100, "speaker": "citizen", "emotion": "вопрос", "text": "Кто-то пытается тушить из своих, надо ли поливать водой всё подряд?" }
+  ],
+  "quick_replies": [
+    { "label": "Уточнить адрес", "text": "Назовите точный ряд и номер гаража, ориентиры и пути подъезда для техники." },
+    { "label": "Люди", "text": "Сколько человек может находиться в зоне опасности, есть ли пострадавшие?" },
+    { "label": "Не тушить", "text": "Не тушите водой места, где слышно шипение, — не подходите к баллонам." },
+    { "label": "Не мешать", "text": "Не заезжайте на территорию, обеспечьте свободный проезд спецтехнике." },
+    { "label": "Службы едут", "text": "Пожарно-спасательные расчёты и скорая выехали, ожидайте их на Острогожской." }
+  ]
+}
