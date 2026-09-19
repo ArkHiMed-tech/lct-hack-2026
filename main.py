@@ -1,5 +1,6 @@
 from pathlib import Path
 import sqlite3
+import sys
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -8,7 +9,10 @@ from pydantic import BaseModel, Field
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = BASE_DIR / "frontend"
 FRONTEND_DIST = FRONTEND_DIR / "dist"
-DB_PATH = BASE_DIR / "db.db"
+if 'test' in sys.argv:
+    DB_PATH = BASE_DIR / "test_db.db"
+else:
+    DB_PATH = BASE_DIR / "db.db"
 
 app = FastAPI(title="LCT Hack 2026 API")
 
