@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ACCOUNTS } from '../lib/accounts';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -14,10 +13,10 @@ export default function Login() {
     if (user) navigate('/', { replace: true });
   }, [user, navigate]);
 
-  const handleSubmit = (evt) => {
+  const handleSubmit = async (evt) => {
     evt.preventDefault();
     setError('');
-    const err = signIn(loginName, password);
+    const err = await signIn(loginName, password);
     if (err) {
       setError(err);
       return;
@@ -66,16 +65,6 @@ export default function Login() {
             <br />
             <a href="mailto:hd-112@mos.ru">hd-112@mos.ru</a>
           </div>
-          <details className="login-demo">
-            <summary>Демо-доступ учебного стенда</summary>
-            <ul>
-              {ACCOUNTS.map((a) => (
-                <li key={a.login}>
-                  <code>{a.login}</code> / <code>{a.password}</code> — {a.post}
-                </li>
-              ))}
-            </ul>
-          </details>
         </div>
       </div>
     </div>

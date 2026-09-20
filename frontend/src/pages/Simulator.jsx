@@ -111,18 +111,44 @@ export default function Simulator() {
   };
 
   useEffect(() => {
-    if (endedAtMs == null) return;
-    const session = {
-      messages, form, services,
-      dispatched: dispatchedAtMs != null,
-      dispatchedAtMs, endedAtMs,
-      answerLatencySec: answeredAtRef.current ? (answeredAtRef.current - startedAtRef.current) / 1000 : null,
-      call: scenario.data.call,
+    if (endedAtMs == null || !scenario.data || !rubric.data) return;
+
+    const payload = {
+      user_id: user?.id ?? null,
+      scenario_id: scenario.data.id,
+      rubric_id: rubric.data.id,
+      answer_latency_sec: answeredAtRef.current && startedAtRef.current
+        ? (answeredAtRef.current - startedAtRef.current) / 1000
+        : null,
+      messages,
+      form,
+      services,
+      dispatched_at_ms: dispatchedAtMs,
+      ended_at_ms: endedAtMs,
     };
-    const result = computeDraftResult(session, scenario.data, rubric.data, user);
-    try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(result)); } catch { /* ignore */ }
-    navigate('/results', { state: { result, scenario: scenario.data } });
-  }, [endedAtMs]);
+
+    const submitResult = async () => {
+      try {
+        const response = await fetch('/api/sessions/finish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const result = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(result?.detail || 'Не удалось сохранить результат');
+        }
+
+        try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(result)); } catch { /* ignore */ }
+        navigate('/results', { state: { result, scenario: scenario.data } });
+      } catch (error) {
+        setToast(error.message || 'Не удалось завершить тренировку');
+      }
+    };
+
+    submitResult();
+  }, [endedAtMs, messages, form, services, dispatchedAtMs, scenario.data, rubric.data, user, navigate]);
 
   if (scenario.loading || rubric.loading) {
     return (<div className="app-shell"><AppHeader /><LoadingSpinner label="Подготовка рабочего места…" /></div>);

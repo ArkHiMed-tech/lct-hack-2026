@@ -1,5 +1,4 @@
 import { createContext, useContext, useState } from 'react';
-import { authenticate } from '../lib/accounts';
 
 const STORAGE_KEY = 'sim112-user';
 
@@ -16,16 +15,29 @@ export function AuthProvider({ children }) {
   });
 
   // Возвращает null при успехе либо текст ошибки
-  const signIn = (login, password) => {
-    const res = authenticate(login, password);
-    if (res.error) return res.error;
+  const signIn = async (login, password) => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(res.user));
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ login, password }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return data.detail || 'Ошибка входа';
+      }
+
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch {
+        /* ignore */
+      }
+      setUser(data);
+      return null;
     } catch {
-      /* ignore */
+      return 'Не удалось подключиться к серверу';
     }
-    setUser(res.user);
-    return null;
   };
 
   const logout = () => {
