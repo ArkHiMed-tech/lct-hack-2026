@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 
 const MENU = [
   { to: '/', label: 'Главная', icon: '⌂', end: true },
-  { to: '/scenarios', label: 'Тренировки', icon: '▦' },
+  { to: '/incidents', label: 'Происшествия', icon: '▦' },
   { to: '/journal', label: 'Журнал', icon: '☰' },
   { to: '/admin', label: 'Администрирование', icon: '⚙', adminOnly: true },
 ];

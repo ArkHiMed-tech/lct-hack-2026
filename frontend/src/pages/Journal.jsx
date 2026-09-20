@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import useJson from '../hooks/useJson';
 import AppHeader from '../components/AppHeader';
@@ -63,6 +64,9 @@ export default function Journal() {
       <div className="layout">
         <SideNav role={user.role} />
         <main className="content">
+          <div className="dds-back">
+            <Link to="/">← Главная</Link>
+          </div>
           <PageTitle
             title="Журнал успеваемости"
             subtitle={user.role === 'student' ? 'Ваши тренировки' : 'Тренировки всех пользователей'}
