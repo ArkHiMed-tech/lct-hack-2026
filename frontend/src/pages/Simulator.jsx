@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import useJson from '../hooks/useJson';
 import { useAuth } from '../context/AuthContext';
 import AppHeader from '../components/AppHeader';
-import SideNav from '../components/SideNav';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorBanner from '../components/ErrorBanner';
 import CallInfoPanel from '../components/CallInfoPanel';
@@ -64,34 +63,25 @@ export default function Simulator() {
   const live = useMemo(() => {
     if (!scenario.data || !rubric.data) return null;
     const session = {
-      messages,
-      form,
-      services,
+      messages, form, services,
       dispatched: dispatchedAtMs != null,
-      dispatchedAtMs,
-      endedAtMs: null,
+      dispatchedAtMs, endedAtMs: null,
       answerLatencySec: answeredAtRef.current ? (answeredAtRef.current - startedAtRef.current) / 1000 : null,
       call: scenario.data.call,
     };
-    const res = computeDraftResult(session, scenario.data, rubric.data, user);
-    return res;
+    return computeDraftResult(session, scenario.data, rubric.data, user);
   }, [messages, form, services, dispatchedAtMs, scenario.data, rubric.data, user]);
 
   const groups = live
-    ? Object.entries(live.scores)
-        .map(([gid, score]) => ({ id: gid, title: (rubric.data.groups.find((g) => g.id === gid) || {}).title ?? gid, score }))
+    ? Object.entries(live.scores).map(([gid, score]) => ({ id: gid, title: (rubric.data.groups.find((g) => g.id === gid) || {}).title ?? gid, score }))
     : [];
-
   const totalLive = live ? live.total_score / 100 : null;
 
   const handleAnswer = () => {
     if (answeredAtRef.current || status !== 'ringing') return;
     answeredAtRef.current = Date.now();
     setStatus('connected');
-    setMessages((prev) => [
-      ...prev,
-      { seq: Number.MAX_SAFE_INTEGER, sender: 'system', text: 'Вызов принят. Линия подключена.' },
-    ]);
+    setMessages((prev) => [...prev, { seq: Number.MAX_SAFE_INTEGER, sender: 'system', text: 'Вызов принят. Линия подключена.' }]);
   };
 
   const nextUserSeq = useRef(1000);
@@ -102,130 +92,143 @@ export default function Simulator() {
     setMessages((prev) => [...prev, { seq: nextUserSeq.current, sender: 'operator', text }]);
     setInput('');
   };
-
-  const handleInsertQuick = (text) => {
-    setInput(text.replace(/\s+/g, ' '));
-  };
-
-  const handleToggleService = (sid) => {
-    setServices((prev) => (prev.includes(sid) ? prev.filter((s) => s !== sid) : [...prev, sid]));
-  };
-
+  const handleInsertQuick = (text) => setInput(text.replace(/\s+/g, ' '));
+  const handleToggleService = (sid) => setServices((prev) => (prev.includes(sid) ? prev.filter((s) => s !== sid) : [...prev, sid]));
   const handleDispatch = () => {
     if (!services.length) {
-      setToast('Выберите хотя бы одну экстренную службу для передачи вызова.');
+      setToast('Выберите хотя бы одну службу в нижнем доке «Службы».');
       return;
     }
     setDispatchedAtMs(Date.now());
     nextUserSeq.current += 1;
-    setMessages((prev) => [
-      ...prev,
-      { seq: nextUserSeq.current, sender: 'system', text: `Вызов передан в экстренные службы: ${services.join(', ')}.` },
-    ]);
+    setMessages((prev) => [...prev, { seq: nextUserSeq.current, sender: 'system', text: `Вызов передан в службы: ${services.join(', ')}.` }]);
   };
-
+  const endingRef = useRef(false);
   const handleEnd = () => {
     if (endingRef.current) return;
     endingRef.current = true;
     setEndedAtMs(Date.now());
   };
 
-  const endingRef = useRef(false);
-
   useEffect(() => {
     if (endedAtMs == null) return;
     const session = {
-      messages,
-      form,
-      services,
+      messages, form, services,
       dispatched: dispatchedAtMs != null,
-      dispatchedAtMs,
-      endedAtMs,
+      dispatchedAtMs, endedAtMs,
       answerLatencySec: answeredAtRef.current ? (answeredAtRef.current - startedAtRef.current) / 1000 : null,
       call: scenario.data.call,
     };
     const result = computeDraftResult(session, scenario.data, rubric.data, user);
-    try {
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify(result));
-    } catch {
-      /* ignore */
-    }
+    try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(result)); } catch { /* ignore */ }
     navigate('/results', { state: { result, scenario: scenario.data } });
   }, [endedAtMs]);
 
-  const handleRestart = () => {
-    window.location.reload();
-  };
-
   if (scenario.loading || rubric.loading) {
-    return (
-      <div className="app-shell">
-        <AppHeader />
-        <LoadingSpinner label="Подготовка рабочего места…" />
-      </div>
-    );
+    return (<div className="app-shell"><AppHeader /><LoadingSpinner label="Подготовка рабочего места…" /></div>);
   }
   if (scenario.error || rubric.error) {
-    return (
-      <div className="app-shell">
-        <AppHeader />
-        <ErrorBanner message={scenario.error ?? rubric.error} onRetry={window.location.reload} />
-      </div>
-    );
+    return (<div className="app-shell"><AppHeader /><ErrorBanner message={scenario.error ?? rubric.error} /></div>);
   }
+
+  const sc = scenario.data;
+  const incidentNum = 36814845;
+  const lastMsg = [...messages].reverse().find((m) => m.sender === 'citizen');
 
   return (
     <div className="app-shell">
-      <AppHeader />
-      <div className="layout">
-        <SideNav role={user.role} />
-        <main className="content sim-content">
-          <header className="sim-head">
-            <div>
-              <h1>{scenario.data.title}</h1>
-              <p>Категория: {scenario.data.category} · Требуемые службы: {scenario.data.expected.expected_services.join(', ')}</p>
-            </div>
-            <CallTimer startedAtMs={startedAtRef.current} answeredAtMs={answeredAtRef.current} />
-          </header>
+      <AppHeader title={`Происшествие ${incidentNum}`} />
 
-          <div className="sim-top">
-            <CallInfoPanel scenario={scenario.data} status={status} callerKnown={false} />
-          </div>
-
-          <div className="sim-workspace">
-            <div className="sim-left">
-              <CallFeed messages={messages} connected={status !== 'ringing'} />
-              <div className="sim-composer">
-                <ChatInput value={input} onChange={setInput} onSend={handleSend} disabled={status !== 'connected'} />
-                <QuickReplyPanel quickReplies={scenario.data.quick_replies} onInsert={handleInsertQuick} disabled={status !== 'connected'} />
-              </div>
-            </div>
-
-            <aside className="sim-right">
-              <ChecklistProgress groups={groups} total={totalLive} />
-              <DispatchPanel scenario={scenario.data} selected={services} onToggle={handleToggleService} disabled={!!dispatchedAtMs} />
-              <IncidentForm scenario={scenario.data} values={form} onChange={(fieldId, v) => setForm((prev) => ({ ...prev, [fieldId]: v }))} disabled={!!endedAtMs} />
-            </aside>
-          </div>
-
-          <ActionBar
-            status={status}
-            dispatched={dispatchedAtMs != null}
-            servicesSelected={services.length > 0}
-            onAnswer={handleAnswer}
-            onDispatch={handleDispatch}
-            onEnd={handleEnd}
-            onRestart={handleRestart}
-          />
-        </main>
+      <div className="dds-back dark">
+        <Link to="/incidents">← К списку происшествий</Link>
+        <Link to="/">На главную</Link>
       </div>
+
+      <div className="dds-card-title">Происшествие {incidentNum}</div>
+
+      <div className="dds-phones">
+        <div className="dds-phone">
+          <b>☎ Отключение</b>
+          <div className="mini-btns"><span>записи звонков</span><span>список SMS</span></div>
+        </div>
+        <div className="dds-phone"><b>☎ АОН</b><span className="tel">{sc.call?.phone ?? ''}</span></div>
+        <div className="dds-phone"><b>☎ предоставленный</b></div>
+        <div className="dds-phone"><b>☎ телефон на место</b></div>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <div className="dds-incident-info" style={{ flex: 1 }}>
+            <b>Происшествие {incidentNum}</b>
+            <br />Сохр. 17.09.2026 в 11:12:43
+            <br />Опер. , АРМ 4, УМЦ О п
+          </div>
+          <div className="dds-side-btns">
+            <button type="button" className="view">просмотр</button>
+            <button type="button" className="add">дополнение</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="dds-meta">
+        <div className="dds-meta-cell">ФИО заявителя</div>
+        <div className="dds-meta-cell">
+          Пострадавшие: нет &nbsp; Отказ от скорой: нет &nbsp; Заблокированные: нет &nbsp;&nbsp;
+          <span className="dds-badges">
+            <span className="dds-badge">ЧС ⚡</span>
+            <span className="dds-badge red">ЧП ⚠</span>
+            <button type="button" className="dds-edit" title="редактировать">✎</button>
+          </span>
+        </div>
+      </div>
+      <div className="dds-addr">
+        Россия, Москва, (ТАО, Вороновское)
+        <small>Троицкий административный округ</small>
+      </div>
+
+      <div className="dds-body">
+        <div className="dds-left-white">
+          <div className="t">17.09.2026 11:13:19 &nbsp; 0 УМЦ О.п.</div>
+          <div>{lastMsg ? lastMsg.text : sc.title}</div>
+          <div style={{ marginTop: 10, background: '#fff', border: '1px solid #ccc', padding: 8 }}>
+            <CallTimer startedAtMs={startedAtRef.current} answeredAtMs={answeredAtRef.current} />
+            <div style={{ marginTop: 8 }}>
+              <CallInfoPanel scenario={sc} status={status} callerKnown={false} />
+            </div>
+          </div>
+        </div>
+        <div className="dds-right-gray">
+          <div className="h">Происшествие 101</div>
+          <div className="r">Дом . Открытое пламя / Дым (дом), Запах гари (дом) . Дом многоквартирный . квартира . Есть угроза людям . Есть газификация .</div>
+          <div className="r">Класс.: пожар: квартира ;</div>
+          <div className="r">[ВИС] Класс.:</div>
+          <div className="r">
+            <ChecklistProgress groups={groups} total={totalLive} />
+          </div>
+        </div>
+      </div>
+
+      <div className="dds-train">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <CallFeed messages={messages} connected={status !== 'ringing'} />
+          <div className="panel">
+            <ChatInput value={input} onChange={setInput} onSend={handleSend} disabled={status !== 'connected'} />
+            <QuickReplyPanel quickReplies={sc.quick_replies} onInsert={handleInsertQuick} disabled={status !== 'connected'} />
+          </div>
+          <ActionBar
+            status={status} dispatched={dispatchedAtMs != null} servicesSelected={services.length > 0}
+            onAnswer={handleAnswer} onDispatch={handleDispatch} onEnd={handleEnd}
+            onRestart={() => window.location.reload()}
+          />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <IncidentForm scenario={sc} values={form} onChange={(fieldId, v) => setForm((prev) => ({ ...prev, [fieldId]: v }))} disabled={!!endedAtMs} />
+        </div>
+      </div>
+
+      <DispatchPanel scenario={sc} selected={services} onToggle={handleToggleService} disabled={!!dispatchedAtMs} />
 
       {toast && (
         <div className="toast" role="status">
           {toast}
-          <button type="button" className="toast-close" onClick={() => setToast(null)}>
-            ×
-          </button>
+          <button type="button" className="toast-close" onClick={() => setToast(null)}>×</button>
         </div>
       )}
     </div>

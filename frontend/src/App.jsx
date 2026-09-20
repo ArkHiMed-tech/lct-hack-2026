@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth, AuthProvider } from './context/AuthContext';
 import Login from './pages/Login';
+import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
 import Simulator from './pages/Simulator';
 import Results from './pages/Results';
@@ -27,6 +28,14 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route
             path="/"
+            element={
+              <RequireAuth>
+                <Home />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/incidents"
             element={
               <RequireAuth>
                 <Dashboard />

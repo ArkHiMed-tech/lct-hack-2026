@@ -1,32 +1,14 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Fragment, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import useJson from '../hooks/useJson';
 import AppHeader from '../components/AppHeader';
 import SideNav from '../components/SideNav';
-import PageTitle from '../components/PageTitle';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorBanner from '../components/ErrorBanner';
-import ScenarioCard from '../components/ScenarioCard';
-import { CATEGORIES } from '../lib/meta';
 
-function StatCard({ label, value, hint }) {
-  return (
-    <div className="stat-card">
-      <div className="stat-value">{value}</div>
-      <div className="stat-label">{label}</div>
-      {hint && <div className="stat-hint">{hint}</div>}
-    </div>
-  );
-}
-
-function computeStats(results, userId) {
-  const mine = results.filter((r) => r.user_id === userId);
-  if (mine.length === 0) return null;
-  const avg = Math.round((mine.reduce((sum, r) => sum + r.score, 0) / mine.length) * 10) / 10;
-  const last = mine[mine.length - 1];
-  const best = Math.max(...mine.map((r) => r.score));
-  return { count: mine.length, avg, last, best };
+function incidentNo(index) {
+  return 36814844 + index;
 }
 
 export default function Dashboard() {
@@ -34,25 +16,27 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const scenarios = useJson('/data/scenarios/catalog.json');
   const results = useJson('/data/results.json');
-  const [filter, setFilter] = useState('all');
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const perPage = 10;
 
-  const stats = useMemo(
-    () => (results.data ? computeStats(results.data, user.id) : null),
-    [results.data, user.id],
-  );
-
-  const categories = useMemo(() => ['all', ...Object.keys(CATEGORIES)], []);
-
-  const visibleScenarios = useMemo(() => {
+  const rows = useMemo(() => {
     if (!scenarios.data) return [];
-    return filter === 'all'
-      ? scenarios.data
-      : scenarios.data.filter((s) => s.category === filter);
-  }, [scenarios.data, filter]);
+    const q = query.trim().toLowerCase();
+    let list = scenarios.data.map((s, i) => ({
+      ...s,
+      num: incidentNo(i),
+      date: '17.09.26',
+      time: `11:${String(11 + i).padStart(2, '0')}:0${i % 10}`,
+      addr: s.id === 'scn-001' || i === 1 ? 'Москва , (ТАО, Вороновское) , Троицкий административный округ' : 'Нет',
+      desc: s.summary,
+    }));
+    if (q) list = list.filter((r) => `${r.title} ${r.num} ${r.summary}`.toLowerCase().includes(q));
+    return list;
+  }, [scenarios.data, query]);
 
-  const handleStart = (scenario) => {
-    navigate(`/scenario/${scenario.id}`);
-  };
+  const totalPages = Math.max(1, Math.ceil(rows.length / perPage));
+  const pageRows = rows.slice((page - 1) * perPage, page * perPage);
 
   if (scenarios.loading || results.loading) {
     return (
@@ -71,65 +55,92 @@ export default function Dashboard() {
     );
   }
 
-  const firstName = user.name.split(' ')[0];
-
   return (
     <div className="app-shell">
       <AppHeader />
       <div className="layout">
         <SideNav role={user.role} />
         <main className="content">
-          <PageTitle
-            title={`Здравствуйте, ${firstName}!`}
-            subtitle="Выберите тренировку для отработки регламента приёма вызовов"
-          />
-
-          <section className="stats-grid">
-            {stats ? (
-              <>
-                <StatCard label="Выполнено тренировок" value={stats.count} />
-                <StatCard label="Средний балл" value={`${stats.avg}%`} />
-                <StatCard label="Лучший результат" value={`${stats.best}%`} />
-                <StatCard
-                  label="Последняя тренировка"
-                  value={stats.last.verdict === 'excellent' ? 'Отлично' : stats.last.verdict === 'pass' ? 'Зачтено' : 'Не зачтено'}
-                  hint={`${new Date(stats.last.date).toLocaleDateString('ru-RU')} · ${stats.last.score}%`}
-                />
-              </>
-            ) : (
-              <div className="stats-empty">
-                Тренировок ещё не было — начните с первого сценария.
-              </div>
-            )}
-          </section>
-
-          <section className="catalog">
-            <div className="catalog-head">
-              <h2>Каталог тренировок</h2>
-              <div className="filter-bar">
-                {categories.map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    className={`filter-chip ${filter === cat ? 'active' : ''}`}
-                    onClick={() => setFilter(cat)}
-                  >
-                    {cat === 'all' ? 'Все' : CATEGORIES[cat].label}
+          <div className="dds-back">
+            <Link to="/">← Главная</Link>
+          </div>
+          <div className="dds-search">
+            <div className="dds-search-main">
+              <h1>
+                Поиск происшествий
+                <span className="dds-loupe">⌕</span>
+              </h1>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span className="dds-search-sub">расширенный по параметрам ⌄</span>
+                <span style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    value={query}
+                    onChange={(e) => { setQuery(e.target.value); setPage(1); }}
+                    placeholder="номер / тип / адрес"
+                    style={{ fontSize: 12, padding: '3px 8px', border: '1px solid #999' }}
+                  />
+                  <button type="button" className="btn-reset" onClick={() => setQuery('')}>
+                    сбросить
                   </button>
-                ))}
+                </span>
               </div>
             </div>
+          </div>
 
-            {visibleScenarios.length === 0 ? (
-              <p className="catalog-empty">Сценариев этой категории пока нет.</p>
-            ) : (
-              <div className="scenario-grid">
-                {visibleScenarios.map((s) => (
-                  <ScenarioCard key={s.id} scenario={s} onStart={handleStart} />
-                ))}
-              </div>
-            )}
-          </section>
+          <div className="dds-list-head">
+            <h2>Список происшествий ∧</h2>
+            <div className="dds-list-tools">
+              <span>ⓘ уведомления</span>
+              <select className="dds-select" defaultValue="">
+                <option value="">выберите что показать</option>
+                <option value="all">все происшествия</option>
+                <option value="mine">мои тренировки</option>
+              </select>
+            </div>
+          </div>
+
+          <table className="dds-table">
+            <thead>
+              <tr>
+                <th>⌄</th><th>Связи</th><th>ЧС</th><th>Опер.</th><th>АРМ</th><th>Номер</th>
+                <th>Дата ↓</th><th>Время</th><th>Тип происшествия</th><th>Постр.</th>
+                <th>Адрес</th><th>Статус службы</th><th />
+              </tr>
+            </thead>
+            <tbody>
+              {pageRows.map((r) => (
+                <Fragment key={r.id}>                  <tr key={r.id} className="dds-row" onClick={() => navigate(`/scenario/${r.id}`)}>
+                    <td>⌄</td>
+                    <td>▐</td>
+                    <td>⚡ 🕐</td>
+                    <td className="dds-op">0</td>
+                    <td>4</td>
+                    <td>{r.num}</td>
+                    <td>{r.date}</td>
+                    <td className="dds-time">{r.time}</td>
+                    <td className="wrap"><b>{r.title}</b></td>
+                    <td>Нет</td>
+                    <td className="dds-addr wrap">{r.addr}</td>
+                    <td className="dds-status">🔕 Добавлена</td>
+                    <td>🗎</td>
+                  </tr>
+                  <tr key={`${r.id}-d`} className="dds-desc">
+                    <td colSpan={13}>
+                      Описание: &nbsp; 17.09.2026 {r.time.slice(0, 5)}:{String(r.num).slice(-2)} УМЦ О. п. - <b>{r.title}</b>
+                    </td>
+                  </tr>
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+
+          <div className="dds-pager">
+            <span>Страница: {page}</span>
+            <span>Записей на странице: {perPage}</span>
+            <span>{rows.length ? `1-${pageRows.length} из ${rows.length}` : '0 из 0'}</span>
+            <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))}>‹</button>
+            <button type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>›</button>
+          </div>
         </main>
       </div>
     </div>

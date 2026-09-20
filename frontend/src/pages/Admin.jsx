@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import AppHeader from '../components/AppHeader';
 import SideNav from '../components/SideNav';
@@ -18,6 +19,9 @@ export default function Admin() {
       <div className="layout">
         <SideNav role={user.role} />
         <main className="content">
+          <div className="dds-back">
+            <Link to="/">← Главная</Link>
+          </div>
           <PageTitle title="Администрирование" subtitle="Панель доступна роли «Администратор»" />
 
           <div className="scenario-grid">

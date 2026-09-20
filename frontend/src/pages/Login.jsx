@@ -1,20 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import useJson from '../hooks/useJson';
 import { useAuth } from '../context/AuthContext';
-import { ROLE_LABELS } from '../lib/meta';
-import LoadingSpinner from '../components/LoadingSpinner';
-import ErrorBanner from '../components/ErrorBanner';
+import { ACCOUNTS } from '../lib/accounts';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { user, login } = useAuth();
-
-  const users = useJson('/data/users.json');
-  const roles = useJson('/data/roles.json');
-
-  const [userId, setUserId] = useState('');
-  const [roleId, setRoleId] = useState('student');
+  const { user, signIn } = useAuth();
+  const [loginName, setLoginName] = useState('umc_operdds1');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -24,76 +17,66 @@ export default function Login() {
   const handleSubmit = (evt) => {
     evt.preventDefault();
     setError('');
-    if (!user) {
-      if (!userId) {
-        setError('Выберите пользователя');
-        return;
-      }
-      const person = users.data.find((u) => u.id === userId);
-      if (!person) {
-        setError('Пользователь не найден');
-        return;
-      }
-      login({ ...person, role: roleId });
+    const err = signIn(loginName, password);
+    if (err) {
+      setError(err);
+      return;
     }
     navigate('/', { replace: true });
   };
 
-  if (users.loading || roles.loading) return <LoadingSpinner label="Загрузка справочников…" />;
-  if (users.error || roles.error) {
-    return (
-      <div className="login-page">
-        <ErrorBanner message={users.error ?? roles.error} />
-      </div>
-    );
-  }
-
-  const activeUsers = users.data.filter((u) => u.active);
-
   return (
     <div className="login-page">
-      <div className="login-card">
-        <div className="login-brand">
-          <img src="/favicon.svg" alt="" />
-          <h1>Учебный симулятор диспетчера</h1>
-          <p>Приём и обработка вызовов системы 112</p>
+      <div className="login-inner">
+        <div className="login-left" />
+        <div className="login-right">
+          <h1>
+            112 <small>ВХОД В СИСТЕМУ</small>
+          </h1>
+          <form onSubmit={handleSubmit}>
+            <label className="field">
+              <span>логин:</span>
+              <input
+                value={loginName}
+                onChange={(e) => setLoginName(e.target.value)}
+                placeholder="umc_operdds1"
+                autoComplete="username"
+              />
+            </label>
+            <label className="field">
+              <span>пароль:</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+              />
+            </label>
+            {error && <p className="form-error">{error}</p>}
+            <button type="submit" className="btn-login">
+              ВОЙТИ
+            </button>
+          </form>
+          <div className="login-support">
+            Техподдержка
+            <br />
+            +7 (495) 197-89-81
+            <br />
+            (многоканальный)
+            <br />
+            <a href="mailto:hd-112@mos.ru">hd-112@mos.ru</a>
+          </div>
+          <details className="login-demo">
+            <summary>Демо-доступ учебного стенда</summary>
+            <ul>
+              {ACCOUNTS.map((a) => (
+                <li key={a.login}>
+                  <code>{a.login}</code> / <code>{a.password}</code> — {a.post}
+                </li>
+              ))}
+            </ul>
+          </details>
         </div>
-
-        <form onSubmit={handleSubmit} className="login-form">
-          <label className="field">
-            <span>Пользователь</span>
-            <select value={userId} onChange={(e) => setUserId(e.target.value)}>
-              <option value="">— выберите —</option>
-              {activeUsers.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                  {u.group ? ` (${u.group})` : ''}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="field">
-            <span>Роль</span>
-            <select value={roleId} onChange={(e) => setRoleId(e.target.value)}>
-              {roles.data.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {ROLE_LABELS[r.id] ?? r.title}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {error && <p className="form-error">{error}</p>}
-
-          <button type="submit" className="btn btn-primary btn-block">
-            Войти в систему
-          </button>
-        </form>
-
-        <p className="login-footnote">
-          Прототип. Данные приходят из <code>public/data/*.json</code>
-        </p>
       </div>
     </div>
   );
