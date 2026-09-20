@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { ROLE_LABELS } from '../lib/meta';
 
 function useClock() {
   const [now, setNow] = useState(() => new Date());
@@ -36,7 +37,7 @@ export default function AppHeader({ title = 'ГБУ Система 112' }) {
           <div className="dds-user">
             <span className="d">{dateStr}</span>
             <span className="u">
-              {user ? `, ${user.name.split(' ')[0]} ${user.name.split(' ')[1]?.[0] ?? ''}.` : ''}
+              {user ? `, ${user.name.split(' ')[0]} ${user.name.split(' ')[1]?.[0] ?? ''}. · ${user.post ?? ROLE_LABELS[user.role] ?? user.role}` : ''}
               {'  '}◉ ⚙ ✎ ⚑
               <button type="button" className="header-logout" onClick={() => { logout(); navigate('/login'); }}>
                 Выйти

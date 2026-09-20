@@ -1,4 +1,5 @@
 import { createContext, useContext, useState } from 'react';
+import { authenticate } from '../lib/accounts';
 
 const STORAGE_KEY = 'sim112-user';
 
@@ -14,9 +15,17 @@ export function AuthProvider({ children }) {
     }
   });
 
-  const login = (userData) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
-    setUser(userData);
+  // Возвращает null при успехе либо текст ошибки
+  const signIn = (login, password) => {
+    const res = authenticate(login, password);
+    if (res.error) return res.error;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(res.user));
+    } catch {
+      /* ignore */
+    }
+    setUser(res.user);
+    return null;
   };
 
   const logout = () => {
@@ -25,7 +34,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, signIn, logout }}>
       {children}
     </AuthContext.Provider>
   );
