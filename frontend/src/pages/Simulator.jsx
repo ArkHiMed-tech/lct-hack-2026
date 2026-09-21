@@ -14,7 +14,6 @@ import IncidentForm from '../components/IncidentForm';
 import DispatchPanel from '../components/DispatchPanel';
 import ChecklistProgress from '../components/ChecklistProgress';
 import ActionBar from '../components/ActionBar';
-import { computeDraftResult } from '../lib/scoring';
 
 const SESSION_KEY = 'sim112-last-result';
 
@@ -23,8 +22,9 @@ export default function Simulator() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const scenario = useJson(`/data/scenarios/${id}.json`);
-  const rubric = useJson('/data/rubrics/rubric-112-base.json');
+  const scenario = useJson(`/api/scenarios/${id}`);
+  const rubricId = scenario.data?.rubric_id ?? 'rubric-112-base';
+  const rubric = useJson(`/api/rubrics/${rubricId}`);
 
   const [status, setStatus] = useState('ringing');
   const [now, setNow] = useState(() => Date.now());
@@ -60,17 +60,45 @@ export default function Simulator() {
     setSentSeq(maxSeq);
   }, [now, status, timeline, sentSeq]);
 
-  const live = useMemo(() => {
-    if (!scenario.data || !rubric.data) return null;
-    const session = {
-      messages, form, services,
-      dispatched: dispatchedAtMs != null,
-      dispatchedAtMs, endedAtMs: null,
-      answerLatencySec: answeredAtRef.current ? (answeredAtRef.current - startedAtRef.current) / 1000 : null,
-      call: scenario.data.call,
-    };
-    return computeDraftResult(session, scenario.data, rubric.data, user);
-  }, [messages, form, services, dispatchedAtMs, scenario.data, rubric.data, user]);
+  // Черновой скоринг считает бэкенд (POST /api/sessions/draft),
+  // вместо удалённого lib/scoring.js. Запрос дебаунсится, чтобы не
+  // дёргать ручку на каждое нажатие клавиши.
+  const [live, setLive] = useState(null);
+  const draftKey = useMemo(
+    () => JSON.stringify({ messages, form, services, dispatchedAtMs }),
+    [messages, form, services, dispatchedAtMs],
+  );
+
+  useEffect(() => {
+    if (!scenario.data || !rubric.data) return;
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch('/api/sessions/draft', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scenario_id: scenario.data.id,
+            rubric_id: rubric.data.id,
+            user_id: user?.id ?? null,
+            answer_latency_sec: answeredAtRef.current && startedAtRef.current
+              ? (answeredAtRef.current - startedAtRef.current) / 1000
+              : null,
+            messages,
+            form,
+            services,
+            dispatched_at_ms: dispatchedAtMs,
+            ended_at_ms: null,
+          }),
+        });
+        if (!response.ok) return;
+        const data = await response.json().catch(() => null);
+        if (data) setLive(data);
+      } catch {
+        /* черновик необязателен — тихий игнор */
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [draftKey, scenario.data, rubric.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const groups = live
     ? Object.entries(live.scores).map(([gid, score]) => ({ id: gid, title: (rubric.data.groups.find((g) => g.id === gid) || {}).title ?? gid, score }))

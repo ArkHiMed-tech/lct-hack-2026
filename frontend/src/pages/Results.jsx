@@ -3,8 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import AppHeader from '../components/AppHeader';
 import SideNav from '../components/SideNav';
-import { VERDICT_LABELS } from '../lib/scoring';
-import { categoryLabel, serviceLabel } from '../lib/meta';
+import { VERDICT_LABELS, categoryLabel, serviceLabel } from '../lib/meta';
 
 const SESSION_KEY = 'sim112-last-result';
 

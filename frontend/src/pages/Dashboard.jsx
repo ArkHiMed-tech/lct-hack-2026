@@ -14,8 +14,8 @@ function incidentNo(index) {
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const scenarios = useJson('/data/scenarios/catalog.json');
-  const results = useJson('/data/results.json');
+  const scenarios = useJson('/api/scenarios');
+  const results = useJson('/api/results');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const perPage = 10;

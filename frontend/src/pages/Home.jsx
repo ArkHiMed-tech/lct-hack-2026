@@ -9,8 +9,8 @@ import ErrorBanner from '../components/ErrorBanner';
 
 export default function Home() {
   const { user } = useAuth();
-  const results = useJson('/data/results.json');
-  const catalog = useJson('/data/scenarios/catalog.json');
+  const results = useJson(`/api/results?user_id=${user.id}`);
+  const catalog = useJson('/api/scenarios');
 
   const stats = useMemo(() => {
     if (!results.data) return null;

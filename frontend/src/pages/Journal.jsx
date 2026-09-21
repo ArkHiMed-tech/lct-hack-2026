@@ -13,9 +13,9 @@ const VERDICT_TONES = { excellent: 'v-ok', pass: 'v-warn', fail: 'v-bad' };
 
 export default function Journal() {
   const { user } = useAuth();
-  const results = useJson('/data/results.json');
-  const users = useJson('/data/users.json');
-  const catalog = useJson('/data/scenarios/catalog.json');
+  const results = useJson(user?.role === 'student' && user?.id ? `/api/results?user_id=${user.id}` : '/api/results');
+  const users = useJson('/api/users');
+  const catalog = useJson('/api/scenarios');
 
   const rows = useMemo(() => {
     if (!results.data || !users.data || !catalog.data) return [];
