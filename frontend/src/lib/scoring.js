@@ -1,6 +1,8 @@
-// Черновой режим оценки ответов диспетчера (прототип).
-// Авторитетный расчёт выполняется бэкендом; здесь — мгновенная обратная связь
-// для интерфейса (см. JSON-CONTRACT.md, раздел «Правила интеграции»).
+// Draft-превью оценки для живого чек-листа (ChecklistProgress в Simulator).
+// Авторитетный расчёт выполняет ТОЛЬКО бэкенд POST /api/sessions/finish,
+// фронт этот результат не строит, а лишь показывает (см. JSON-CONTRACT.md §8).
+// Здесь — минимальный набор { scores, total_score } для мгновенной подсветки.
+// Бэкенд не трогаем; пороги вердикта источника истины — на бэкенде.
 
 const norm = (s) => String(s ?? '').toLowerCase().trim();
 const includesAny = (text, terms) => terms.some((t) => norm(text).includes(norm(t)));
@@ -130,35 +132,9 @@ function isActive(item, scenario) {
   return true;
 }
 
-function evaluateCriticals(ctx) {
-  const { session, scenario } = ctx;
-  const criticals = [];
-
-  const first = ctx.firstOperator();
-  const answeredWithGreeting = matchTerms(first, [['112', 'служба спасения', 'единая служба'], ['слушаю']], false);
-  if (!answeredWithGreeting) criticals.push('X1');
-
-  const addr = norm(session.form?.address ?? '');
-  const tokens = addressTokens(scenario).filter(Boolean);
-  if (tokens.length && !tokens.every((t) => addr.includes(norm(t)))) criticals.push('X2');
-
-  const services = session.services ?? [];
-  if (!services.length) criticals.push('X3');
-  else {
-    const expected = new Set(scenario?.expected?.expected_services ?? []);
-    if (expected.size && !services.some((s) => expected.has(s))) criticals.push('X4');
-  }
-
-  if (session.endedAtMs && !session.dispatchedAtMs) criticals.push('X6');
-
-  return criticals;
-}
-
-export function computeDraftResult(session, scenario, rubric, user) {
+export function computeDraftPreview(session, scenario, rubric, user) {
   const ctx = ctxOf(session, scenario, user);
   const groupScores = {};
-  const failedItems = [];
-  const detail = {};
 
   for (const group of rubric.groups) {
     let active = group.items.filter((it) => isActive(it, scenario));
@@ -170,22 +146,15 @@ export function computeDraftResult(session, scenario, rubric, user) {
 
     let raw = 0;
     let totalWeight = 0;
-    const perItem = [];
 
     active.forEach((item) => {
       const rawScore = evaluateItem(item, ctx);
       const score = rawScore == null || rawScore === true ? 1 : rawScore === false ? 0 : rawScore;
       raw += score * item.weight;
       totalWeight += item.weight;
-      perItem.push({ id: item.id, title: item.title, achieved: score === 1, score, weight: item.weight });
-      if (score !== 1 && score != null) {
-        failedItems.push({ id: item.id, title: item.title, score, weight: item.weight, group: group.id });
-      }
     });
 
-    const groupScore = totalWeight ? raw / totalWeight : 0;
-    groupScores[group.id] = groupScore;
-    detail[group.id] = perItem;
+    groupScores[group.id] = totalWeight ? raw / totalWeight : 0;
   }
 
   const weights = rubric.group_weights ?? {};
@@ -195,29 +164,17 @@ export function computeDraftResult(session, scenario, rubric, user) {
   }
   const totalScore = Math.round(total * 1000) / 10;
 
-  const criticalSet = evaluateCriticals(ctx);
-  const hasCritical = rubric.critical.some((c) => criticalSet.includes(c));
-
-  const verdict =
-    hasCritical || totalScore < 60 ? 'fail' : totalScore >= 80 ? 'excellent' : 'pass';
-
+  // Только минимум для ChecklistProgress. Полный объект результата
+  // (session_id, messages, form, failed_items, critical_failures, detail,
+  // groups_meta, verdict по порогам бэкенда) строит POST /api/sessions/finish.
   return {
-    session_id: session.sessionId ?? `s-${Date.now()}`,
-    scenario_id: scenario?.id,
-    rubric_id: rubric.id,
-    groups_meta: rubric.groups.map((g) => ({ id: g.id, title: g.title })),
-    answer_latency_sec: session.answerLatencySec ?? null,
-    messages: session.messages ?? [],
-    form: session.form ?? {},
-    dispatched_services: session.services ?? [],
     scores: groupScores,
     total_score: totalScore,
-    verdict,
-    failed_items: failedItems,
-    critical_failures: criticalSet,
-    detail,
   };
 }
+
+// Алиас для совместимости, чтобы не ломать существующие импорты.
+export { computeDraftPreview as computeDraftResult };
 
 export const VERDICT_LABELS = {
   excellent: 'Зачтено · отлично',

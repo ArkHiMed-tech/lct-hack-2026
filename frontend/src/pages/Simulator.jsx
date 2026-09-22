@@ -14,7 +14,7 @@ import IncidentForm from '../components/IncidentForm';
 import DispatchPanel from '../components/DispatchPanel';
 import ChecklistProgress from '../components/ChecklistProgress';
 import ActionBar from '../components/ActionBar';
-import { computeDraftResult } from '../lib/scoring';
+import { computeDraftPreview } from '../lib/scoring';
 
 const SESSION_KEY = 'sim112-last-result';
 
@@ -69,7 +69,7 @@ export default function Simulator() {
       answerLatencySec: answeredAtRef.current ? (answeredAtRef.current - startedAtRef.current) / 1000 : null,
       call: scenario.data.call,
     };
-    return computeDraftResult(session, scenario.data, rubric.data, user);
+    return computeDraftPreview(session, scenario.data, rubric.data, user);
   }, [messages, form, services, dispatchedAtMs, scenario.data, rubric.data, user]);
 
   const groups = live
