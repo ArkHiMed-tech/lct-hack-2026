@@ -1,7 +1,7 @@
 import os
 
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 
 from database import DB_PATH, FRONTEND_DIST, initialize_database, initialize_dev_data
 from routers.auth import router as auth_router
@@ -46,4 +46,14 @@ app.include_router(reports_router)
 
 
 if FRONTEND_DIST.exists():
-    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not Found")
+
+        candidate = FRONTEND_DIST / full_path
+        if candidate.is_file():
+            return FileResponse(candidate)
+
+        return FileResponse(FRONTEND_DIST / "index.html")
