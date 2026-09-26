@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import useJson from '../hooks/useJson';
+import useCallSocket from '../hooks/useCallSocket';
 import { useAuth } from '../context/AuthContext';
 import AppHeader from '../components/AppHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -48,6 +49,19 @@ export default function Simulator() {
 
   const startedAtRef = useRef(null);
   const answeredAtRef = useRef(null);
+  const voiceSeq = useRef(2000);
+  const voice = useCallSocket({
+    onServerMessage: (msg) => {
+      if (!msg || msg.type === 'ready' || msg.type === 'ended') return;
+      voiceSeq.current += 1;
+      setMessages((prev) => [
+        ...prev,
+        { seq: voiceSeq.current, sender: 'system', text: `Голосовой канал: ${msg.text ?? msg.type}`, time: stamp() },
+      ]);
+    },
+  });
+
+  useEffect(() => () => voice.disconnect(), []);
 
   useEffect(() => {
     startedAtRef.current = Date.now();
@@ -88,6 +102,7 @@ export default function Simulator() {
     if (answeredAtRef.current || status !== 'ringing') return;
     answeredAtRef.current = Date.now();
     setStatus('connected');
+    voice.connect(id);
     setMessages((prev) => [...prev, { seq: Number.MAX_SAFE_INTEGER, sender: 'system', text: 'Вызов принят. Линия подключена.', time: stamp() }]);
   };
 
@@ -114,6 +129,7 @@ export default function Simulator() {
   const handleEnd = () => {
     if (endingRef.current) return;
     endingRef.current = true;
+    voice.disconnect();
     setEndedAtMs(Date.now());
   };
 
@@ -265,7 +281,7 @@ export default function Simulator() {
               </div>
             </div>
             <div className="arm-card">
-              <div className="arm-cardhead">Логи вызова</div>
+              <div className="arm-cardhead">Логи вызова <span style={{ opacity: 0.7 }}>· голос: {voice.state}</span></div>
               <CallFeed messages={messages} connected={status !== 'ringing'} />
               <div style={{ marginTop: 8 }}>
                 <ChatInput value={input} onChange={setInput} onSend={handleSend} disabled={status !== 'connected'} />
