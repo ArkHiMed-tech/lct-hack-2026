@@ -1,7 +1,7 @@
-# Базовый образ на Linux (Ubuntu)
+# Базовый образ на Linux (Ubuntu/Debian)
 FROM python:3.10-slim
 
-# Устанавливаем системные зависимости, которые нужны для TTS
+# Устанавливаем curl (для скачивания) и espeak-ng (системная зависимость для TTS)
 RUN apt-get update && apt-get install -y \
     curl \
     espeak-ng \
@@ -14,9 +14,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем скрипт скачивания и скачиваем модели ВНУТРЬ образа
-COPY download_models.sh .
-RUN chmod +x download_models.sh && ./download_models.sh
+# Скачиваем модели ПРЯМО ВНУТРИ Dockerfile (проблема CRLF больше не страшна)
+RUN curl -L -o ru_RU-ruslan-medium.onnx https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/ru/ru_RU/ruslan/medium/ru_RU-ruslan-medium.onnx && \
+    curl -L -o ru_RU-ruslan-medium.onnx.json https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/ru/ru_RU/ruslan/medium/ru_RU-ruslan-medium.onnx.json
 
 # Копируем код приложения
 COPY app.py .
