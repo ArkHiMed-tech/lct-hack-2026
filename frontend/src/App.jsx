@@ -31,26 +31,20 @@ export default function App() {
             path="/"
             element={
               <RequireAuth>
+                <Dashboard />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/home"
+            element={
+              <RequireAuth>
                 <Home />
               </RequireAuth>
             }
           />
-          <Route
-            path="/incidents"
-            element={
-              <RequireAuth>
-                <Dashboard />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/scenarios"
-            element={
-              <RequireAuth>
-                <Dashboard />
-              </RequireAuth>
-            }
-          />
+          <Route path="/incidents" element={<Navigate to="/" replace />} />
+          <Route path="/scenarios" element={<Navigate to="/" replace />} />
           <Route
             path="/card"
             element={
