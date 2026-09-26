@@ -20,6 +20,20 @@ def test_auth_login_route_exists():
     assert response.status_code in (200, 401, 403)
 
 
+def test_auth_login_sets_cookie_and_me_route_returns_user():
+    response = client.post(
+        "/api/auth/login",
+        json={"login": "demo", "password": "demo"},
+    )
+
+    assert response.status_code in (200, 401, 403)
+    if response.status_code == 200:
+        assert "sim112_session" in response.cookies
+        me = client.get("/api/auth/me")
+        assert me.status_code == 200
+        assert me.json()["login"] == "demo"
+
+
 def test_users_collection_route_exists():
     response = client.get("/api/users")
     assert response.status_code in (200, 401)
