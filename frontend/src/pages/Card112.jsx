@@ -1,95 +1,40 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import AppHeader from '../components/AppHeader';
 import SideNav from '../components/SideNav';
+import {
+  INCIDENT_TYPES as BUNDLED_TYPES,
+  TAG_SETS as BUNDLED_TAGS,
+  QUICK_TYPES,
+  detailOptionsFor,
+  autoServicesFor,
+} from '../lib/incidentClassifier';
 
 // Норматив набора карточки (сек). При превышении таймер краснеет (по ТЗ).
 const CARD_SLA_SEC = 30;
 const INCIDENT_NO = 36812195;
 
-// Быстрые типы из скриншота АРМ ("что случилось?").
-const QUICK_TYPES = [
-  'Отмена вызова', 'Тестовый вызов', 'Передача дежурства', 'ДТП', 'Консультация',
-  'Вызов на иностранном языке', 'Ошибочно набран номер', 'Справка-101', 'Справка-102', 'Справка-103',
-];
-
-// Полный список "Что случилось" из КАРТОЧКА 112.docx.
-const INCIDENT_TYPES = [
-  { title: 'Аварии и происшествия в городском хозяйстве', groups: ['104'] },
-  { title: 'Аварии и происшествия на транспортных объектах', groups: ['101'] },
-  { title: 'Аварии на гидротехнических сооружениях', groups: ['101'] },
-  { title: 'Аварии на опасных и производственных объектах', groups: ['101'] },
-  { title: 'Благодарность службам', groups: ['101', '102', '103', '104'] },
-  { title: 'БПЛА', groups: ['101', '102'] },
-  { title: 'Взрыв', groups: ['101', '102'] },
-  { title: 'Внутренний звонок (звонок от работников)', groups: ['101', '102', '103', '104'] },
-  { title: 'Вызов на иностранном языке', groups: ['101', '102', '103', '104'] },
-  { title: 'Дополнительный звонок от заявителя', groups: ['101', '102', '103', '104'] },
-  { title: 'Дорожные помехи', groups: ['102'] },
-  { title: 'ДТП', groups: ['101', '102', '103'] },
-  { title: 'Жалоба на действие или бездействие служб', groups: ['101', '102', '103', '104'] },
-  { title: 'Животные', groups: ['104'] },
-  { title: 'Консультация', groups: ['101', '102', '103', '104'] },
-  { title: 'Нецелевой вызов', groups: ['101', '102', '103', '104'] },
-  { title: 'Обрушение', groups: ['101'] },
-  { title: 'Отзыв о работе 112 Москва', groups: ['101', '102', '103', '104'] },
-  { title: 'Отмена вызова', groups: ['101', '102', '103', '104'] },
-  { title: 'Ошибочно набран номер', groups: ['101', '102', '103', '104'] },
-  { title: 'Передача дежурства', groups: ['101', '102', '103', '104'] },
-  { title: 'Помощь службам', groups: ['101', '102', '103', '104'] },
-  { title: 'Природная стихия', groups: ['101'] },
-  { title: 'Прочие происшествия', groups: ['101', '102', '103', '104'] },
-  { title: 'Радиация', groups: ['101'] },
-  { title: 'Разбитый градусник', groups: ['104'] },
-  { title: 'Ребенок в опасности', groups: ['102', '103'] },
-  { title: 'Сбор', groups: ['101', '102', '103', '104'] },
-  { title: 'Скопление воды', groups: ['104'] },
-  { title: 'Смертельный исход', groups: ['102', '103'] },
-  { title: 'Социальная помощь', groups: ['103', '104'] },
-  { title: 'Справка 101', groups: ['101'] },
-  { title: 'Справка 102', groups: ['102'] },
-  { title: 'Справка 103', groups: ['103'] },
-  { title: 'Справка 104', groups: ['104'] },
-  { title: 'Справка ГИБДД', groups: ['102'] },
-  { title: 'Справка Городское хозяйство', groups: ['104'] },
-  { title: 'Справка МЧС', groups: ['101'] },
-  { title: 'Тестовый вызов', groups: ['101', '102', '103', '104'] },
-  { title: 'Технический сбой (сбой оборудования 112 Москва)', groups: ['101', '102', '103', '104'] },
-  { title: 'Тренировка', groups: ['101', '102', '103', '104'] },
-  { title: 'Уведомление о ЧС', groups: ['101'] },
-  { title: 'Угроза взрыва/террористического акта', groups: ['101', '102'] },
-  { title: 'Угроза выброса опасных веществ и радиации', groups: ['101'] },
-  { title: 'Угроза обрушения', groups: ['101'] },
-  { title: 'Человек в опасности', groups: ['101', '102', '103'] },
-  { title: 'Экологическое происшествие', groups: ['104'] },
-];
-
-// ТЭГ-группы "Происшествие 101" — по скриншотам АРМ.
-const WHERE_OPTIONS = ['Улица', 'Транспорт', 'Дом', 'Здание / объект', 'Опасный объект'];
-const STREET_DETAIL = ['Мусор', 'Трава, пух', 'Парк', 'Лес', 'Торф', 'Мачта освещения', 'Опора контактной сети', 'ЛЭП', 'Провода', 'Дерево, деревья', 'Горит человек', 'Что горит неизвестно'];
-const TRANSPORT_DETAIL = ['Общественный транспорт', 'Автомашина', 'ДТП с пожаром', 'Опасный груз', 'Воздушный транспорт', 'Аэропорт', 'Ж/Д транспорт', 'Вокзал Ж/Д, платформа Ж/Д', 'Транспорт прочее', 'Водный', 'Мост', 'Эстакада', 'Тоннель', 'Переход подземный/наземный', 'Метро', 'МЦК, МЦД', 'Ж/Д пути', 'Релейный шкаф Ж/Д'];
+const EMPTY_TAGS = {
+  where: '', sign: '', access: '', detail: '',
+  place: '', threat: '', violation: '', medical: '', evac: '', gas: '', tagDesc: '',
+};
+// Порядок каскада fire101: смена верхнего уровня сбрасывает всё ниже.
+const CASCADE_AFTER = {
+  where: ['sign', 'access', 'detail', 'place', 'threat', 'violation', 'medical', 'evac', 'gas'],
+  sign: ['access', 'detail', 'place', 'threat', 'violation', 'medical', 'evac', 'gas'],
+  access: ['detail', 'place', 'threat', 'violation', 'medical', 'evac', 'gas'],
+  detail: ['place', 'threat', 'violation', 'medical', 'evac', 'gas'],
+  place: ['threat', 'violation', 'medical', 'evac', 'gas'],
+  threat: ['violation', 'medical', 'evac', 'gas'],
+  violation: ['medical', 'evac', 'gas'],
+  medical: ['evac', 'gas'],
+  evac: ['gas'],
+  gas: [],
+};
 
 // Каталог служб (из скриншотов) — мок. BACKEND-READY: позже заменить на справочник с бэкенда.
 const SERVICE_CATALOG = ['Служба 101', 'Служба 102', 'Служба 103', 'Служба 104', 'Деп. ЖКХ', 'ЦЭМП', 'ЦОДД', 'Мосгортранс', 'Мос.Без.', 'ОАТИ', 'Гормост', 'Мосводоканал'];
-
-// Мок-правило авто-подбора служб по типу и тэгам (по скриншотам: 101+транспорт → 101, 102, ЖКХ, ЦЭМП, ЦОДД, ...).
-function autoServicesFor(group, tags) {
-  const out = [];
-  const push = (s) => { if (!out.includes(s)) out.push(s); };
-  if (group === '101') push('Служба 101');
-  if (group === '102') push('Служба 102');
-  if (group === '103') { push('Служба 103'); push('ЦЭМП'); }
-  if (group === '104') push('Деп. ЖКХ');
-  const t = tags.join(' ');
-  if (/Транспорт|Общественный|Автомашина|Метро|Мост|Тоннель|Эстакада|МЦК|Ж\/Д|Вокзал|Аэропорт|ДТП с пожаром/.test(t)) { push('ЦОДД'); push('Мосгортранс'); }
-  if (/Мусор|Парк|Лес|Торф|Трава|Дерево|ЛЭП|Провода|Мачта|Опора/.test(t)) push('Деп. ЖКХ');
-  if (/Угроза людям - Да|Медицинская помощь - Да/.test(t)) push('ЦЭМП');
-  if (/Правонарушение|Есть правонарушение/.test(t)) push('Служба 102');
-  if (/Требуется эвакуация - Да/.test(t)) push('Мос.Без.');
-  if (/Газификация - Да/.test(t)) push('Служба 104');
-  return out;
-}
 
 const OKRUGA = ['ЦАО', 'САО', 'СВАО', 'ВАО', 'ЮВАО', 'ЮАО', 'ЮЗАО', 'ЗАО', 'СЗАО', 'ЗелАО', 'ТАО', 'НАО'];
 const APPLICANT_STATUS = ['Пострадавшие', 'Нет на месте/\nОтказ от скорой', 'Нет доступа/\nЗаблокированные', 'нет контакта', 'срыв звонка'];
@@ -111,17 +56,42 @@ function TagRow({ label, options, value, onPick }) {
 
 export default function Card112() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [listOpen, setListOpen] = useState(false);
-  const [selectedType, setSelectedType] = useState(null); // {title, groups}
-  const [tags, setTags] = useState({ where: '', sign: '', access: '', detail: '', place: '', threat: '', violation: '', medical: '', evac: '', gas: '', tagDesc: '' });
-  const [services, setServices] = useState([]); // ручные + авто (итог храним явно для визуала)
+  // Классификатор: пробуем бэкенд /api/incident-types, иначе бандл из ТЗ.
+  const [types, setTypes] = useState(BUNDLED_TYPES);
+  const [tagSets, setTagSets] = useState(BUNDLED_TAGS);
+  const [selectedType, setSelectedType] = useState(null); // {title, groups, kind}
+  const [tags, setTags] = useState({ ...EMPTY_TAGS });
+  const [formError, setFormError] = useState('');
+  const [services, setServices] = useState([]);
   const [svcMenuOpen, setSvcMenuOpen] = useState(false);
   const [addr, setAddr] = useState({ country: '', subject: 'Москва', settlement: '', object: '', okrug: '', rayon: '', street: '', house: '', corpus: '', stroenie: '', flat: '', entrance: '', floor: '', code: '', descr: '' });
   const [applicant, setApplicant] = useState('');
   const [appStatuses, setAppStatuses] = useState([]);
   const [desc, setDesc] = useState('');
   const [toast, setToast] = useState(null);
+  const [savedScenarioId, setSavedScenarioId] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/incident-types')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((data) => {
+        if (cancelled || !data) return;
+        if (Array.isArray(data.items) && data.items.length >= 51) setTypes(data.items);
+      })
+      .catch(() => { /* offline fallback: бандл */ });
+    fetch('/api/incident-tree?path=' + encodeURIComponent('101'))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((data) => {
+        if (!cancelled && data && data.tag_sets && Object.keys(data.tag_sets).length) setTagSets(data.tag_sets);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   const startedAtRef = useRef(Date.now());
   const [now, setNow] = useState(() => Date.now());
@@ -136,30 +106,51 @@ export default function Card112() {
   const ss = String(elapsedSec % 60).padStart(2, '0');
 
   const group = selectedType ? selectedType.groups[0] : null;
+  const isFire = selectedType ? selectedType.kind === 'fire101' : false;
 
   const filteredTypes = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return INCIDENT_TYPES;
-    return INCIDENT_TYPES.filter((t) => t.title.toLowerCase().includes(q));
-  }, [query]);
+    if (!q) return types;
+    return types.filter((t) => t.title.toLowerCase().includes(q));
+  }, [query, types]);
 
+  // Выбор типа: ПОЛНЫЙ сброс всех ТЭГов (решение пользователя), пересчет служб.
   const pickType = (t) => {
     setSelectedType(t);
     setQuery('');
     setListOpen(false);
-    setTags({ where: '', sign: '', access: '', detail: '', place: '', threat: '', violation: '', medical: '', evac: '', gas: '', tagDesc: '' });
+    setTags({ ...EMPTY_TAGS });
+    setFormError('');
+    setSavedScenarioId(null);
     setServices(autoServicesFor(t.groups[0], []));
+  };
+
+  const clearType = () => {
+    setSelectedType(null);
+    setTags({ ...EMPTY_TAGS });
+    setFormError('');
+    setSavedScenarioId(null);
+    setServices([]);
+    setQuery('');
   };
 
   const setTag = (key, v) => {
     const next = { ...tags, [key]: v };
-    // смена "Где" сбрасывает детализацию другого раздела
-    if (key === 'where') next.detail = '';
+    // Каскадный сброс уровней ниже измененного.
+    for (const k of CASCADE_AFTER[key] || []) next[k] = '';
     setTags(next);
+    setFormError('');
     if (selectedType) {
       const flat = Object.values(next).filter(Boolean);
       setServices((prev) => [...new Set([...prev, ...autoServicesFor(selectedType.groups[0], flat)])]);
     }
+  };
+
+  const validate = () => {
+    if (!selectedType) return 'Выберите «Что случилось?» — поле обязательно.';
+    if (isFire && !tags.where) return 'Укажите «Где» для происшествия 101.';
+    if (isFire && !tags.sign) return 'Укажите признак: «Открытое пламя / Дым» или «Запах гари».';
+    return '';
   };
 
   const toggleAppStatus = (s) => setAppStatuses((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]));
@@ -168,30 +159,67 @@ export default function Card112() {
 
   const clearAddress = () => setAddr({ country: '', subject: 'Москва', settlement: '', object: '', okrug: '', rayon: '', street: '', house: '', corpus: '', stroenie: '', flat: '', entrance: '', floor: '', code: '', descr: '' });
 
-  const handleMockSave = () => {
-    // BACKEND-READY: форма совместима с POST /api/reports/create.
+  const handleSave = async () => {
+    const err = validate();
+    if (err) { setFormError(err); return; }
+    setSaving(true);
+    setSavedScenarioId(null);
+    const addrStr = [addr.subject, addr.okrug && `округ ${addr.okrug}`, addr.street && `ул. ${addr.street}`, addr.house && `д. ${addr.house}`]
+      .filter(Boolean).join(', ');
     const payload = {
-      user_id: user?.id ?? null, what: selectedType?.title ?? '', incident_category: group,
-      address: addr, caller_name: applicant, caller_statuses: appStatuses,
-      factors: Object.values(tags).filter(Boolean), services,
-      description: desc, elapsed_sec: elapsedSec, overtime,
+      user_id: user?.id ?? null,
+      what: selectedType.title,
+      incident_category: group,
+      incident_kind: selectedType.kind,
+      address: addrStr,
+      address_obj: addr,
+      caller_name: applicant,
+      caller_statuses: appStatuses,
+      factors: Object.entries(tags).filter(([, v]) => v).map(([k, v]) => `${k}:${v}`),
+      tags,
+      services,
+      description: desc,
+      elapsed_sec: elapsedSec,
+      overtime,
     };
-    console.log('[card112 mock save]', payload);
-    setToast(`Мок-сохранение: «${selectedType?.title ?? 'тип не выбран'}», служб: ${services.length}. Бэкенд не вызывается.`);
+    try {
+      const res = await fetch('/api/reports/create', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      let scenarioId = null;
+      try {
+        const pub = await fetch(`/api/reports/${data.report_id}/publish`, { method: 'POST' });
+        if (pub.ok) scenarioId = (await pub.json()).scenario_id ?? null;
+      } catch { /* карточка уже в БД, происшествие создадим позже */ }
+      if (scenarioId) setSavedScenarioId(scenarioId);
+      setToast(`Сохранено в БД: «${selectedType.title}», карточка №${data.report_id}${scenarioId ? `, происшествие ${scenarioId}` : ''}.`);
+    } catch {
+      console.log('[card112 save fallback]', payload);
+      setToast(`Бэкенд недоступен — мок-сохранение: «${selectedType.title}», служб: ${services.length}.`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const setA = (k) => (e) => setAddr({ ...addr, [k]: e.target.value });
   const today = new Date().toLocaleDateString('ru-RU');
+  const detailOptions = detailOptionsFor(tags.where, tagSets);
+  const detailLabel = !tags.where || tags.where === 'Улица' ? 'Улица (пламя, дым)'
+    : tags.where === 'Транспорт' ? 'Транспорт (пламя, дым)'
+    : `${tags.where} (детализация)`;
+  const signLabel = tags.where === 'Транспорт' ? 'Признак пожара (транспорт)' : 'Признак пожара (улица)';
 
   return (
     <div className="app-shell">
-      <AppHeader title="Карточка происшествия 112" />
+      <AppHeader title="Карточка происшествия 112" showCreateButton={false} />
       <div className="layout">
         <SideNav role={user.role} />
         <main className="content">
           <div className="dds-back">
-            <Link to="/">← Главная</Link>
-            <Link to="/incidents">Поиск происшествий</Link>
+            <Link to="/">← К списку происшествий</Link>
+            <Link to="/card">Новая карточка</Link>
           </div>
 
           <div className="arm-wrap">
@@ -270,21 +298,23 @@ export default function Card112() {
                 </div>
               </section>
 
-              {/* СПРАВА: происшествие */}
+              {/* СПРАВА: происшествие — переписано под КАРТОЧКА 112.docx */}
               <section className="arm-right">
                 {!selectedType ? (
                   <div className="arm-card">
-                    <div className="arm-linkhead">Введите тип происшествия</div>
+                    <div className="arm-linkhead">Введите тип происшествия <span className="arm-count">{types.length}</span></div>
                     <div className="arm-searchwrap">
                       <input
-                        className="arm-what" value={query} placeholder="что случилось?"
+                        className="arm-what" value={query} placeholder="что случилось? (поиск по 51 типу)"
                         onChange={(e) => { setQuery(e.target.value); setListOpen(true); }}
                         onFocus={() => setListOpen(true)}
                       />
                       {listOpen && (
                         <div className="arm-typelist">
                           {filteredTypes.map((t) => (
-                            <button key={t.title} type="button" onClick={() => pickType(t)}>{t.title}</button>
+                            <button key={t.title} type="button" onClick={() => pickType(t)}>
+                              {t.title} <small>· {t.groups.join(',')}</small>
+                            </button>
                           ))}
                           {!filteredTypes.length && <span className="arm-empty">Ничего не найдено</span>}
                         </div>
@@ -292,38 +322,35 @@ export default function Card112() {
                     </div>
                     <div className="arm-quick">
                       {QUICK_TYPES.map((q) => {
-                        const found = INCIDENT_TYPES.find((t) => t.title.toLowerCase().startsWith(q.toLowerCase()));
+                        const found = types.find((t) => t.title.toLowerCase().startsWith(q.toLowerCase().replace('справка-', 'справка ')));
                         return <button key={q} type="button" className="arm-tag" onClick={() => found && pickType(found)}>{q}</button>;
                       })}
                     </div>
                     <div className="arm-signif">Значимые типы происшествий:</div>
+                    {formError && <div className="arm-err">{formError}</div>}
                   </div>
                 ) : (
                   <div className="arm-card">
-                    <button type="button" className="arm-linkhead" onClick={() => setSelectedType(null)}>добавить тип происшествия</button>
-                    <div className="arm-typechip">Происшествие {group}</div>
-                    <div className="arm-blackhead">Происшествие {group} <span onClick={() => setSelectedType(null)}>×</span></div>
+                    <button type="button" className="arm-linkhead" onClick={clearType}>добавить тип происшествия</button>
+                    <div className="arm-typechip">Происшествие {group} · {selectedType.kind === 'fire101' ? 'ветка 101' : 'общая ветка'}</div>
+                    <div className="arm-blackhead">Происшествие {group} <span onClick={clearType}>×</span></div>
+                    <div className="arm-selectedwhat">{selectedType.title}</div>
                     <div className="arm-tagpanel">
-                      {group === '101' ? (
+                      {isFire ? (
                         <>
-                          <TagRow label="Где" options={WHERE_OPTIONS} value={tags.where} onPick={(v) => setTag('where', v)} />
-                          <TagRow label={tags.where === 'Транспорт' ? 'Признак пожара (транспорт)' : 'Признак пожара (улица)'} options={['Открытое пламя / Дым', 'Запах гари']} value={tags.sign} onPick={(v) => setTag('sign', v)} />
-                          <TagRow label="Доступ" options={['Нет доступа', 'Есть доступ']} value={tags.access} onPick={(v) => setTag('access', v)} />
-                          {tags.where === 'Транспорт' && (
-                            <TagRow label="Транспорт (пламя, дым)" options={TRANSPORT_DETAIL} value={tags.detail} onPick={(v) => setTag('detail', v)} />
-                          )}
-                          {tags.where !== 'Транспорт' && (
-                            <TagRow label="Улица (пламя, дым)" options={STREET_DETAIL} value={tags.detail} onPick={(v) => setTag('detail', v)} />
-                          )}
-                          <TagRow label="Место происшествия" options={['Тоннель', 'Пешеходный переход']} value={tags.place} onPick={(v) => setTag('place', v)} />
-                          <TagRow label="Угроза людям" options={['Да', 'Нет']} value={tags.threat} onPick={(v) => setTag('threat', v)} />
-                          <TagRow label="Правонарушение" options={['Есть правонарушение']} value={tags.violation} onPick={(v) => setTag('violation', v)} />
-                          <TagRow label="Медицинская помощь" options={['Да', 'Нет']} value={tags.medical} onPick={(v) => setTag('medical', v)} />
-                          <TagRow label="Требуется эвакуация" options={['Да', 'Нет']} value={tags.evac} onPick={(v) => setTag('evac', v)} />
-                          <TagRow label="Проведена ли газификация" options={['Да', 'Нет', 'Нет данных']} value={tags.gas} onPick={(v) => setTag('gas', v)} />
+                          <TagRow label="Где" options={tagSets.where} value={tags.where} onPick={(v) => setTag('where', v)} />
+                          <TagRow label={signLabel} options={tagSets.sign} value={tags.sign} onPick={(v) => setTag('sign', v)} />
+                          <TagRow label="Доступ к людям" options={tagSets.access} value={tags.access} onPick={(v) => setTag('access', v)} />
+                          <TagRow label={detailLabel} options={detailOptions} value={tags.detail} onPick={(v) => setTag('detail', v)} />
+                          <TagRow label="Место происшествия" options={tagSets.place} value={tags.place} onPick={(v) => setTag('place', v)} />
+                          <TagRow label="Угроза людям" options={tagSets.threat} value={tags.threat} onPick={(v) => setTag('threat', v)} />
+                          <TagRow label="Правонарушение" options={['Есть', 'Нет']} value={tags.violation} onPick={(v) => setTag('violation', v)} />
+                          <TagRow label="Медицинская помощь" options={tagSets.medical} value={tags.medical} onPick={(v) => setTag('medical', v)} />
+                          <TagRow label="Требуется эвакуация" options={tagSets.evac} value={tags.evac} onPick={(v) => setTag('evac', v)} />
+                          <TagRow label="Проведена ли газификация" options={tagSets.gas} value={tags.gas} onPick={(v) => setTag('gas', v)} />
                           <div className="arm-tagrow">
                             <div className="arm-taglabel">Описание</div>
-                            <input className="arm-tagdesc" value={tags.tagDesc} onChange={(e) => setTag('tagDesc', e.target.value)} />
+                            <input className="arm-tagdesc" value={tags.tagDesc} onChange={(e) => setTag('tagDesc', e.target.value)} placeholder="уточнение ТЭГа" />
                           </div>
                         </>
                       ) : (
@@ -332,14 +359,16 @@ export default function Card112() {
                           <TagRow label="Правонарушение" options={['Есть правонарушение']} value={tags.violation} onPick={(v) => setTag('violation', v)} />
                           <TagRow label="Медицинская помощь" options={['Да', 'Нет']} value={tags.medical} onPick={(v) => setTag('medical', v)} />
                           <TagRow label="Требуется эвакуация" options={['Да', 'Нет']} value={tags.evac} onPick={(v) => setTag('evac', v)} />
+                          <TagRow label="Проведена ли газификация" options={['Да', 'Нет', 'Нет данных']} value={tags.gas} onPick={(v) => setTag('gas', v)} />
                           <div className="arm-tagrow">
                             <div className="arm-taglabel">Описание</div>
-                            <input className="arm-tagdesc" value={tags.tagDesc} onChange={(e) => setTag('tagDesc', e.target.value)} />
+                            <input className="arm-tagdesc" value={tags.tagDesc} onChange={(e) => setTag('tagDesc', e.target.value)} placeholder="уточнение" />
                           </div>
-                          <div className="arm-hint">Полный набор ТЭГов группы {group} подключается из классификатора (демо).</div>
+                          <div className="arm-hint">Общая ветка ({group}): полный каскад 101 не применяется.</div>
                         </>
                       )}
                     </div>
+                    {formError && <div className="arm-err">{formError}</div>}
                   </div>
                 )}
               </section>
@@ -364,7 +393,7 @@ export default function Card112() {
                 </div>
               </div>
               <div className="arm-actions">
-                <button type="button" className="arm-save" onClick={handleMockSave}>сохранить</button>
+                <button type="button" className="arm-save" onClick={handleSave} disabled={saving}>{saving ? 'сохранение…' : 'сохранить'}</button>
                 <button type="button" className="arm-icobtn" title="связи">🔗</button>
                 <button type="button" className="arm-icobtn" title="таймер">⏱</button>
                 <button type="button" className="arm-icobtn" title="привлечь внимание">✋</button>
@@ -378,7 +407,12 @@ export default function Card112() {
 
           {toast && (
             <div className="toast" role="status">
-              {toast}
+              {toast}{' '}
+              {savedScenarioId && (
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => navigate(`/scenario/${savedScenarioId}`)}>
+                  Открыть в тренажёре →
+                </button>
+              )}
               <button type="button" className="toast-close" onClick={() => setToast(null)}>×</button>
             </div>
           )}

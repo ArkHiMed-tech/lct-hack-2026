@@ -1,5 +1,5 @@
-import { Fragment, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import useJson from '../hooks/useJson';
 import AppHeader from '../components/AppHeader';
@@ -16,24 +16,46 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const scenarios = useJson('/data/scenarios/catalog.json');
   const results = useJson('/data/results.json');
+  // Происшествия, созданные из карточек 112 (БД), подмешиваем к статике.
+  const [dbScenarios, setDbScenarios] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/scenarios')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((data) => { if (!cancelled && Array.isArray(data)) setDbScenarios(data); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const perPage = 10;
 
   const rows = useMemo(() => {
-    if (!scenarios.data) return [];
+    const staticList = scenarios.data ?? [];
+    const seen = new Set(staticList.map((s) => s.id));
+    // card-* из БД — первыми, затем статика.
+    const merged = [
+      ...dbScenarios.filter((s) => !seen.has(s.id)),
+      ...staticList,
+    ];
+    if (!merged.length) return [];
     const q = query.trim().toLowerCase();
-    let list = scenarios.data.map((s, i) => ({
+    // summary из API может прийти словарём (старый формат) — приводим к строке,
+    // иначе рендер падает и остаётся только серый фон.
+    const summaryText = (s) => (typeof s.summary === 'string' ? s.summary : (s.summary ? JSON.stringify(s.summary) : ''));
+    let list = merged.map((s, i) => ({
       ...s,
-      num: incidentNo(i),
-      date: '17.09.26',
+      summary: summaryText(s),
+      num: s.id.startsWith('card-') ? 36900000 + parseInt(s.id.slice(5) || '0', 10) : incidentNo(i),
+      date: s.id.startsWith('card-') ? new Date().toLocaleDateString('ru-RU') : '17.09.26',
       time: `11:${String(11 + i).padStart(2, '0')}:0${i % 10}`,
-      addr: s.id === 'scn-001' || i === 1 ? 'Москва , (ТАО, Вороновское) , Троицкий административный округ' : 'Нет',
-      desc: s.summary,
+      addr: summaryText(s).includes('Москва') ? summaryText(s) : (s.id === 'scn-001' || i === 1 ? 'Москва , (ТАО, Вороновское) , Троицкий административный округ' : (summaryText(s) || 'Нет')),
+      desc: summaryText(s),
+      fromCard: s.id.startsWith('card-'),
     }));
     if (q) list = list.filter((r) => `${r.title} ${r.num} ${r.summary}`.toLowerCase().includes(q));
     return list;
-  }, [scenarios.data, query]);
+  }, [scenarios.data, dbScenarios, query]);
 
   const totalPages = Math.max(1, Math.ceil(rows.length / perPage));
   const pageRows = rows.slice((page - 1) * perPage, page * perPage);
@@ -61,9 +83,6 @@ export default function Dashboard() {
       <div className="layout">
         <SideNav role={user.role} />
         <main className="content">
-          <div className="dds-back">
-            <Link to="/">← Главная</Link>
-          </div>
           <div className="dds-search">
             <div className="dds-search-main">
               <h1>
@@ -118,7 +137,7 @@ export default function Dashboard() {
                     <td>{r.num}</td>
                     <td>{r.date}</td>
                     <td className="dds-time">{r.time}</td>
-                    <td className="wrap"><b>{r.title}</b></td>
+                    <td className="wrap"><b>{r.title}</b>{r.fromCard && <span className="badge"> из карточки</span>}</td>
                     <td>Нет</td>
                     <td className="dds-addr wrap">{r.addr}</td>
                     <td className="dds-status">🔕 Добавлена</td>

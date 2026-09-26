@@ -7,6 +7,27 @@ from database import get_connection, initialize_database, seed_scenarios_from_js
 router = APIRouter(prefix="/api/scenarios", tags=["scenarios"])
 
 
+def _summary_from_payload(payload: dict) -> str:
+    expected = payload.get("expected", {}) or {}
+    # Новый формат из карточек: готовая строка.
+    if isinstance(expected.get("address_str"), str) and expected["address_str"].strip():
+        return expected["address_str"]
+    addr = expected.get("address", "")
+    if isinstance(addr, str):
+        return addr or payload.get("title", "")
+    if isinstance(addr, dict):
+        if isinstance(addr.get("raw"), str) and addr["raw"].strip():
+            return addr["raw"]
+        parts = [
+            addr.get("subject") or addr.get("city") or "",
+            addr.get("street") and f"ул. {addr['street']}" or "",
+            addr.get("house") and f"д. {addr['house']}" or "",
+        ]
+        text = ", ".join(p for p in parts if p)
+        return text or payload.get("title", "")
+    return payload.get("title", "")
+
+
 @router.get("")
 async def list_scenarios():
     initialize_database()
@@ -35,9 +56,7 @@ async def list_scenarios():
                 "estimate_sec": payload.get("sla_answer_sec", 240),
                 "status": "done",
                 "best_score": None,
-                "summary": payload.get("expected", {}).get(
-                    "address", payload.get("title", "")
-                ),
+                "summary": _summary_from_payload(payload),
             }
         )
     return result

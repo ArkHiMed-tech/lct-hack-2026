@@ -17,7 +17,27 @@ import { categoryLabel, serviceLabel } from '../lib/meta';
 
 const SESSION_KEY = 'sim112-last-result';
 // Код происшествия по категории (как чёрная шапка «Происшествие 101» на Рисунке1).
-const GROUP_CODE = { fire: '101', police: '102', ambulance: '103', gas: '104', dth: '102' };
+const GROUP_CODE = { fire: '101', police: '102', ambulance: '103', gas: '104', dth: '102', 101: '101', 102: '102', 103: '103', 104: '104' };
+
+// Сценарий из БД (/api/scenarios/:id, в т.ч. card-*) с фолбэком на статику.
+function useScenario(id) {
+  const [state, setState] = useState({ data: null, loading: true, error: null });
+  useEffect(() => {
+    let cancelled = false;
+    setState({ data: null, loading: true, error: null });
+    fetch(`/api/scenarios/${id}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((data) => { if (!cancelled) setState({ data, loading: false, error: null }); })
+      .catch(() => {
+        fetch(`/data/scenarios/${id}.json`)
+          .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+          .then((data) => { if (!cancelled) setState({ data, loading: false, error: null }); })
+          .catch((err) => { if (!cancelled) setState({ data: null, loading: false, error: err.message }); });
+      });
+    return () => { cancelled = true; };
+  }, [id]);
+  return state;
+}
 const OKRUGA = ['ЦАО', 'САО', 'СВАО', 'ВАО', 'ЮВАО', 'ЮАО', 'ЮЗАО', 'ЗАО', 'СЗАО', 'ЗелАО', 'ТАО', 'НАО'];
 
 function stamp() {
@@ -31,7 +51,7 @@ export default function Simulator() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const scenario = useJson(`/data/scenarios/${id}.json`);
+  const scenario = useScenario(id);
   const rubric = useJson('/data/rubrics/rubric-112-base.json');
 
   const [status, setStatus] = useState('ringing');
@@ -70,6 +90,26 @@ export default function Simulator() {
   }, []);
 
   const timeline = scenario.data?.timeline ?? [];
+
+  // Предвыбор служб из карточки 112 (display-имена → id дока ДДС).
+  const DDS_BY_LABEL = { 'Служба 101': 'fire', 'Служба 104': 'gas', 'Служба 102': 'police', 'Деп. ЖКХ': 'utility', 'ЦЭМП': 'ambulance', 'Служба 103': 'ambulance', 'ЦОДД': 'codd', 'Мос.Без.': 'mosbez' };
+  const servicesSeeded = useRef(false);
+  useEffect(() => {
+    if (servicesSeeded.current || !scenario.data?.expected?.expected_services) return;
+    servicesSeeded.current = true;
+    const ids = (scenario.data.expected.expected_services || [])
+      .map((s) => DDS_BY_LABEL[s] ?? s)
+      .filter((s, i, a) => s && a.indexOf(s) === i);
+    if (ids.length) setServices(ids);
+    const a = scenario.data.expected.address;
+    if (a && typeof a === 'object' && !a.city) {
+      setAddrParts((p) => ({
+        ...p,
+        street: a.street ?? '', house: a.house ?? '', corpus: a.corpus ?? '',
+        flat: a.flat ?? '', okrug: a.okrug ?? '', rayon: a.rayon ?? '',
+      }));
+    }
+  }, [scenario.data]);
 
   useEffect(() => {
     if (status !== 'connected' || answeredAtRef.current === null) return;
@@ -184,7 +224,7 @@ export default function Simulator() {
   const incidentNum = 36814845;
   const groupCode = GROUP_CODE[sc.category] ?? '101';
   const expectedServices = sc.expected?.expected_services ?? [];
-  const city = sc.expected?.address?.city ?? 'Москва';
+  const city = sc.expected?.address?.city ?? sc.expected?.address?.subject ?? sc.expected?.address_str ?? 'Москва';
   const setPart = (k) => (e) => setAddrParts((p) => ({ ...p, [k]: e.target.value }));
   // Живая строка-сводка тэгов (как белая строка на Рисунке1).
   const tagSummary = [
@@ -199,8 +239,8 @@ export default function Simulator() {
       <AppHeader title={`Происшествие ${incidentNum}`} />
 
       <div className="dds-back dark">
-        <Link to="/incidents">← К списку происшествий</Link>
-        <Link to="/">На главную</Link>
+        <Link to="/">← К списку происшествий</Link>
+        <Link to="/card">Создать карточку</Link>
       </div>
 
       <div className="arm-wrap">
