@@ -3,6 +3,7 @@ import { useAuth, AuthProvider } from './context/AuthContext';
 import Login from './pages/Login';
 import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
+import Card112 from './pages/Card112';
 import Simulator from './pages/Simulator';
 import Results from './pages/Results';
 import Journal from './pages/Journal';
@@ -47,6 +48,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <Dashboard />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/card"
+            element={
+              <RequireAuth>
+                <Card112 />
               </RequireAuth>
             }
           />
