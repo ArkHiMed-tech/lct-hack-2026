@@ -1,9 +1,10 @@
-from fastapi import FastAPI
-from fastapi.concurrency import asynccontextmanager
-
 import os
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Query
 
 from database import DB_PATH, FRONTEND_DIST, initialize_database, initialize_dev_data
+from misc.incident_tree_api import get_incident_next_levels
 from routers.auth import router as auth_router
 from routers.connection import router as connection_router
 from routers.reports import router as reports_router
@@ -32,9 +33,27 @@ app = FastAPI(title="LCT Hack 2026 API", lifespan=lifespan)
 async def health() -> dict:
     return {
         "status": "ok",
+        "app_env": os.getenv("APP_ENV", "prod"),
         "frontend_build_exists": FRONTEND_DIST.exists(),
         "database_exists": DB_PATH.exists(),
     }
+
+
+@app.get("/api/incident-tree")
+async def incident_tree(
+    group1: str | None = Query(default=None),
+    group2: str | None = Query(default=None),
+    group3: str | None = Query(default=None),
+    group4: str | None = Query(default=None),
+    path: str | None = Query(default=None),
+):
+    return get_incident_next_levels(
+        group1=group1,
+        group2=group2,
+        group3=group3,
+        group4=group4,
+        path=path,
+    )
 
 
 app.include_router(auth_router)
