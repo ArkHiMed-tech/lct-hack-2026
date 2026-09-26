@@ -129,7 +129,7 @@ def transcribe_audio(pcm_data: bytes, **kwargs) -> dict:
     Returns:
         dict с результатами распознавания
     """
-    service = get_asr_service()
+    service = get_asr_service() # ОБРАТИТЬ ВНИМАНИЕ !!!
     return service.transcribe_pcm(pcm_data, **kwargs)
 
 
