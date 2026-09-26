@@ -44,16 +44,4 @@ app.include_router(sessions_router)
 app.include_router(results_router)
 app.include_router(reports_router)
 
-
-if FRONTEND_DIST.exists():
-
-    @app.get("/{full_path:path}")
-    async def serve_frontend(full_path: str):
-        if full_path.startswith("api/"):
-            raise HTTPException(status_code=404, detail="Not Found")
-
-        candidate = FRONTEND_DIST / full_path
-        if candidate.is_file():
-            return FileResponse(candidate)
-
-        return FileResponse(FRONTEND_DIST / "index.html")
+app.frontend('/', directory=str(FRONTEND_DIST))

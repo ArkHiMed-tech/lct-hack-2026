@@ -66,3 +66,9 @@ async def get_scenario(scenario_id: str):
         )
 
     return json.loads(row["payload"])
+
+
+@router.get("/generate")
+async def generate_scenarios():
+    ...
+    return {"message": "Scenarios generated"}
