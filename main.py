@@ -1,8 +1,7 @@
-from pathlib import Path
-import sqlite3
-import sys
-
 from fastapi import FastAPI
+from fastapi.concurrency import asynccontextmanager
+
+import os
 
 from database import DB_PATH, FRONTEND_DIST, initialize_database, initialize_dev_data
 from routers.auth import router as auth_router
