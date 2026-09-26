@@ -169,7 +169,49 @@
 .arm-icobtn { width: 38px; height: 38px; border: 1px solid #fff; background: transparent; color: #fff; font-size: 17px; cursor: pointer; }
 .arm-icobtn:hover { background: rgba(255,255,255,.15); }
 .arm-overhint { background: #fdecea; border: 1px solid #c0392b; color: #c0392b; font-size: 12px; font-weight: 600; padding: 6px 12px; margin-top: 6px; }
-@media (max-width: 1100px) { .arm-cols { grid-template-columns: 1fr; } .arm-phones { grid-template-columns: 1fr 1fr; } .arm-tagrow { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) { .arm-cols { grid-template-columns: 1fr; } .arm-phones { grid-template-columns: 1fr 1fr; } .arm-tagrow { grid-template-columns: 1fr; } .arm-toprow { flex-direction: column; } .arm-addr-grid { grid-template-columns: 1fr; } .arm-incident { min-width: 0; } }
+
+/* ===== Рабочее пространство тренажёра (Simulator по Рисунку1) ===== */
+.arm-toprow { display: flex; gap: 6px; align-items: stretch; }
+.arm-phones-sim { flex: 1; margin-top: 0; }
+.arm-chat { margin-left: auto; font-size: 14px; opacity: .7; }
+.arm-aohtag { font-size: 9px; border: 1px solid #999; padding: 1px 5px; color: #555; background: #e2e2e2; }
+.arm-incident { display: flex; align-items: stretch; background: #efefef; min-width: 330px; }
+.arm-incident-info { padding: 8px 12px; font-size: 12px; }
+.arm-incident-info b { font-size: 13px; }
+.arm-sidebtns { display: flex; flex-direction: column; }
+.arm-sidebtns button { border: none; font-size: 11px; padding: 8px 14px; cursor: pointer; color: #fff; flex: 1; }
+.arm-sidebtns .view { background: var(--dds-blue); }
+.arm-sidebtns .add { background: #232c36; }
+.arm-incident .call-timer { background: #232c36; color: #fff; padding: 4px 14px; text-align: center; display: flex; flex-direction: column; justify-content: center; }
+.arm-incident .call-timer-clock { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.arm-incident .call-timer-label { font-size: 10px; font-weight: 400; opacity: .8; }
+.arm-incident .call-timer.is-breached { background: #c0392b; }
+.arm-apptrio { font-size: 12px; color: #222; margin-left: auto; display: flex; align-items: center; flex-wrap: wrap; }
+.arm-badges { display: inline-flex; gap: 8px; align-items: center; }
+.arm-badge { border: 1px solid #666; background: #fff; font-size: 11px; font-weight: 700; padding: 4px 10px; }
+.arm-badge.red { color: #c0392b; border-color: #c0392b; }
+.arm-editbtn { width: 26px; height: 26px; border-radius: 50%; border: 1px solid #555; background: #fff; cursor: pointer; }
+.arm-addr-summary { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+.arm-pin { font-weight: 400; }
+.arm-addr-sub { font-size: 12px; color: #555; margin-bottom: 8px; }
+.arm-addr-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 12px; margin-bottom: 8px; }
+.arm-sumrow { background: #fff; margin: 4px; padding: 6px 8px; font-size: 12px; }
+.arm-blackhead { margin: 0; }
+.feed-time { font-size: 11px; color: #777; margin-left: 6px; font-variant-numeric: tabular-nums; }
+/* серая нижняя полоса тренажёра (в отличие от оранжевой на странице карточек) */
+.arm-services.sim-gray { background: #5f6b77; }
+.arm-services.sim-gray .dds-dock { background: transparent; flex: 1; min-width: 0; }
+.arm-services.sim-gray .dds-dock-label { color: #fff; }
+.arm-services.sim-gray .dds-service { color: #fff; border-left: 1px solid rgba(255,255,255,.4); }
+.arm-services.sim-gray .dds-service small { color: rgba(255,255,255,.85); }
+.arm-services.sim-gray .dds-service.active { background: rgba(255,255,255,.18); }
+.arm-services.sim-gray .dds-service.chosen { box-shadow: inset 0 -3px 0 #fff; }
+.arm-services.sim-gray .action-bar { background: transparent; padding: 0 0 0 8px; align-items: center; }
+.arm-services.sim-gray .btn-ghost { color: #fff; border-color: rgba(255,255,255,.8); }
+.arm-services.sim-gray .btn-ghost:hover { background: rgba(255,255,255,.15); }
+.arm-cols .panel { min-width: 0; }
+.arm-card .incident-form { padding: 0; background: transparent; }
 
 /* вложенные исполнители над доком (ОАТИ / поселения), как в ДДС */
 .dds-service.chosen { box-shadow: inset 0 -3px 0 var(--dds-blue); }
