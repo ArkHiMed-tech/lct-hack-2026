@@ -81,6 +81,11 @@ export default function Home() {
           )}
 
           <nav className="dds-tiles">
+            <Link to="/card" className="dds-tile">
+              <span className="dds-tile-ico">▤</span>
+              <span className="dds-tile-title">Создание карточек</span>
+              <span className="dds-tile-sub">Что случилось → ТЭГи → службы, как в АРМ</span>
+            </Link>
             <Link to="/incidents" className="dds-tile">
               <span className="dds-tile-ico">⌕</span>
               <span className="dds-tile-title">Поиск происшествий</span>

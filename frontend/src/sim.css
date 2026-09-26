@@ -96,6 +96,81 @@
   .dds-phones, .dds-meta, .dds-body, .dds-train { grid-template-columns: 1fr; }
 }
 
+/* ===== Карточка 112 (страница /card, визуал по скриншотам АРМ) ===== */
+.arm-wrap { background: #d7d7d7; padding: 6px; color: #222; }
+.arm-titlebar { background: #efefef; display: flex; align-items: center; gap: 12px; padding: 6px 12px; font-size: 15px; font-weight: 600; }
+.arm-titleinfo { font-size: 11px; font-weight: 400; color: #555; }
+.arm-timer { margin-left: auto; background: #232c36; color: #fff; font-size: 26px; font-weight: 800; padding: 2px 14px; line-height: 1.1; text-align: center; font-variant-numeric: tabular-nums; }
+.arm-timer small { display: block; font-size: 10px; font-weight: 400; }
+.arm-timer.over { background: #c0392b; }
+.arm-phones { display: grid; grid-template-columns: 240px 1fr 1fr 1fr; gap: 6px; margin-top: 6px; }
+.arm-phone { background: #efefef; display: flex; gap: 10px; align-items: center; padding: 8px 12px; }
+.arm-tel-ico { font-size: 22px; }
+.arm-phone small { font-size: 11px; color: #555; }
+.arm-telnum { font-size: 16px; border-bottom: 1px solid #1c7fb8; min-width: 140px; }
+.arm-minibtns { display: flex; gap: 6px; margin-top: 4px; }
+.arm-minibtns span { border: 1px solid #999; font-size: 10px; padding: 2px 8px; background: #e2e2e2; }
+.arm-appline { display: flex; gap: 12px; align-items: flex-end; background: #efefef; margin-top: 6px; padding: 8px 12px; font-size: 12px; flex-wrap: wrap; }
+.arm-appline label { display: flex; flex-direction: column; gap: 2px; color: #555; }
+.arm-appline input, .arm-appline select { border: none; border-bottom: 1px solid #999; background: transparent; font-size: 13px; padding: 3px 4px; min-width: 170px; outline: none; }
+.arm-appchips { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+.arm-appchip { border: 1px solid #999; background: #fff; font-size: 11px; font-weight: 600; padding: 6px 10px; cursor: pointer; line-height: 1.25; }
+.arm-appchip.sel { background: #1c7fb8; border-color: #1c7fb8; color: #fff; }
+.arm-appchip.red { color: #c0392b; border-color: #c0392b; }
+.arm-appchip.red.sel { background: #c0392b; color: #fff; }
+.arm-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; align-items: start; }
+.arm-card { background: #efefef; padding: 10px 12px; font-size: 12px; }
+.arm-cardhead { font-size: 13px; margin-bottom: 8px; }
+.arm-grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px 12px; margin-bottom: 8px; }
+.arm-grid5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px 12px; margin-bottom: 8px; }
+.arm-card label { display: flex; flex-direction: column; gap: 2px; color: #555; font-size: 11px; }
+.arm-card input, .arm-card select, .arm-card textarea { border: none; border-bottom: 1px solid #999; background: transparent; font-size: 13px; color: #222; padding: 3px 4px; outline: none; width: 100%; font-family: inherit; }
+.arm-block { margin: 4px 0 8px; }
+.arm-rowend { display: flex; justify-content: flex-end; }
+.arm-minibtn { border: 1px solid #999; background: #fff; font-size: 11px; padding: 3px 12px; cursor: pointer; }
+.arm-desc { margin-top: 10px; border-top: 1px solid #ccc; padding-top: 8px; }
+.arm-deschead { color: #555; font-size: 11px; margin-bottom: 4px; }
+.arm-desc textarea { border: none; background: transparent; resize: vertical; min-height: 110px; }
+.arm-counter { text-align: right; color: #777; font-size: 11px; }
+.arm-right { min-width: 0; }
+.arm-linkhead { background: none; border: none; color: #1c7fb8; font-size: 13px; cursor: pointer; padding: 0; margin-bottom: 8px; font-family: inherit; }
+.arm-what { font-size: 20px; padding: 4px; }
+.arm-searchwrap { position: relative; }
+.arm-typelist { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #bbb; max-height: 260px; overflow-y: auto; z-index: 60; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+.arm-typelist button { display: block; width: 100%; text-align: left; background: none; border: none; padding: 7px 12px; font-size: 13px; cursor: pointer; font-family: inherit; }
+.arm-typelist button:hover { background: #e8f3fa; }
+.arm-empty { display: block; padding: 8px 12px; color: #777; }
+.arm-quick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.arm-signif { margin-top: 10px; color: #555; }
+.arm-typechip { display: inline-block; border: 1px solid #999; background: #fff; font-size: 12px; padding: 4px 14px; margin-bottom: 8px; }
+.arm-blackhead { background: #232c36; color: #fff; font-size: 13px; font-weight: 600; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; }
+.arm-blackhead span { cursor: pointer; font-size: 16px; }
+.arm-tagpanel { background: #f7f7f7; border: 1px solid #ccc; border-top: none; padding: 6px 10px 12px; }
+.arm-tagrow { display: grid; grid-template-columns: 190px 1fr; gap: 8px; padding: 7px 0; border-bottom: 1px solid #e3e3e3; align-items: start; }
+.arm-taglabel { color: #777; font-size: 12px; padding-top: 5px; }
+.arm-tagopts { display: flex; flex-wrap: wrap; gap: 6px; }
+.arm-tag { border: 1px solid #888; background: #fff; font-size: 12px; padding: 5px 12px; cursor: pointer; font-family: inherit; }
+.arm-tag.sel { background: #1c7fb8; border-color: #1c7fb8; color: #fff; }
+.arm-tagdesc { border-bottom: 1px solid #999; }
+.arm-hint { color: #888; font-size: 11px; margin-top: 8px; }
+.arm-services { background: #ec4e1e; margin-top: 6px; display: flex; align-items: stretch; gap: 10px; padding: 8px 10px; min-height: 64px; }
+.arm-svclabel { color: #fff; font-size: 13px; display: flex; align-items: center; white-space: nowrap; }
+.arm-svcchips { display: flex; align-items: stretch; gap: 0; flex: 1; flex-wrap: wrap; }
+.arm-svc { color: #fff; font-size: 12px; font-weight: 600; border-left: 1px solid rgba(255,255,255,.4); padding: 4px 10px; display: flex; align-items: center; gap: 6px; }
+.arm-svc button { background: none; border: none; color: #fff; cursor: pointer; font-size: 14px; padding: 0 2px; }
+.arm-svcadd { position: relative; display: flex; align-items: center; }
+.arm-plus { width: 40px; height: 40px; border: 1px solid #fff; background: transparent; color: #fff; font-size: 22px; cursor: pointer; margin-left: 8px; }
+.arm-svcmenu { position: absolute; bottom: 48px; left: 0; background: #fff; border: 1px solid #bbb; z-index: 70; min-width: 170px; box-shadow: 0 6px 18px rgba(0,0,0,.3); }
+.arm-svcmenu button { display: block; width: 100%; text-align: left; background: none; border: none; padding: 7px 12px; font-size: 12px; cursor: pointer; font-family: inherit; }
+.arm-svcmenu button:hover { background: #e8f3fa; }
+.arm-actions { display: flex; align-items: center; gap: 6px; }
+.arm-save { background: transparent; border: 1px solid #fff; color: #fff; font-size: 15px; font-weight: 700; padding: 8px 22px; cursor: pointer; font-family: inherit; }
+.arm-save:hover { background: rgba(255,255,255,.15); }
+.arm-icobtn { width: 38px; height: 38px; border: 1px solid #fff; background: transparent; color: #fff; font-size: 17px; cursor: pointer; }
+.arm-icobtn:hover { background: rgba(255,255,255,.15); }
+.arm-overhint { background: #fdecea; border: 1px solid #c0392b; color: #c0392b; font-size: 12px; font-weight: 600; padding: 6px 12px; margin-top: 6px; }
+@media (max-width: 1100px) { .arm-cols { grid-template-columns: 1fr; } .arm-phones { grid-template-columns: 1fr 1fr; } .arm-tagrow { grid-template-columns: 1fr; } }
+
 /* вложенные исполнители над доком (ОАТИ / поселения), как в ДДС */
 .dds-service.chosen { box-shadow: inset 0 -3px 0 var(--dds-blue); }
 .dds-children {
