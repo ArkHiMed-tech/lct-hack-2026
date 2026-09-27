@@ -6,7 +6,8 @@
 // - Ветка 101, «Открытое пламя», но «Где» не выбрано: тоже только
 //   Где, Признак, Доступ — детализация (и всё ниже) появляется,
 //   когда выбрано конкретное «Где» (список опций — под него).
-// - Ветка 101, «Открытое пламя» + «Где»: видны все ряды.
+// - Ветка 101, «Открытое пламя» + «Где»: видны все ряды, кроме
+//   «Места происшествия» — оно только при «Где = Улица».
 // - Ветка 101, признак «Запах гари»: остаются Где, Признак, Доступ, Место
 //   и Описание; детализация, угроза, медпомощь, эвакуация, нарушение
 //   и газификация скрыты (значения очищаются, в БД не уходят).
@@ -69,16 +70,20 @@ export const FLAME_SIGN = 'Открытое пламя / Дым';
 export function visibleTagRows({ kind, title, tags }) {
   if (kind === 'fire101') {
     const sign = tags?.sign || '';
+    let rows;
     if (sign === SMELL_SIGN) {
-      return FIRE101_ROWS.filter((r) => !SMELL_HIDDEN.includes(r));
-    }
-    if (sign === FLAME_SIGN) {
+      rows = FIRE101_ROWS.filter((r) => !SMELL_HIDDEN.includes(r));
+    } else if (sign === FLAME_SIGN) {
       // Детализация имеет смысл только под конкретное «Где»
       // (улице — уличный список, транспорту — транспортный и т.д.).
       if (!tags?.where) return [...BASE_ROWS];
-      return [...FIRE101_ROWS];
+      rows = [...FIRE101_ROWS];
+    } else {
+      return [...BASE_ROWS];
     }
-    return [...BASE_ROWS];
+    // «Место происшествия» (тоннель / переход) — только при «Где = Улица».
+    if (tags?.where !== 'Улица') rows = rows.filter((r) => r !== 'place');
+    return rows;
   }
   if (INFO_TYPES.includes(title)) return [];
   return [...GENERIC_ROWS];
