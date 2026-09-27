@@ -184,5 +184,4 @@ node_modules/
 dist/
 *.local
 
-test.db
-db.db
+*.db

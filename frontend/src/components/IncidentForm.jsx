@@ -44,8 +44,10 @@ function FieldControl({ field, value, onChange }) {
   );
 }
 
-export default function IncidentForm({ scenario, values, onChange, disabled }) {
-  const fields = getFormFields(scenario);
+export default function IncidentForm({ scenario, values, onChange, disabled, pick, omit }) {
+  const all = getFormFields(scenario);
+  let fields = pick ? all.filter((f) => pick.includes(f.id)) : all;
+  if (omit) fields = fields.filter((f) => !omit.includes(f.id));
   if (!fields.length) return null;
 
   const filled = fields.filter((f) => {

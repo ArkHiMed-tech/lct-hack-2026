@@ -65,7 +65,7 @@ export default function Journal() {
         <SideNav role={user.role} />
         <main className="content">
           <div className="dds-back">
-            <Link to="/">← Главная</Link>
+            <Link to="/">← К списку происшествий</Link>
           </div>
           <PageTitle
             title="Журнал успеваемости"

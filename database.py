@@ -83,6 +83,9 @@ def _ensure_table_schema() -> None:
         if not _table_has_column(connection, "rubrics", "payload"):
             connection.execute("ALTER TABLE rubrics ADD COLUMN payload TEXT")
 
+        if not _table_has_column(connection, "incident_reports", "payload"):
+            connection.execute("ALTER TABLE incident_reports ADD COLUMN payload TEXT")
+
         connection.execute("""
             CREATE TABLE IF NOT EXISTS incident_reports (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

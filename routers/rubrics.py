@@ -17,14 +17,6 @@ async def get_rubric(rubric_id: str):
         ).fetchone()
 
     if row is None:
-        seed_rubrics_from_json()
-        with get_connection() as connection:
-            row = connection.execute(
-                "SELECT payload FROM rubrics WHERE id = ?",
-                (rubric_id,),
-            ).fetchone()
-
-    if row is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Rubric not found"
         )

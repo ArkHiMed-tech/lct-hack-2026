@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import useJson from '../hooks/useJson';
+import useCallSocket from '../hooks/useCallSocket';
 import { useAuth } from '../context/AuthContext';
 import AppHeader from '../components/AppHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -10,20 +11,47 @@ import CallTimer from '../components/CallTimer';
 import CallFeed from '../components/CallFeed';
 import ChatInput from '../components/ChatInput';
 import QuickReplyPanel from '../components/QuickReplyPanel';
-import IncidentForm from '../components/IncidentForm';
 import DispatchPanel from '../components/DispatchPanel';
-import ChecklistProgress from '../components/ChecklistProgress';
 import ActionBar from '../components/ActionBar';
-import { computeDraftPreview } from '../lib/scoring';
+import { categoryLabel, serviceLabel } from '../lib/meta';
 
 const SESSION_KEY = 'sim112-last-result';
+// Код происшествия по категории (как чёрная шапка «Происшествие 101» на Рисунке1).
+const GROUP_CODE = { fire: '101', police: '102', ambulance: '103', gas: '104', dth: '102', 101: '101', 102: '102', 103: '103', 104: '104' };
+
+// Сценарий из БД (/api/scenarios/:id, в т.ч. card-*) с фолбэком на статику.
+function useScenario(id) {
+  const [state, setState] = useState({ data: null, loading: true, error: null });
+  useEffect(() => {
+    let cancelled = false;
+    setState({ data: null, loading: true, error: null });
+    fetch(`/api/scenarios/${id}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((data) => { if (!cancelled) setState({ data, loading: false, error: null }); })
+      .catch(() => {
+        fetch(`/data/scenarios/${id}.json`)
+          .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+          .then((data) => { if (!cancelled) setState({ data, loading: false, error: null }); })
+          .catch((err) => { if (!cancelled) setState({ data: null, loading: false, error: err.message }); });
+      });
+    return () => { cancelled = true; };
+  }, [id]);
+  return state;
+}
+const OKRUGA = ['ЦАО', 'САО', 'СВАО', 'ВАО', 'ЮВАО', 'ЮАО', 'ЮЗАО', 'ЗАО', 'СЗАО', 'ЗелАО', 'ТАО', 'НАО'];
+
+function stamp() {
+  const n = new Date();
+  const p = (v) => String(v).padStart(2, '0');
+  return `${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}`;
+}
 
 export default function Simulator() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const scenario = useJson(`/data/scenarios/${id}.json`);
+  const scenario = useScenario(id);
   const rubric = useJson('/data/rubrics/rubric-112-base.json');
 
   const [status, setStatus] = useState('ringing');
@@ -36,9 +64,24 @@ export default function Simulator() {
   const [endedAtMs, setEndedAtMs] = useState(null);
   const [input, setInput] = useState('');
   const [toast, setToast] = useState(null);
+  // Части адреса из сетки (как на Рисунке1: округ/район/улица/дом/...).
+  const [addrParts, setAddrParts] = useState({ okrug: '', rayon: '', street: '', house: '', corpus: '', flat: '' });
 
   const startedAtRef = useRef(null);
   const answeredAtRef = useRef(null);
+  const voiceSeq = useRef(2000);
+  const voice = useCallSocket({
+    onServerMessage: (msg) => {
+      if (!msg || msg.type === 'ready' || msg.type === 'ended') return;
+      voiceSeq.current += 1;
+      setMessages((prev) => [
+        ...prev,
+        { seq: voiceSeq.current, sender: 'system', text: `Голосовой канал: ${msg.text ?? msg.type}`, time: stamp() },
+      ]);
+    },
+  });
+
+  useEffect(() => () => voice.disconnect(), []);
 
   useEffect(() => {
     startedAtRef.current = Date.now();
@@ -48,6 +91,26 @@ export default function Simulator() {
 
   const timeline = scenario.data?.timeline ?? [];
 
+  // Предвыбор служб из карточки 112 (display-имена → id дока ДДС).
+  const DDS_BY_LABEL = { 'Служба 101': 'fire', 'Служба 104': 'gas', 'Служба 102': 'police', 'Деп. ЖКХ': 'utility', 'ЦЭМП': 'ambulance', 'Служба 103': 'ambulance', 'ЦОДД': 'codd', 'Мос.Без.': 'mosbez' };
+  const servicesSeeded = useRef(false);
+  useEffect(() => {
+    if (servicesSeeded.current || !scenario.data?.expected?.expected_services) return;
+    servicesSeeded.current = true;
+    const ids = (scenario.data.expected.expected_services || [])
+      .map((s) => DDS_BY_LABEL[s] ?? s)
+      .filter((s, i, a) => s && a.indexOf(s) === i);
+    if (ids.length) setServices(ids);
+    const a = scenario.data.expected.address;
+    if (a && typeof a === 'object' && !a.city) {
+      setAddrParts((p) => ({
+        ...p,
+        street: a.street ?? '', house: a.house ?? '', corpus: a.corpus ?? '',
+        flat: a.flat ?? '', okrug: a.okrug ?? '', rayon: a.rayon ?? '',
+      }));
+    }
+  }, [scenario.data]);
+
   useEffect(() => {
     if (status !== 'connected' || answeredAtRef.current === null) return;
     const due = timeline.filter((m) => m.seq > sentSeq && answeredAtRef.current + m.t_sec * 1000 <= now);
@@ -55,33 +118,32 @@ export default function Simulator() {
     const maxSeq = Math.max(...due.map((m) => m.seq));
     setMessages((prev) => [
       ...prev,
-      ...due.map((m) => ({ seq: m.seq, sender: m.speaker, text: m.text, emotion: m.emotion })),
+      ...due.map((m) => ({ seq: m.seq, sender: m.speaker, text: m.text, emotion: m.emotion, time: stamp() })),
     ]);
     setSentSeq(maxSeq);
   }, [now, status, timeline, sentSeq]);
 
-  const live = useMemo(() => {
-    if (!scenario.data || !rubric.data) return null;
-    const session = {
-      messages, form, services,
-      dispatched: dispatchedAtMs != null,
-      dispatchedAtMs, endedAtMs: null,
-      answerLatencySec: answeredAtRef.current ? (answeredAtRef.current - startedAtRef.current) / 1000 : null,
-      call: scenario.data.call,
-    };
-    return computeDraftPreview(session, scenario.data, rubric.data, user);
-  }, [messages, form, services, dispatchedAtMs, scenario.data, rubric.data, user]);
-
-  const groups = live
-    ? Object.entries(live.scores).map(([gid, score]) => ({ id: gid, title: (rubric.data.groups.find((g) => g.id === gid) || {}).title ?? gid, score }))
-    : [];
-  const totalLive = live ? live.total_score / 100 : null;
+  // Склейка адреса из сетки в form.address (подстроковый матч токенов — скоринг цел).
+  useEffect(() => {
+    const city = scenario.data?.expected?.address?.city ?? 'Москва';
+    const bits = [`г. ${city}`];
+    if (addrParts.street.trim()) bits.push(`ул. ${addrParts.street.trim()}`);
+    if (addrParts.house.trim()) bits.push(`д. ${addrParts.house.trim()}`);
+    if (addrParts.corpus.trim()) bits.push(`корп. ${addrParts.corpus.trim()}`);
+    if (addrParts.flat.trim()) bits.push(`кв. ${addrParts.flat.trim()}`);
+    if (addrParts.okrug) bits.push(addrParts.okrug);
+    if (addrParts.rayon.trim()) bits.push(addrParts.rayon.trim());
+    const filled = Object.values(addrParts).some((v) => v.trim() !== '');
+    const composed = filled ? bits.join(', ') : '';
+    setForm((prev) => (prev.address === composed ? prev : { ...prev, address: composed }));
+  }, [addrParts, scenario.data]);
 
   const handleAnswer = () => {
     if (answeredAtRef.current || status !== 'ringing') return;
     answeredAtRef.current = Date.now();
     setStatus('connected');
-    setMessages((prev) => [...prev, { seq: Number.MAX_SAFE_INTEGER, sender: 'system', text: 'Вызов принят. Линия подключена.' }]);
+    voice.connect(id);
+    setMessages((prev) => [...prev, { seq: Number.MAX_SAFE_INTEGER, sender: 'system', text: 'Вызов принят. Линия подключена.', time: stamp() }]);
   };
 
   const nextUserSeq = useRef(1000);
@@ -89,24 +151,25 @@ export default function Simulator() {
     const text = input.trim();
     if (!text || status !== 'connected') return;
     nextUserSeq.current += 1;
-    setMessages((prev) => [...prev, { seq: nextUserSeq.current, sender: 'operator', text }]);
+    setMessages((prev) => [...prev, { seq: nextUserSeq.current, sender: 'operator', text, time: stamp() }]);
     setInput('');
   };
   const handleInsertQuick = (text) => setInput(text.replace(/\s+/g, ' '));
   const handleToggleService = (sid) => setServices((prev) => (prev.includes(sid) ? prev.filter((s) => s !== sid) : [...prev, sid]));
   const handleDispatch = () => {
     if (!services.length) {
-      setToast('Выберите хотя бы одну службу в нижнем доке «Службы».');
+      setToast('Выберите хотя бы одну службу в серой полосе «Службы» внизу.');
       return;
     }
     setDispatchedAtMs(Date.now());
     nextUserSeq.current += 1;
-    setMessages((prev) => [...prev, { seq: nextUserSeq.current, sender: 'system', text: `Вызов передан в службы: ${services.join(', ')}.` }]);
+    setMessages((prev) => [...prev, { seq: nextUserSeq.current, sender: 'system', text: `Вызов передан в службы: ${services.join(', ')}.`, time: stamp() }]);
   };
   const endingRef = useRef(false);
   const handleEnd = () => {
     if (endingRef.current) return;
     endingRef.current = true;
+    voice.disconnect();
     setEndedAtMs(Date.now());
   };
 
@@ -159,97 +222,154 @@ export default function Simulator() {
 
   const sc = scenario.data;
   const incidentNum = 36814845;
-  const lastMsg = [...messages].reverse().find((m) => m.sender === 'citizen');
+  const groupCode = GROUP_CODE[sc.category] ?? '101';
+  const expectedServices = sc.expected?.expected_services ?? [];
+  const city = sc.expected?.address?.city ?? sc.expected?.address?.subject ?? sc.expected?.address_str ?? 'Москва';
+  const setPart = (k) => (e) => setAddrParts((p) => ({ ...p, [k]: e.target.value }));
+  // Живая строка-сводка тэгов (как белая строка на Рисунке1).
+  const tagSummary = [
+    form.what || sc.title,
+    ...(form.factors ?? []),
+    form.threat ? `Угроза: ${form.threat}` : null,
+    form.conditions || null,
+  ].filter(Boolean).join(' . ');
 
   return (
     <div className="app-shell">
       <AppHeader title={`Происшествие ${incidentNum}`} />
 
       <div className="dds-back dark">
-        <Link to="/incidents">← К списку происшествий</Link>
-        <Link to="/">На главную</Link>
+        <Link to="/">← К списку происшествий</Link>
+        <Link to="/card">Создать карточку</Link>
       </div>
 
-      <div className="dds-card-title">Происшествие {incidentNum}</div>
-
-      <div className="dds-phones">
-        <div className="dds-phone">
-          <b>☎ Отключение</b>
-          <div className="mini-btns"><span>записи звонков</span><span>список SMS</span></div>
-        </div>
-        <div className="dds-phone"><b>☎ АОН</b><span className="tel">{sc.call?.phone ?? ''}</span></div>
-        <div className="dds-phone"><b>☎ предоставленный</b></div>
-        <div className="dds-phone"><b>☎ телефон на место</b></div>
-        <div style={{ display: 'flex', gap: 4 }}>
-          <div className="dds-incident-info" style={{ flex: 1 }}>
-            <b>Происшествие {incidentNum}</b>
-            <br />Сохр. 17.09.2026 в 11:12:43
-            <br />Опер. , АРМ 4, УМЦ О п
-          </div>
-          <div className="dds-side-btns">
-            <button type="button" className="view">просмотр</button>
-            <button type="button" className="add">дополнение</button>
-          </div>
-        </div>
-      </div>
-
-      <div className="dds-meta">
-        <div className="dds-meta-cell">ФИО заявителя</div>
-        <div className="dds-meta-cell">
-          Пострадавшие: нет &nbsp; Отказ от скорой: нет &nbsp; Заблокированные: нет &nbsp;&nbsp;
-          <span className="dds-badges">
-            <span className="dds-badge">ЧС ⚡</span>
-            <span className="dds-badge red">ЧП ⚠</span>
-            <button type="button" className="dds-edit" title="редактировать">✎</button>
-          </span>
-        </div>
-      </div>
-      <div className="dds-addr">
-        Россия, Москва, (ТАО, Вороновское)
-        <small>Троицкий административный округ</small>
-      </div>
-
-      <div className="dds-body">
-        <div className="dds-left-white">
-          <div className="t">17.09.2026 11:13:19 &nbsp; 0 УМЦ О.п.</div>
-          <div>{lastMsg ? lastMsg.text : sc.title}</div>
-          <div style={{ marginTop: 10, background: '#fff', border: '1px solid #ccc', padding: 8 }}>
-            <CallTimer startedAtMs={startedAtRef.current} answeredAtMs={answeredAtRef.current} />
-            <div style={{ marginTop: 8 }}>
-              <CallInfoPanel scenario={sc} status={status} callerKnown={false} />
+      <div className="arm-wrap">
+        {/* Верхний ряд как на Рисунке1: телефоны + инфо-блок + просмотр/дополнение */}
+        <div className="arm-toprow">
+          <div className="arm-phones arm-phones-sim">
+            <div className="arm-phone arm-off">
+              <span className="arm-tel-ico">☎</span>
+              <div><b>Отключение</b><div className="arm-minibtns"><span>записи звонков</span><span>список SMS</span></div></div>
+            </div>
+            <div className="arm-phone">
+              <span className="arm-tel-ico">☎</span>
+              <div><small>АОН</small><div className="arm-telnum">{sc.call?.phone ?? '+7 (__) __-__'}</div></div>
+              <span className="arm-chat">💬</span>
+            </div>
+            <div className="arm-phone">
+              <span className="arm-tel-ico">☎</span>
+              <div><small>предоставленный</small><div className="arm-telnum">+7 (__) __-__</div></div>
+              <span className="arm-aohtag">AOH</span>
+              <span className="arm-chat">💬</span>
+            </div>
+            <div className="arm-phone">
+              <span className="arm-tel-ico">☎</span>
+              <div><small>телефон на место</small><div className="arm-telnum">+7 (__) __-__</div></div>
+              <span className="arm-aohtag">AOH</span>
+              <span className="arm-chat">💬</span>
             </div>
           </div>
-        </div>
-        <div className="dds-right-gray">
-          <div className="h">Происшествие 101</div>
-          <div className="r">Дом . Открытое пламя / Дым (дом), Запах гари (дом) . Дом многоквартирный . квартира . Есть угроза людям . Есть газификация .</div>
-          <div className="r">Класс.: пожар: квартира ;</div>
-          <div className="r">[ВИС] Класс.:</div>
-          <div className="r">
-            <ChecklistProgress groups={groups} total={totalLive} />
+          <div className="arm-incident">
+            <div className="arm-incident-info">
+              <b>Происшествие {incidentNum}</b>
+              <br />Сохр. 17.09.2026 в 11:12:43
+              <br />Опер. , АРМ 4, УМЦ О п
+            </div>
+            <div className="arm-sidebtns">
+              <button type="button" className="view">просмотр</button>
+              <button type="button" className="add">дополнение</button>
+            </div>
+            <CallTimer startedAtMs={startedAtRef.current} answeredAtMs={answeredAtRef.current} />
           </div>
         </div>
-      </div>
 
-      <div className="dds-train">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <CallFeed messages={messages} connected={status !== 'ringing'} />
-          <div className="panel">
-            <ChatInput value={input} onChange={setInput} onSend={handleSend} disabled={status !== 'connected'} />
-            <QuickReplyPanel quickReplies={sc.quick_replies} onInsert={handleInsertQuick} disabled={status !== 'connected'} />
+        {/* Заявитель как на Рисунке1 */}
+        <div className="arm-appline">
+          <label>Фамилия и имя заявителя
+            <input
+              value={form.caller_name ?? ''}
+              onChange={(e) => setForm((prev) => ({ ...prev, caller_name: e.target.value }))}
+              disabled={!!endedAtMs}
+              placeholder=""
+            />
+          </label>
+          <div className="arm-apptrio">
+            Пострадавшие: {form.victims || 'нет'} &nbsp; Отказ от скорой: нет &nbsp; Заблокированные: нет &nbsp;&nbsp;
+            <span className="arm-badges">
+              <span className="arm-badge">ЧС ⚡</span>
+              <span className="arm-badge red">ЧП ⚠</span>
+              <button type="button" className="arm-editbtn" title="редактировать">✎</button>
+            </span>
           </div>
+        </div>
+
+        <div className="arm-cols">
+          {/* СЛЕВА: адрес (район) + логи вызова */}
+          <section style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+            <div className="arm-card">
+              <div className="arm-addr-summary">
+                Россия, {city}, ({addrParts.okrug || '…'}, {addrParts.rayon || addrParts.street || '…'}) <span className="arm-pin">📍</span>
+              </div>
+              <div className="arm-addr-sub">{form.address || 'адрес уточняется в диалоге'}</div>
+              <div className="arm-addr-grid">
+                <label>Округ:<select value={addrParts.okrug} onChange={setPart('okrug')} disabled={!!endedAtMs}><option value="">—</option>{OKRUGA.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>
+                <label>Район:<input value={addrParts.rayon} onChange={setPart('rayon')} disabled={!!endedAtMs} /></label>
+                <label>Улица:<input value={addrParts.street} onChange={setPart('street')} disabled={!!endedAtMs} /></label>
+                <label>Дом/Вл:<input value={addrParts.house} onChange={setPart('house')} disabled={!!endedAtMs} /></label>
+                <label>Корпус:<input value={addrParts.corpus} onChange={setPart('corpus')} disabled={!!endedAtMs} /></label>
+                <label>Квартира/офис:<input value={addrParts.flat} onChange={setPart('flat')} disabled={!!endedAtMs} /></label>
+              </div>
+            </div>
+            <div className="arm-card">
+              <div className="arm-cardhead">Логи вызова <span style={{ opacity: 0.7 }}>· голос: {voice.state}</span></div>
+              <CallFeed messages={messages} connected={status !== 'ringing'} />
+              <div style={{ marginTop: 8 }}>
+                <ChatInput value={input} onChange={setInput} onSend={handleSend} disabled={status !== 'connected'} />
+                <QuickReplyPanel quickReplies={sc.quick_replies} onInsert={handleInsertQuick} disabled={status !== 'connected'} />
+              </div>
+            </div>
+          </section>
+
+          {/* СПРАВА: заполненная карточка */}
+          <section style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+            <div className="arm-card">
+              <div className="arm-blackhead">Происшествие {groupCode}</div>
+              <div className="arm-sumrow">{tagSummary}</div>
+              <div className="arm-sumrow">Класс.: {categoryLabel(sc.category)}{form.what ? `: ${form.what}` : ''} ;</div>
+              <div className="arm-sumrow">[ВИС] Класс.:</div>
+              <div className="arm-tagpanel">
+                <div className="arm-tagrow">
+                  <div className="arm-taglabel">Ожидаемые службы</div>
+                  <div className="arm-tagopts">
+                    {expectedServices.length
+                      ? expectedServices.map((s) => <span key={s} className="arm-tag">{serviceLabel(s)}</span>)
+                      : <span className="arm-hint">определяются по ходу заполнения</span>}
+                  </div>
+                </div>
+                <div className="arm-tagrow">
+                  <div className="arm-taglabel">Выбрано служб</div>
+                  <div className="arm-tagopts">
+                    {services.length
+                      ? services.map((s) => <span key={s} className="arm-tag sel">{serviceLabel(s)}</span>)
+                      : <span className="arm-hint">отметьте в серой полосе внизу</span>}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <CallInfoPanel scenario={sc} status={status} callerKnown={false} />
+          </section>
+        </div>
+
+        {/* ВНИЗУ: серая полоса служб + действия */}
+        <div className="arm-services sim-gray">
+          <DispatchPanel scenario={sc} selected={services} onToggle={handleToggleService} disabled={!!dispatchedAtMs} />
           <ActionBar
             status={status} dispatched={dispatchedAtMs != null} servicesSelected={services.length > 0}
             onAnswer={handleAnswer} onDispatch={handleDispatch} onEnd={handleEnd}
             onRestart={() => window.location.reload()}
           />
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <IncidentForm scenario={sc} values={form} onChange={(fieldId, v) => setForm((prev) => ({ ...prev, [fieldId]: v }))} disabled={!!endedAtMs} />
-        </div>
       </div>
-
-      <DispatchPanel scenario={sc} selected={services} onToggle={handleToggleService} disabled={!!dispatchedAtMs} />
 
       {toast && (
         <div className="toast" role="status">
