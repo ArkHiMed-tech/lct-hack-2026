@@ -137,7 +137,7 @@ export default function Dashboard() {
                     <td>{r.num}</td>
                     <td>{r.date}</td>
                     <td className="dds-time">{r.time}</td>
-                    <td className="wrap"><b>{r.title}</b>{r.fromCard && <span className="badge"> из карточки</span>}</td>
+                    <td className="wrap"><b>{r.title}</b></td>
                     <td>Нет</td>
                     <td className="dds-addr wrap">{r.addr}</td>
                     <td className="dds-status">🔕 Добавлена</td>

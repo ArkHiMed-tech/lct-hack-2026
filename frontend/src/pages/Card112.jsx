@@ -142,7 +142,11 @@ export default function Card112() {
     setFormError('');
     if (selectedType) {
       const flat = Object.values(next).filter(Boolean);
-      setServices((prev) => [...new Set([...prev, ...autoServicesFor(selectedType.groups[0], flat)])]);
+      const auto = autoServicesFor(selectedType.groups[0], flat);
+      // «Да» плоского списка неоднозначно (угроза/медицина/эвакуация тоже «Да»),
+      // поэтому правонарушение проверяем явно по полю.
+      if ((next.violation === 'Да' || next.violation === 'Есть' || next.violation === 'Есть правонарушение') && !auto.includes('Служба 102')) auto.push('Служба 102');
+      setServices((prev) => [...new Set([...prev, ...auto])]);
     }
   };
 
@@ -344,7 +348,7 @@ export default function Card112() {
                           <TagRow label={detailLabel} options={detailOptions} value={tags.detail} onPick={(v) => setTag('detail', v)} />
                           <TagRow label="Место происшествия" options={tagSets.place} value={tags.place} onPick={(v) => setTag('place', v)} />
                           <TagRow label="Угроза людям" options={tagSets.threat} value={tags.threat} onPick={(v) => setTag('threat', v)} />
-                          <TagRow label="Правонарушение" options={['Есть', 'Нет']} value={tags.violation} onPick={(v) => setTag('violation', v)} />
+                          <TagRow label="Правонарушение" options={['Да', 'Нет']} value={tags.violation} onPick={(v) => setTag('violation', v)} />
                           <TagRow label="Медицинская помощь" options={tagSets.medical} value={tags.medical} onPick={(v) => setTag('medical', v)} />
                           <TagRow label="Требуется эвакуация" options={tagSets.evac} value={tags.evac} onPick={(v) => setTag('evac', v)} />
                           <TagRow label="Проведена ли газификация" options={tagSets.gas} value={tags.gas} onPick={(v) => setTag('gas', v)} />
