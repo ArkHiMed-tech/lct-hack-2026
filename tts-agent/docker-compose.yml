@@ -1,0 +1,15 @@
+services:
+  tts-agent:
+    build: .
+    container_name: tts_agent_service
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    # Если на сервере будет GPU, раскомментируй эти строки:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]

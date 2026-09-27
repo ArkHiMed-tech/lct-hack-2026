@@ -1,0 +1,24 @@
+# В твоем основном приложении (например, FastAPI)
+from fastapi import FastAPI, UploadFile, File
+from asr_service import transcribe_audio
+
+app = FastAPI()
+
+@app.post("/transcribe")
+async def transcribe_endpoint(file: UploadFile = File(...)):
+    # Читаем сырые PCM-данные
+    pcm_data = await file.read()
+    
+    # Распознаем речь
+    result = transcribe_audio(
+        pcm_data,
+        sample_rate=16000,  # Убедись, что клиент отправляет 16kHz
+        channels=1,         # Mono
+        sample_width=2      # 16-bit
+    )
+    
+    return {
+        "text": result["text"],
+        "segments": result["segments"],
+        "language": result["language"]
+    }
