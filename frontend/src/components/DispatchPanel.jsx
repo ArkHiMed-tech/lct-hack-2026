@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SERVICES } from '../lib/meta';
 
 // Полный состав дока как в АРМ ДДС: 101 / 104 / 102 / Деп. ЖКХ / ЦЭМП / ЦОДД / Мос.Без. / Мослифт
@@ -101,6 +101,15 @@ export default function DispatchPanel({ scenario, selected, onToggle, disabled }
   const [editing, setEditing] = useState(null);
   const [hist, setHist] = useState({});
   const [draft, setDraft] = useState({ status: 'Принята', order: '', comment: '' });
+  const dockRef = useRef(null);
+  // Клик вне дока — скрыть всплывающие окна служб.
+  useEffect(() => {
+    const onDown = (e) => {
+      if (dockRef.current && !dockRef.current.contains(e.target)) { setOpen(null); setEditing(null); }
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, []);
 
   const rowsOf = (id) => hist[id] ?? [{ t: stamp(), s: 'Добавлена', c: '' }];
 
@@ -125,7 +134,7 @@ export default function DispatchPanel({ scenario, selected, onToggle, disabled }
   const popProps = { editing, draft, setDraft, onEdit: (id) => { setEditing(id); setDraft({ status: 'Принята', order: '', comment: '' }); }, onSave: saveEdit, onCancel: () => setEditing(null) };
 
   return (
-    <div className="dds-dock">
+    <div className="dds-dock" ref={dockRef}>
       <div className="dds-dock-label">Службы:</div>
       {ordered.map((s) => {
         const last = rowsOf(s.id).slice(-1)[0];

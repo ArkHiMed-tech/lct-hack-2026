@@ -10,31 +10,27 @@ import {
   detailOptionsFor,
   autoServicesFor,
 } from '../lib/incidentClassifier';
+import { INFO_TYPES, SMELL_SIGN, visibleTagRows, pruneHiddenTags } from '../lib/tagVisibility';
 
 // Норматив набора карточки (сек). При превышении таймер краснеет (по ТЗ).
-const CARD_SLA_SEC = 30;
+const CARD_SLA_SEC = 75;
 const INCIDENT_NO = 36812195;
 
 const EMPTY_TAGS = {
   where: '', sign: '', access: '', detail: '',
   place: '', threat: '', violation: '', medical: '', evac: '', gas: '', tagDesc: '',
 };
-// Порядок каскада fire101: смена верхнего уровня сбрасывает всё ниже.
-const CASCADE_AFTER = {
-  where: ['sign', 'access', 'detail', 'place', 'threat', 'violation', 'medical', 'evac', 'gas'],
-  sign: ['access', 'detail', 'place', 'threat', 'violation', 'medical', 'evac', 'gas'],
-  access: ['detail', 'place', 'threat', 'violation', 'medical', 'evac', 'gas'],
-  detail: ['place', 'threat', 'violation', 'medical', 'evac', 'gas'],
-  place: ['threat', 'violation', 'medical', 'evac', 'gas'],
-  threat: ['violation', 'medical', 'evac', 'gas'],
-  violation: ['medical', 'evac', 'gas'],
-  medical: ['evac', 'gas'],
-  evac: ['gas'],
-  gas: [],
-};
+// Умный каскад fire101: из всех уровней от соседних зависит только
+// детализация (её список определяется «Где»), у остальных опции статичные.
+// Поэтому выбор нижних параметров никогда не сбрасывает верхние,
+// а смена «Где» чистит детализацию, только если значение стало невалидным.
 
 // Каталог служб (из скриншотов) — мок. BACKEND-READY: позже заменить на справочник с бэкенда.
 const SERVICE_CATALOG = ['Служба 101', 'Служба 102', 'Служба 103', 'Служба 104', 'Деп. ЖКХ', 'ЦЭМП', 'ЦОДД', 'Мосгортранс', 'Мос.Без.', 'ОАТИ', 'Гормост', 'Мосводоканал'];
+
+// Типы без выезда служб: автоподбор отключён полностью (вручную через «+» добавить можно).
+// Список живёт в lib/tagVisibility (там же используется для видимости ТЭГов).
+const isNoAutoType = (t) => !!t && INFO_TYPES.includes(t.title);
 
 const OKRUGA = ['ЦАО', 'САО', 'СВАО', 'ВАО', 'ЮВАО', 'ЮАО', 'ЮЗАО', 'ЗАО', 'СЗАО', 'ЗелАО', 'ТАО', 'НАО'];
 const APPLICANT_STATUS = ['Пострадавшие', 'Нет на месте/\nОтказ от скорой', 'Нет доступа/\nЗаблокированные', 'нет контакта', 'срыв звонка'];
@@ -65,7 +61,11 @@ export default function Card112() {
   const [selectedType, setSelectedType] = useState(null); // {title, groups, kind}
   const [tags, setTags] = useState({ ...EMPTY_TAGS });
   const [formError, setFormError] = useState('');
-  const [services, setServices] = useState([]);
+  // Службы: авто-подбор считается заново от типа+ТЭГов при каждом рендере,
+  // ручные добавления — в manualServices, снятые крестиком — в excludedServices
+  // (авто их больше не возвращает). Итог уходит в БД одним списком.
+  const [manualServices, setManualServices] = useState([]);
+  const [excludedServices, setExcludedServices] = useState([]);
   const [svcMenuOpen, setSvcMenuOpen] = useState(false);
   const [addr, setAddr] = useState({ country: '', subject: 'Москва', settlement: '', object: '', okrug: '', rayon: '', street: '', house: '', corpus: '', stroenie: '', flat: '', entrance: '', floor: '', code: '', descr: '' });
   const [applicant, setApplicant] = useState('');
@@ -94,6 +94,17 @@ export default function Card112() {
   }, []);
 
   const startedAtRef = useRef(Date.now());
+  const typeListRef = useRef(null);
+  const svcMenuRef = useRef(null);
+  // Клик вне всплывающих списков — скрыть их.
+  useEffect(() => {
+    const onDown = (e) => {
+      if (typeListRef.current && !typeListRef.current.contains(e.target)) setListOpen(false);
+      if (svcMenuRef.current && !svcMenuRef.current.contains(e.target)) setSvcMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, []);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     startedAtRef.current = Date.now();
@@ -107,6 +118,33 @@ export default function Card112() {
 
   const group = selectedType ? selectedType.groups[0] : null;
   const isFire = selectedType ? selectedType.kind === 'fire101' : false;
+
+  // Авто-службы: пересчёт от актуальных типа+ТЭГов (без залипания старых).
+  // При «Запахе гари» 102 и 104 не подбираются (ни за нарушение, ни за газ).
+  const autoServices = useMemo(() => {
+    if (!selectedType || isNoAutoType(selectedType)) return [];
+    const flat = Object.values(tags).filter(Boolean);
+    let auto = autoServicesFor(selectedType.groups[0], flat);
+    const hasViolation = tags.violation === 'Да' || tags.violation === 'Есть' || tags.violation === 'Есть правонарушение';
+    if (hasViolation && !auto.includes('Служба 102')) auto = [...auto, 'Служба 102'];
+    if (tags.medical === 'Да' && !auto.includes('Служба 103')) auto = [...auto, 'Служба 103'];
+    if (tags.sign === SMELL_SIGN) auto = auto.filter((s) => s !== 'Служба 102' && s !== 'Служба 104');
+    return [...new Set(auto)];
+  }, [selectedType, tags]);
+
+  const services = useMemo(
+    () => [...new Set([
+      ...autoServices.filter((s) => !excludedServices.includes(s)),
+      ...manualServices.filter((s) => !excludedServices.includes(s)),
+    ])],
+    [autoServices, manualServices, excludedServices],
+  );
+
+  // Видимые ряды ТЭГов по матрице lib/tagVisibility (скрытые значения чистятся в setTag).
+  const vis = useMemo(
+    () => visibleTagRows({ kind: selectedType?.kind, title: selectedType?.title, tags }),
+    [selectedType, tags],
+  );
 
   const filteredTypes = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -122,7 +160,8 @@ export default function Card112() {
     setTags({ ...EMPTY_TAGS });
     setFormError('');
     setSavedScenarioId(null);
-    setServices(autoServicesFor(t.groups[0], []));
+    setManualServices([]);
+    setExcludedServices([]);
   };
 
   const clearType = () => {
@@ -130,24 +169,21 @@ export default function Card112() {
     setTags({ ...EMPTY_TAGS });
     setFormError('');
     setSavedScenarioId(null);
-    setServices([]);
+    setManualServices([]);
+    setExcludedServices([]);
     setQuery('');
   };
 
   const setTag = (key, v) => {
-    const next = { ...tags, [key]: v };
-    // Каскадный сброс уровней ниже измененного.
-    for (const k of CASCADE_AFTER[key] || []) next[k] = '';
+    let next = { ...tags, [key]: v };
+    if (key === 'where' && next.detail && !detailOptionsFor(v, tagSets).includes(next.detail)) {
+      next.detail = '';
+    }
+    // Скрытые матрицей видимости ряды — очистить (не уйдут в БД и службы).
+    next = pruneHiddenTags(next, visibleTagRows({ kind: selectedType?.kind, title: selectedType?.title, tags: next }));
     setTags(next);
     setFormError('');
-    if (selectedType) {
-      const flat = Object.values(next).filter(Boolean);
-      const auto = autoServicesFor(selectedType.groups[0], flat);
-      // «Да» плоского списка неоднозначно (угроза/медицина/эвакуация тоже «Да»),
-      // поэтому правонарушение проверяем явно по полю.
-      if ((next.violation === 'Да' || next.violation === 'Есть' || next.violation === 'Есть правонарушение') && !auto.includes('Служба 102')) auto.push('Служба 102');
-      setServices((prev) => [...new Set([...prev, ...auto])]);
-    }
+    // Службы пересчитаются сами через autoServices (мемоизация от tags).
   };
 
   const validate = () => {
@@ -158,8 +194,18 @@ export default function Card112() {
   };
 
   const toggleAppStatus = (s) => setAppStatuses((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]));
-  const addService = (s) => { setServices((p) => (p.includes(s) ? p : [...p, s])); setSvcMenuOpen(false); };
-  const removeService = (s) => setServices((p) => p.filter((x) => x !== s));
+  // Ручное добавление: снимает службу из исключённых; если она уже есть в авто — отдельно не запоминаем.
+  const addService = (s) => {
+    setExcludedServices((p) => p.filter((x) => x !== s));
+    setManualServices((p) => (p.includes(s) || autoServices.includes(s) ? p : [...p, s]));
+    setSvcMenuOpen(false);
+  };
+  // Крестик: убирает службу из показа; авто-подбор её больше не вернёт
+  // (повторно добавить можно через «+»). Сбрасывается при смене типа.
+  const removeService = (s) => {
+    setManualServices((p) => p.filter((x) => x !== s));
+    setExcludedServices((p) => (p.includes(s) ? p : [...p, s]));
+  };
 
   const clearAddress = () => setAddr({ country: '', subject: 'Москва', settlement: '', object: '', okrug: '', rayon: '', street: '', house: '', corpus: '', stroenie: '', flat: '', entrance: '', floor: '', code: '', descr: '' });
 
@@ -307,7 +353,7 @@ export default function Card112() {
                 {!selectedType ? (
                   <div className="arm-card">
                     <div className="arm-linkhead">Введите тип происшествия <span className="arm-count">{types.length}</span></div>
-                    <div className="arm-searchwrap">
+                    <div className="arm-searchwrap" ref={typeListRef}>
                       <input
                         className="arm-what" value={query} placeholder="что случилось? (поиск по 51 типу)"
                         onChange={(e) => { setQuery(e.target.value); setListOpen(true); }}
@@ -342,16 +388,16 @@ export default function Card112() {
                     <div className="arm-tagpanel">
                       {isFire ? (
                         <>
-                          <TagRow label="Где" options={tagSets.where} value={tags.where} onPick={(v) => setTag('where', v)} />
-                          <TagRow label={signLabel} options={tagSets.sign} value={tags.sign} onPick={(v) => setTag('sign', v)} />
-                          <TagRow label="Доступ к людям" options={tagSets.access} value={tags.access} onPick={(v) => setTag('access', v)} />
-                          <TagRow label={detailLabel} options={detailOptions} value={tags.detail} onPick={(v) => setTag('detail', v)} />
-                          <TagRow label="Место происшествия" options={tagSets.place} value={tags.place} onPick={(v) => setTag('place', v)} />
-                          <TagRow label="Угроза людям" options={tagSets.threat} value={tags.threat} onPick={(v) => setTag('threat', v)} />
-                          <TagRow label="Правонарушение" options={['Да', 'Нет']} value={tags.violation} onPick={(v) => setTag('violation', v)} />
-                          <TagRow label="Медицинская помощь" options={tagSets.medical} value={tags.medical} onPick={(v) => setTag('medical', v)} />
-                          <TagRow label="Требуется эвакуация" options={tagSets.evac} value={tags.evac} onPick={(v) => setTag('evac', v)} />
-                          <TagRow label="Проведена ли газификация" options={tagSets.gas} value={tags.gas} onPick={(v) => setTag('gas', v)} />
+                          {vis.includes('where') && <TagRow label="Где" options={tagSets.where} value={tags.where} onPick={(v) => setTag('where', v)} />}
+                          {vis.includes('sign') && <TagRow label={signLabel} options={tagSets.sign} value={tags.sign} onPick={(v) => setTag('sign', v)} />}
+                          {vis.includes('access') && <TagRow label="Доступ к людям" options={tagSets.access} value={tags.access} onPick={(v) => setTag('access', v)} />}
+                          {vis.includes('detail') && <TagRow label={detailLabel} options={detailOptions} value={tags.detail} onPick={(v) => setTag('detail', v)} />}
+                          {vis.includes('place') && <TagRow label="Место происшествия" options={tagSets.place} value={tags.place} onPick={(v) => setTag('place', v)} />}
+                          {vis.includes('threat') && <TagRow label="Угроза людям" options={tagSets.threat} value={tags.threat} onPick={(v) => setTag('threat', v)} />}
+                          {vis.includes('violation') && <TagRow label="Правонарушение" options={['Да', 'Нет']} value={tags.violation} onPick={(v) => setTag('violation', v)} />}
+                          {vis.includes('medical') && <TagRow label="Медицинская помощь" options={tagSets.medical} value={tags.medical} onPick={(v) => setTag('medical', v)} />}
+                          {vis.includes('evac') && <TagRow label="Требуется эвакуация" options={tagSets.evac} value={tags.evac} onPick={(v) => setTag('evac', v)} />}
+                          {vis.includes('gas') && <TagRow label="Проведена ли газификация" options={tagSets.gas} value={tags.gas} onPick={(v) => setTag('gas', v)} />}
                           <div className="arm-tagrow">
                             <div className="arm-taglabel">Описание</div>
                             <input className="arm-tagdesc" value={tags.tagDesc} onChange={(e) => setTag('tagDesc', e.target.value)} placeholder="уточнение ТЭГа" />
@@ -359,16 +405,16 @@ export default function Card112() {
                         </>
                       ) : (
                         <>
-                          <TagRow label="Угроза людям" options={['Да', 'Нет']} value={tags.threat} onPick={(v) => setTag('threat', v)} />
-                          <TagRow label="Правонарушение" options={['Есть правонарушение']} value={tags.violation} onPick={(v) => setTag('violation', v)} />
-                          <TagRow label="Медицинская помощь" options={['Да', 'Нет']} value={tags.medical} onPick={(v) => setTag('medical', v)} />
-                          <TagRow label="Требуется эвакуация" options={['Да', 'Нет']} value={tags.evac} onPick={(v) => setTag('evac', v)} />
-                          <TagRow label="Проведена ли газификация" options={['Да', 'Нет', 'Нет данных']} value={tags.gas} onPick={(v) => setTag('gas', v)} />
+                          {vis.includes('threat') && <TagRow label="Угроза людям" options={['Да', 'Нет']} value={tags.threat} onPick={(v) => setTag('threat', v)} />}
+                          {vis.includes('violation') && <TagRow label="Правонарушение" options={['Есть правонарушение']} value={tags.violation} onPick={(v) => setTag('violation', v)} />}
+                          {vis.includes('medical') && <TagRow label="Медицинская помощь" options={['Да', 'Нет']} value={tags.medical} onPick={(v) => setTag('medical', v)} />}
+                          {vis.includes('evac') && <TagRow label="Требуется эвакуация" options={['Да', 'Нет']} value={tags.evac} onPick={(v) => setTag('evac', v)} />}
+                          {vis.includes('gas') && <TagRow label="Проведена ли газификация" options={['Да', 'Нет', 'Нет данных']} value={tags.gas} onPick={(v) => setTag('gas', v)} />}
                           <div className="arm-tagrow">
                             <div className="arm-taglabel">Описание</div>
                             <input className="arm-tagdesc" value={tags.tagDesc} onChange={(e) => setTag('tagDesc', e.target.value)} placeholder="уточнение" />
                           </div>
-                          <div className="arm-hint">Общая ветка ({group}): полный каскад 101 не применяется.</div>
+                          {vis.length > 0 && <div className="arm-hint">Общая ветка ({group}): полный каскад 101 не применяется.</div>}
                         </>
                       )}
                     </div>
@@ -385,7 +431,7 @@ export default function Card112() {
                 {services.map((s) => (
                   <span key={s} className="arm-svc">☎ {s} <button type="button" onClick={() => removeService(s)} title="убрать">×</button></span>
                 ))}
-                <div className="arm-svcadd">
+                <div className="arm-svcadd" ref={svcMenuRef}>
                   <button type="button" className="arm-plus" onClick={() => setSvcMenuOpen((v) => !v)}>+</button>
                   {svcMenuOpen && (
                     <div className="arm-svcmenu">
