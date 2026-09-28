@@ -71,6 +71,10 @@ export default function Simulator() {
   const [toast, setToast] = useState(null);
   // Части адреса из сетки (как на Рисунке1: округ/район/улица/дом/...).
   const [addrParts, setAddrParts] = useState({ okrug: '', rayon: '', street: '', house: '', corpus: '', flat: '' });
+  // Пост-карточка (мок по инструкции): записи + отработки + напоминание/важное.
+  const [otrab, setOtrab] = useState([]);
+  const [otrabDraft, setOtrabDraft] = useState('');
+  const [postNote, setPostNote] = useState(null);
 
   const startedAtRef = useRef(null);
   const answeredAtRef = useRef(null);
@@ -343,6 +347,26 @@ export default function Simulator() {
                 <ChatInput value={input} onChange={setInput} onSend={handleSend} disabled={status !== 'connected'} />
                 <QuickReplyPanel quickReplies={sc.quick_replies} onInsert={handleInsertQuick} disabled={status !== 'connected'} />
               </div>
+            </div>
+            <div className="arm-card">
+              <div className="arm-cardhead">Записи разговоров (мм:сс, скачать — мок) · Отработки · Дополнить / Отработана</div>
+              <div className="arm-hint">Записей пока нет — окно перемещается, плеер во всю ширину (мок).</div>
+              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                <input value={otrabDraft} onChange={(e) => setOtrabDraft(e.target.value)} placeholder="Служба / Куда / Телефон / Кто принял / Суть" disabled={!!endedAtMs} style={{ flex: 1 }} />
+                <button type="button" className="arm-minibtn" disabled={!otrabDraft.trim() || !!endedAtMs}
+                  onClick={() => { setOtrab((p) => [...p, otrabDraft.trim()]); setOtrabDraft(''); setPostNote('Отработка сохранена (мок).'); }}>
+                  ✓ (Enter)
+                </button>
+              </div>
+              {otrab.map((o, i) => <div key={i} className="arm-hint">• {o}</div>)}
+              <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                <button type="button" className="arm-minibtn" onClick={() => setPostNote('Режим «Дополнить»: доступны пустые поля + описание (мок).')}>дополнить</button>
+                <button type="button" className="arm-minibtn" onClick={() => setPostNote('Карточка «Отработана» (мок).')}>Отработана</button>
+                <button type="button" className="arm-minibtn" onClick={() => setPostNote('Будильник сохранен; при закрытой карточке — каждые 20 сек (мок).')}>🔔 напоминание</button>
+                <button type="button" className="arm-minibtn" onClick={() => setPostNote('Сигнал главному специалисту отправлен (мок).')}>✋ важное</button>
+                <button type="button" className="arm-minibtn" onClick={() => setPostNote('Сообщение в техподдержку отправлено (мок).')}>💬 ошибка</button>
+              </div>
+              {postNote && <div className="arm-hint">{postNote}</div>}
             </div>
           </section>
 

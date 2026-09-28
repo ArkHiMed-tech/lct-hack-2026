@@ -535,6 +535,39 @@ export const TAG_SETS = {
   ]
 };
 export const QUICK_TYPES = ['Отмена вызова','Тестовый вызов','Передача дежурства','ДТП','Консультация','Вызов на иностранном языке','Ошибочно набран номер','Справка 101','Справка 102','Справка 103'];
+// Значимые типы (плашки второго ряда, состав — по согласованию с руководством, мок).
+export const SIGNIFICANT_TYPES = ['ДТП', 'Человек в опасности', 'Взрыв', 'Обрушение', 'БПЛА', 'Ребенок в опасности'];
+// Синонимы для поиска (по инструкции: пожар=101, взрыв, обрушение, ДТП, вызов 03, запах газа, авария...).
+export const TYPE_SYNONYMS = {
+  '101': ['пожар', 'возгорание', 'горит'],
+  'взрыв': ['взрыв', 'хлопок'],
+  'обрушение': ['обрушение', 'обвал'],
+  'дтп': ['дтп', 'авария', 'аварии', 'столкновение'],
+  'аварии и происшествия на транспортных объектах': ['тран', 'транспорт'],
+  'вызов на иностранном языке': ['тран', 'иностранный', 'переводчик'],
+  'запах газа': ['газ', 'запах'],
+  'нападение': ['нападение', 'драка'],
+  'авиакатастрофа': ['авиа', 'самолет'],
+};
+// Каналы связи (мок справочника; автоопределение — по префиксу, см. Card112).
+export const CHANNELS = ['Теле2', 'МТС', 'Мегафон', 'Билайн', 'Городской', 'SIP', 'Рация', 'Тревожная кнопка'];
+// Нормализация для поиска: нижний регистр, без пунктуации, ё→е.
+export function normSearch(s) {
+  return String(s ?? '').toLowerCase().replace(/ё/g, 'е').replace(/[‐‑‒–—―.,;:!?()«»"']/g, ' ');
+}
+// Поиск типов с учетом синонимов и форм слов (порядок слов не важен).
+export function searchTypes(all, rawQuery) {
+  const tokens = normSearch(rawQuery).split(/\s+/).filter(Boolean);
+  if (!tokens.length) return all;
+  return all.filter((t) => {
+    const hay = normSearch(t.title + ' ' + (t.groups || []).join(' '));
+    const syn = Object.entries(TYPE_SYNONYMS)
+      .filter(([, words]) => words.some((w) => normSearch(t.title).includes(normSearch(w)) || normSearch(w) === normSearch(t.title)))
+      .flatMap(([, words]) => words.map(normSearch)).join(' ');
+    const full = hay + ' ' + syn;
+    return tokens.every((tok) => full.includes(tok));
+  });
+}
 export function detailOptionsFor(where, tagSets) {
   switch (where) {
     case 'Транспорт': return tagSets.transport_detail;
