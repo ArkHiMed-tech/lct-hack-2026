@@ -13,7 +13,12 @@ import ChatInput from '../components/ChatInput';
 import QuickReplyPanel from '../components/QuickReplyPanel';
 import DispatchPanel from '../components/DispatchPanel';
 import ActionBar from '../components/ActionBar';
-import { categoryLabel, serviceLabel } from '../lib/meta';
+import { categoryLabel } from '../lib/meta';
+import { SERVICE_DOCK_ID, LEGACY_SERVICE_DOCK_ID } from '../lib/serviceCatalog';
+
+// Полное имя из справочника СЛУЖБЫ 112 → id ячейки дока; плюс короткие
+// имена старых сохранений (до замены каталога).
+const DDS_BY_LABEL = { ...SERVICE_DOCK_ID, ...LEGACY_SERVICE_DOCK_ID };
 
 const SESSION_KEY = 'sim112-last-result';
 // Код происшествия по категории (как чёрная шапка «Происшествие 101» на Рисунке1).
@@ -91,8 +96,7 @@ export default function Simulator() {
 
   const timeline = scenario.data?.timeline ?? [];
 
-  // Предвыбор служб из карточки 112 (display-имена → id дока ДДС).
-  const DDS_BY_LABEL = { 'Служба 101': 'fire', 'Служба 104': 'gas', 'Служба 102': 'police', 'Деп. ЖКХ': 'utility', 'ЦЭМП': 'ambulance', 'Служба 103': 'ambulance', 'ЦОДД': 'codd', 'Мос.Без.': 'mosbez', 'Мослифт': 'moslift' };
+  // Предвыбор служб из карточки 112 (имена справочника → id дока ДДС).
   const DOCK_IDS = ['fire', 'gas', 'police', 'utility', 'ambulance', 'codd', 'mosbez', 'moslift'];
   // Карточный сценарий: id card-* или флаг from_card из publish.
   const isCardData = (d) => !!d && (!!d.from_card || String(d.id || '').startsWith('card-'));
@@ -230,7 +234,6 @@ export default function Simulator() {
   const sc = scenario.data;
   const incidentNum = 36814845;
   const groupCode = GROUP_CODE[sc.category] ?? '101';
-  const expectedServices = sc.expected?.expected_services ?? [];
   // Карточный режим: в серой полосе только службы из карточки, менять нельзя.
   const cardMode = isCardData(sc);
   const cardDockIds = cardMode
@@ -261,22 +264,22 @@ export default function Simulator() {
         <div className="arm-toprow">
           <div className="arm-phones arm-phones-sim">
             <div className="arm-phone arm-off">
-              <span className="arm-tel-ico">☎</span>
+              <span className="arm-tel-ico">📞</span>
               <div><b>Отключение</b><div className="arm-minibtns"><span>записи звонков</span><span>список SMS</span></div></div>
             </div>
             <div className="arm-phone">
-              <span className="arm-tel-ico">☎</span>
+              <span className="arm-tel-ico">📞</span>
               <div><small>АОН</small><div className="arm-telnum">{sc.call?.phone ?? '+7 (__) __-__'}</div></div>
               <span className="arm-chat">💬</span>
             </div>
             <div className="arm-phone">
-              <span className="arm-tel-ico">☎</span>
+              <span className="arm-tel-ico">📞</span>
               <div><small>предоставленный</small><div className="arm-telnum">+7 (__) __-__</div></div>
               <span className="arm-aohtag">AOH</span>
               <span className="arm-chat">💬</span>
             </div>
             <div className="arm-phone">
-              <span className="arm-tel-ico">☎</span>
+              <span className="arm-tel-ico">📞</span>
               <div><small>телефон на место</small><div className="arm-telnum">+7 (__) __-__</div></div>
               <span className="arm-aohtag">AOH</span>
               <span className="arm-chat">💬</span>
@@ -317,7 +320,7 @@ export default function Simulator() {
         </div>
 
         <div className="arm-cols">
-          {/* СЛЕВА: адрес (район) + логи вызова */}
+          {/* СЛЕВА: адрес (район) + логи происшествия */}
           <section style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
             <div className="arm-card">
               <div className="arm-addr-summary">
@@ -334,7 +337,7 @@ export default function Simulator() {
               </div>
             </div>
             <div className="arm-card">
-              <div className="arm-cardhead">Логи вызова <span style={{ opacity: 0.7 }}>· голос: {voice.state}</span></div>
+              <div className="arm-cardhead">Логи происшествия <span style={{ opacity: 0.7 }}>· голос: {voice.state}</span></div>
               <CallFeed messages={messages} connected={status !== 'ringing'} />
               <div style={{ marginTop: 8 }}>
                 <ChatInput value={input} onChange={setInput} onSend={handleSend} disabled={status !== 'connected'} />
@@ -350,24 +353,6 @@ export default function Simulator() {
               <div className="arm-sumrow">{tagSummary}</div>
               <div className="arm-sumrow">Класс.: {categoryLabel(sc.category)}{form.what ? `: ${form.what}` : ''} ;</div>
               <div className="arm-sumrow">[ВИС] Класс.:</div>
-              <div className="arm-tagpanel">
-                <div className="arm-tagrow">
-                  <div className="arm-taglabel">Ожидаемые службы</div>
-                  <div className="arm-tagopts">
-                    {expectedServices.length
-                      ? expectedServices.map((s) => <span key={s} className="arm-tag">{serviceLabel(s)}</span>)
-                      : <span className="arm-hint">определяются по ходу заполнения</span>}
-                  </div>
-                </div>
-                <div className="arm-tagrow">
-                  <div className="arm-taglabel">Выбрано служб</div>
-                  <div className="arm-tagopts">
-                    {services.length
-                      ? services.map((s) => <span key={s} className="arm-tag sel">{serviceLabel(s)}</span>)
-                      : <span className="arm-hint">отметьте в серой полосе внизу</span>}
-                  </div>
-                </div>
-              </div>
             </div>
             <CallInfoPanel scenario={sc} status={status} callerKnown={false} />
           </section>
