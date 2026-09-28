@@ -92,14 +92,17 @@ export default function Simulator() {
   const timeline = scenario.data?.timeline ?? [];
 
   // Предвыбор служб из карточки 112 (display-имена → id дока ДДС).
-  const DDS_BY_LABEL = { 'Служба 101': 'fire', 'Служба 104': 'gas', 'Служба 102': 'police', 'Деп. ЖКХ': 'utility', 'ЦЭМП': 'ambulance', 'Служба 103': 'ambulance', 'ЦОДД': 'codd', 'Мос.Без.': 'mosbez' };
+  const DDS_BY_LABEL = { 'Служба 101': 'fire', 'Служба 104': 'gas', 'Служба 102': 'police', 'Деп. ЖКХ': 'utility', 'ЦЭМП': 'ambulance', 'Служба 103': 'ambulance', 'ЦОДД': 'codd', 'Мос.Без.': 'mosbez', 'Мослифт': 'moslift' };
+  const DOCK_IDS = ['fire', 'gas', 'police', 'utility', 'ambulance', 'codd', 'mosbez', 'moslift'];
+  // Карточный сценарий: id card-* или флаг from_card из publish.
+  const isCardData = (d) => !!d && (!!d.from_card || String(d.id || '').startsWith('card-'));
   const servicesSeeded = useRef(false);
   useEffect(() => {
     if (servicesSeeded.current || !scenario.data?.expected?.expected_services) return;
     servicesSeeded.current = true;
     const ids = (scenario.data.expected.expected_services || [])
-      .map((s) => DDS_BY_LABEL[s] ?? s)
-      .filter((s, i, a) => s && a.indexOf(s) === i);
+      .map((s) => DDS_BY_LABEL[s])
+      .filter((s, i, a) => s && DOCK_IDS.includes(s) && a.indexOf(s) === i);
     if (ids.length) setServices(ids);
     const a = scenario.data.expected.address;
     if (a && typeof a === 'object' && !a.city) {
@@ -155,7 +158,11 @@ export default function Simulator() {
     setInput('');
   };
   const handleInsertQuick = (text) => setInput(text.replace(/\s+/g, ' '));
-  const handleToggleService = (sid) => setServices((prev) => (prev.includes(sid) ? prev.filter((s) => s !== sid) : [...prev, sid]));
+  // В карточном режиме службы заданы карточкой и менять их нельзя.
+  const handleToggleService = (sid) => {
+    if (isCardData(scenario.data)) return;
+    setServices((prev) => (prev.includes(sid) ? prev.filter((s) => s !== sid) : [...prev, sid]));
+  };
   const handleDispatch = () => {
     if (!services.length) {
       setToast('Выберите хотя бы одну службу в серой полосе «Службы» внизу.');
@@ -224,6 +231,12 @@ export default function Simulator() {
   const incidentNum = 36814845;
   const groupCode = GROUP_CODE[sc.category] ?? '101';
   const expectedServices = sc.expected?.expected_services ?? [];
+  // Карточный режим: в серой полосе только службы из карточки, менять нельзя.
+  const cardMode = isCardData(sc);
+  const cardDockIds = cardMode
+    ? [...new Set((sc.expected?.expected_services || []).map((s) => DDS_BY_LABEL[s]).filter((s) => s && DOCK_IDS.includes(s)))]
+    : null;
+  const cardExtras = cardMode ? (sc.expected?.expected_services || []).filter((s) => !DDS_BY_LABEL[s]) : [];
   const city = sc.expected?.address?.city ?? sc.expected?.address?.subject ?? sc.expected?.address_str ?? 'Москва';
   const setPart = (k) => (e) => setAddrParts((p) => ({ ...p, [k]: e.target.value }));
   // Живая строка-сводка тэгов (как белая строка на Рисунке1).
@@ -362,7 +375,7 @@ export default function Simulator() {
 
         {/* ВНИЗУ: серая полоса служб + действия */}
         <div className="arm-services sim-gray">
-          <DispatchPanel scenario={sc} selected={services} onToggle={handleToggleService} disabled={!!dispatchedAtMs} />
+          <DispatchPanel scenario={sc} selected={services} onToggle={handleToggleService} disabled={!!dispatchedAtMs} visibleIds={cardMode ? cardDockIds : null} locked={cardMode} extraLabels={cardExtras} />
           <ActionBar
             status={status} dispatched={dispatchedAtMs != null} servicesSelected={services.length > 0}
             onAnswer={handleAnswer} onDispatch={handleDispatch} onEnd={handleEnd}

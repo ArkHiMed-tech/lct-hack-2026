@@ -92,11 +92,11 @@ function HistPop({ title, rows, id, editing, draft, setDraft, onEdit, onSave, on
   );
 }
 
-export default function DispatchPanel({ scenario, selected, onToggle, disabled }) {
+export default function DispatchPanel({ scenario, selected, onToggle, disabled, visibleIds = null, locked = false, extraLabels = [] }) {
   void scenario;
   void disabled;
-  // Док ДДС всегда показывает полный состав служб, независимо от сценария
-  const ordered = DDS_ORDER;
+  // Карточный режим: показываем только службы из карточки.
+  const ordered = visibleIds ? DDS_ORDER.filter((s) => visibleIds.includes(s.id)) : DDS_ORDER;
   const [open, setOpen] = useState(null);
   const [editing, setEditing] = useState(null);
   const [hist, setHist] = useState({});
@@ -121,6 +121,7 @@ export default function DispatchPanel({ scenario, selected, onToggle, disabled }
   };
 
   const handleCell = (sid) => {
+    if (locked) return; // карточный режим: службы заданы карточкой, менять нельзя
     if (!selected.includes(sid)) onToggle(sid);
     setOpen(open === sid ? null : sid);
     setEditing(null);
@@ -171,10 +172,26 @@ export default function DispatchPanel({ scenario, selected, onToggle, disabled }
           </div>
         );
       })}
-      <div className="dds-service" style={{ minWidth: 60 }}>
-        <span className="caret">∨</span>
-        <b>⋯</b>
-      </div>
+      {locked && ordered.length === 0 && extraLabels.length === 0 && (
+        <div className="dds-service" title="Службы не назначались">
+          <span className="caret"> </span>
+          <b>—</b>
+          <small>службы не назначались</small>
+        </div>
+      )}
+      {extraLabels.map((label) => (
+        <div key={label} className="dds-service chosen" title={`${label} (из карточки)`}>
+          <span className="caret"> </span>
+          <b>{label}</b>
+          <small>из карточки</small>
+        </div>
+      ))}
+      {!locked && (
+        <div className="dds-service" style={{ minWidth: 60 }}>
+          <span className="caret">∨</span>
+          <b>⋯</b>
+        </div>
+      )}
     </div>
   );
 }
