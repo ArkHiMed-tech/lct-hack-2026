@@ -92,15 +92,18 @@ function HistPop({ title, rows, id, editing, draft, setDraft, onEdit, onSave, on
   );
 }
 
-export default function DispatchPanel({ scenario, selected, onToggle, disabled }) {
-  void scenario;
+export default function DispatchPanel({ scenario, selected, onToggle, disabled, visibleIds = null, locked = false, extraLabels = [] }) {
   void disabled;
-  // Док ДДС всегда показывает полный состав служб, независимо от сценария
-  const ordered = DDS_ORDER;
+  // Карточный режим: показываем только службы из карточки.
+  const ordered = visibleIds ? DDS_ORDER.filter((s) => visibleIds.includes(s.id)) : DDS_ORDER;
   const [open, setOpen] = useState(null);
   const [editing, setEditing] = useState(null);
   const [hist, setHist] = useState({});
   const [draft, setDraft] = useState({ status: 'Принята', order: '', comment: '' });
+  // Вторая строка ячеек (после первых 8) — по кнопке правее.
+  const [dockExpanded, setDockExpanded] = useState(false);
+  const scenarioId = scenario?.id ?? null;
+  useEffect(() => { setDockExpanded(false); }, [scenarioId]);
   const dockRef = useRef(null);
   // Клик вне дока — скрыть всплывающие окна служб.
   useEffect(() => {
@@ -121,6 +124,7 @@ export default function DispatchPanel({ scenario, selected, onToggle, disabled }
   };
 
   const handleCell = (sid) => {
+    if (locked) return; // карточный режим: службы заданы карточкой, менять нельзя
     if (!selected.includes(sid)) onToggle(sid);
     setOpen(open === sid ? null : sid);
     setEditing(null);
@@ -133,47 +137,94 @@ export default function DispatchPanel({ scenario, selected, onToggle, disabled }
 
   const popProps = { editing, draft, setDraft, onEdit: (id) => { setEditing(id); setDraft({ status: 'Принята', order: '', comment: '' }); }, onSave: saveEdit, onCancel: () => setEditing(null) };
 
+  const renderCell = (s) => {
+    const last = rowsOf(s.id).slice(-1)[0];
+    const children = DDS_CHILDREN[s.id] ?? [];
+    return (
+      <div
+        key={s.id}
+        className={`dds-service ${open === s.id ? 'active' : ''} ${selected.includes(s.id) ? 'chosen' : ''}`}
+        onClick={() => handleCell(s.id)}
+        title={SERVICES[s.id] ?? s.dds}
+      >
+        <span className="arm-svctel">📞</span>
+        <b>{s.dds}</b>
+        <small>11:14 {last.s}</small>
+        {open === s.id && children.length === 0 && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <HistPop title={s.dds} rows={rowsOf(s.id)} id={s.id} onClose={() => setOpen(null)} {...popProps} />
+          </div>
+        )}
+        {open === s.id && children.length > 0 && (
+          <div className="dds-children" onClick={(e) => e.stopPropagation()}>
+            {children.map((ch) => (
+              <HistPop
+                key={ch.id}
+                pos="static"
+                title={CHILD_LABELS[ch.id] ?? ch.dds}
+                rows={rowsOf(ch.id)}
+                id={ch.id}
+                {...popProps}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Все видимые элементы дока одним списком: ячейки + заглушка + доп. службы.
+  // Первая линия — максимум 8, остальные уходят во вторую строку по кнопке.
+  const DOCK_PAGE = 8;
+  const dockItems = [
+    ...ordered.map((s) => ({ key: s.id, node: renderCell(s) })),
+    ...(locked && ordered.length === 0 && extraLabels.length === 0
+      ? [{
+        key: '__none__',
+        node: (
+          <div className="dds-service" title="Службы не назначались">
+            <span className="arm-svctel">📞</span>
+            <b>—</b>
+            <small>службы не назначались</small>
+          </div>
+        ),
+      }]
+      : []),
+    ...extraLabels.map((label) => ({
+      key: label,
+      node: (
+        <div key={label} className="dds-service chosen" title={`${label} (из карточки)`}>
+          <span className="arm-svctel">📞</span>
+          <b>{label}</b>
+          <small>из карточки</small>
+        </div>
+      ),
+    })),
+  ];
+  const dockHidden = Math.max(0, dockItems.length - DOCK_PAGE);
+
   return (
     <div className="dds-dock" ref={dockRef}>
       <div className="dds-dock-label">Службы:</div>
-      {ordered.map((s) => {
-        const last = rowsOf(s.id).slice(-1)[0];
-        const children = DDS_CHILDREN[s.id] ?? [];
-        return (
-          <div
-            key={s.id}
-            className={`dds-service ${open === s.id ? 'active' : ''} ${selected.includes(s.id) ? 'chosen' : ''}`}
-            onClick={() => handleCell(s.id)}
-            title={SERVICES[s.id] ?? s.dds}
-          >
-            <span className="caret">∧</span>
-            <b>{s.dds}</b>
-            <small>11:14 {last.s}</small>
-            {open === s.id && children.length === 0 && (
-              <div onClick={(e) => e.stopPropagation()}>
-                <HistPop title={s.dds} rows={rowsOf(s.id)} id={s.id} onClose={() => setOpen(null)} {...popProps} />
-              </div>
-            )}
-            {open === s.id && children.length > 0 && (
-              <div className="dds-children" onClick={(e) => e.stopPropagation()}>
-                {children.map((ch) => (
-                  <HistPop
-                    key={ch.id}
-                    pos="static"
-                    title={CHILD_LABELS[ch.id] ?? ch.dds}
-                    rows={rowsOf(ch.id)}
-                    id={ch.id}
-                    {...popProps}
-                  />
-                ))}
-              </div>
-            )}
+      <div className="dds-dockrows">
+        <div className="dds-dockrow">
+          {dockItems.slice(0, DOCK_PAGE).map((i) => i.node)}
+          {dockHidden > 0 && (
+            <button
+              type="button"
+              className="dds-dockmore"
+              onClick={() => setDockExpanded((v) => !v)}
+              title={dockExpanded ? 'свернуть вторую строку' : `показать ещё ${dockHidden}`}
+            >
+              {dockExpanded ? '△' : `+${dockHidden} ▽`}
+            </button>
+          )}
+        </div>
+        {dockExpanded && dockHidden > 0 && (
+          <div className="dds-dockrow">
+            {dockItems.slice(DOCK_PAGE).map((i) => i.node)}
           </div>
-        );
-      })}
-      <div className="dds-service" style={{ minWidth: 60 }}>
-        <span className="caret">∨</span>
-        <b>⋯</b>
+        )}
       </div>
     </div>
   );

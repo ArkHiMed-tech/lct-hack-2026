@@ -11,6 +11,7 @@ import {
   autoServicesFor,
 } from '../lib/incidentClassifier';
 import { INFO_TYPES, SMELL_SIGN, visibleTagRows, pruneHiddenTags } from '../lib/tagVisibility';
+import { SERVICE_CATALOG, SVC_102, SVC_103, SVC_104, serviceShortName } from '../lib/serviceCatalog';
 
 // Норматив набора карточки (сек). При превышении таймер краснеет (по ТЗ).
 const CARD_SLA_SEC = 75;
@@ -25,8 +26,8 @@ const EMPTY_TAGS = {
 // Поэтому выбор нижних параметров никогда не сбрасывает верхние,
 // а смена «Где» чистит детализацию, только если значение стало невалидным.
 
-// Каталог служб (из скриншотов) — мок. BACKEND-READY: позже заменить на справочник с бэкенда.
-const SERVICE_CATALOG = ['Служба 101', 'Служба 102', 'Служба 103', 'Служба 104', 'Деп. ЖКХ', 'ЦЭМП', 'ЦОДД', 'Мосгортранс', 'Мос.Без.', 'ОАТИ', 'Гормост', 'Мосводоканал'];
+// Каталог служб — полный справочник из тз/СЛУЖБЫ 112.docx (lib/serviceCatalog).
+// BACKEND-READY: позже заменить на справочник с бэкенда.
 
 // Типы без выезда служб: автоподбор отключён полностью (вручную через «+» добавить можно).
 // Список живёт в lib/tagVisibility (там же используется для видимости ТЭГов).
@@ -126,9 +127,9 @@ export default function Card112() {
     const flat = Object.values(tags).filter(Boolean);
     let auto = autoServicesFor(selectedType.groups[0], flat);
     const hasViolation = tags.violation === 'Да' || tags.violation === 'Есть' || tags.violation === 'Есть правонарушение';
-    if (hasViolation && !auto.includes('Служба 102')) auto = [...auto, 'Служба 102'];
-    if (tags.medical === 'Да' && !auto.includes('Служба 103')) auto = [...auto, 'Служба 103'];
-    if (tags.sign === SMELL_SIGN) auto = auto.filter((s) => s !== 'Служба 102' && s !== 'Служба 104');
+    if (hasViolation && !auto.includes(SVC_102)) auto = [...auto, SVC_102];
+    if (tags.medical === 'Да' && !auto.includes(SVC_103)) auto = [...auto, SVC_103];
+    if (tags.sign === SMELL_SIGN) auto = auto.filter((s) => s !== SVC_102 && s !== SVC_104);
     return [...new Set(auto)];
   }, [selectedType, tags]);
 
@@ -194,10 +195,12 @@ export default function Card112() {
   };
 
   const toggleAppStatus = (s) => setAppStatuses((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]));
-  // Ручное добавление: снимает службу из исключённых; если она уже есть в авто — отдельно не запоминаем.
+  // Ручное добавление: запоминаем ВСЕГДА (даже если служба сейчас есть в авто —
+  // иначе при смене ТЭГов авто её роняет и ручной выбор теряется).
+  // Снимает службу из исключённых.
   const addService = (s) => {
     setExcludedServices((p) => p.filter((x) => x !== s));
-    setManualServices((p) => (p.includes(s) || autoServices.includes(s) ? p : [...p, s]));
+    setManualServices((p) => (p.includes(s) ? p : [...p, s]));
     setSvcMenuOpen(false);
   };
   // Крестик: убирает службу из показа; авто-подбор её больше не вернёт
@@ -216,6 +219,10 @@ export default function Card112() {
     setSavedScenarioId(null);
     const addrStr = [addr.subject, addr.okrug && `округ ${addr.okrug}`, addr.street && `ул. ${addr.street}`, addr.house && `д. ${addr.house}`]
       .filter(Boolean).join(', ');
+    // Итог в БД: авто (минус снятые крестиком) + ВСЕ ручные. Ручные не теряются,
+    // даже если совпадают с авто или ТЭГи менялись после добавления.
+    const finalServices = [...services];
+    const manualCount = manualServices.filter((s) => !excludedServices.includes(s)).length;
     const payload = {
       user_id: user?.id ?? null,
       what: selectedType.title,
@@ -227,7 +234,8 @@ export default function Card112() {
       caller_statuses: appStatuses,
       factors: Object.entries(tags).filter(([, v]) => v).map(([k, v]) => `${k}:${v}`),
       tags,
-      services,
+      services: finalServices,
+      services_manual: manualServices.filter((s) => !excludedServices.includes(s)),
       description: desc,
       elapsed_sec: elapsedSec,
       overtime,
@@ -244,7 +252,7 @@ export default function Card112() {
         if (pub.ok) scenarioId = (await pub.json()).scenario_id ?? null;
       } catch { /* карточка уже в БД, происшествие создадим позже */ }
       if (scenarioId) setSavedScenarioId(scenarioId);
-      setToast(`Сохранено в БД: «${selectedType.title}», карточка №${data.report_id}${scenarioId ? `, происшествие ${scenarioId}` : ''}.`);
+      setToast(`Сохранено в БД: «${selectedType.title}», карточка №${data.report_id}${scenarioId ? `, происшествие ${scenarioId}` : ''}, служб: ${finalServices.length} (авто: ${finalServices.length - manualCount}, вручную: ${manualCount}).`);
     } catch {
       console.log('[card112 save fallback]', payload);
       setToast(`Бэкенд недоступен — мок-сохранение: «${selectedType.title}», служб: ${services.length}.`);
@@ -283,12 +291,12 @@ export default function Card112() {
             {/* Телефоны */}
             <div className="arm-phones">
               <div className="arm-phone arm-off">
-                <span className="arm-tel-ico">☎</span>
+                <span className="arm-tel-ico">📞</span>
                 <div><b>Отключение</b><div className="arm-minibtns"><span>записи звонков</span><span>список SMS</span></div></div>
               </div>
               {[['АОН', 0], ['предоставленный', 1], ['телефон на место', 2]].map(([label]) => (
                 <div className="arm-phone" key={label}>
-                  <span className="arm-tel-ico">☎</span>
+                  <span className="arm-tel-ico">📞</span>
                   <div><small>{label}</small><div className="arm-telnum">+7 (__) __-__</div></div>
                 </div>
               ))}
@@ -429,7 +437,7 @@ export default function Card112() {
               <span className="arm-svclabel">Службы:</span>
               <div className="arm-svcchips">
                 {services.map((s) => (
-                  <span key={s} className="arm-svc">☎ {s} <button type="button" onClick={() => removeService(s)} title="убрать">×</button></span>
+                  <span key={s} className="arm-svc" title={s}><span className="arm-svctel">📞</span> <span className="arm-svcname">{serviceShortName(s)}</span> <button type="button" onClick={() => removeService(s)} title="убрать">×</button></span>
                 ))}
                 <div className="arm-svcadd" ref={svcMenuRef}>
                   <button type="button" className="arm-plus" onClick={() => setSvcMenuOpen((v) => !v)}>+</button>

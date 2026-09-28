@@ -1,4 +1,8 @@
 // Сгенерировано из misc/incident_graph.json (ТЗ КАРТОЧКА 112.docx). Не править вручную.
+import {
+  SVC_101, SVC_102, SVC_103, SVC_104, SVC_JKH, SVC_CEMP,
+  SVC_CODD, SVC_MOSTRANS, SVC_MOSBEZ,
+} from './serviceCatalog';
 export const INCIDENT_TYPES = [
   {
     "title": "101",
@@ -543,16 +547,16 @@ export function detailOptionsFor(where, tagSets) {
 export function autoServicesFor(group, tags) {
   const out = [];
   const push = (s) => { if (!out.includes(s)) out.push(s); };
-  if (group === '101') push('Служба 101');
-  if (group === '102') push('Служба 102');
-  if (group === '103') { push('Служба 103'); push('ЦЭМП'); }
-  if (group === '104') push('Деп. ЖКХ');
+  if (group === '101') push(SVC_101);
+  if (group === '102') push(SVC_102);
+  if (group === '103') { push(SVC_103); push(SVC_CEMP); }
+  if (group === '104') push(SVC_JKH);
   const t = (tags || []).join(' ');
-  if (/Транспорт|Общественный|Автомашина|Метро|Мост|Тоннель|Эстакада|МЦК|Ж\/Д|Вокзал|Аэропорт|ДТП с пожаром/.test(t)) { push('ЦОДД'); push('Мосгортранс'); }
-  if (/Мусор|Парк|Лес|Торф|Трава|Дерево|ЛЭП|Провода|Мачта|Опора/.test(t)) push('Деп. ЖКХ');
-  if (/Угроза людям - Да|Медицинская помощь - Да/.test(t)) push('ЦЭМП');
-  if (/Правонарушение - Есть|Есть правонарушение/.test(t) || (tags || []).includes('Есть')) push('Служба 102');
-  if (/Требуется эвакуация - Да/.test(t)) push('Мос.Без.');
-  if (/Газификация - Да/.test(t)) push('Служба 104');
+  if (/Транспорт|Общественный|Автомашина|Метро|Мост|Тоннель|Эстакада|МЦК|Ж\/Д|Вокзал|Аэропорт|ДТП с пожаром/.test(t)) { push(SVC_CODD); push(SVC_MOSTRANS); }
+  if (/Мусор|Парк|Лес|Торф|Трава|Дерево|ЛЭП|Провода|Мачта|Опора/.test(t)) push(SVC_JKH);
+  if (/Угроза людям - Да|Медицинская помощь - Да/.test(t)) push(SVC_CEMP);
+  if (/Правонарушение - Есть|Есть правонарушение/.test(t) || (tags || []).includes('Есть')) push(SVC_102);
+  if (/Требуется эвакуация - Да/.test(t)) push(SVC_MOSBEZ);
+  if (/Газификация - Да/.test(t)) push(SVC_104);
   return out;
 }
