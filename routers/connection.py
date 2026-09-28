@@ -1,38 +1,91 @@
 import asyncio
+import base64
+import logging
+import re
 from uuid import uuid4
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from asr.asr_service import transcribe_audio
 
 router = APIRouter(prefix="/api/connection", tags=["connection"])
 
 
-async def _emit_voice_pipeline_stub(websocket: WebSocket, session_id: str, message):
+def split_text_to_sentences(text: str) -> list[str]:
+    """Split a text into sentence-sized TTS chunks."""
+    parts = re.split(r"(?<=[.!?])\s+", text.strip())
+    return [part.strip() for part in parts if part and part.strip()]
+
+
+async def _emit_voice_pipeline(websocket: WebSocket, session_id: str, message):
+    tts_service = websocket.app.state.tts_service
+    text = (message.get("text") or "").strip()
+    if not text:
+        await websocket.send_json(
+            {
+                "type": "tts_chunk",                                                              
+                "session_id": session_id,
+                "text": "",
+                "audio": "",
+                "format": "pcm16",
+                "sample_rate": tts_service.sample_rate,
+                "channels": tts_service.channels,
+                "bits_per_sample": tts_service.bits_per_sample,
+            }
+        )
+        await websocket.send_json(
+            {
+                "type": "tts_done",
+                "session_id": session_id,
+                "text": "",
+                "chunks_sent": 0,
+            }
+        )
+        return
+
     await websocket.send_json(
         {
             "type": "asr_partial",
             "session_id": session_id,
-            "text": f"[stub] слышу вас, разбираю речь. Слышу: {message.get('text', 'ничего не слышу')}",
+            "text": f"[tts] распознаю реплику: {text}",
         }
     )
-    await asyncio.sleep(0.25)
 
     await websocket.send_json(
         {
             "type": "llm_delta",
             "session_id": session_id,
-            "text": "[stub] обработал запрос, генерирую ответ",
+            "text": "[tts] генерирую аудио-ответ",
         }
     )
-    await asyncio.sleep(0.25)
+
+    sentences = split_text_to_sentences(text)
+    if not sentences:
+        sentences = [text]
+
+    for index, sentence in enumerate(sentences):
+        audio_pcm = tts_service.synthesize_pcm(sentence)
+        await websocket.send_json(
+            {
+                "type": "tts_chunk",
+                "session_id": session_id,
+                "chunk_index": index,
+                "chunks_total": len(sentences),
+                "text": sentence,
+                "audio": base64.b64encode(audio_pcm).decode("ascii"),
+                "format": "pcm16",
+                "sample_rate": tts_service.sample_rate,
+                "channels": tts_service.channels,
+                "bits_per_sample": tts_service.bits_per_sample,
+                "is_final": index == len(sentences) - 1,
+            }
+        )
 
     await websocket.send_json(
         {
-            "type": "tts_chunk",
+            "type": "tts_done",
             "session_id": session_id,
-            "audio": "stub-audio-chunk",
-            "format": "pcm16",
+            "text": text,
+            "chunks_sent": len(sentences),
         }
     )
 
@@ -46,7 +99,7 @@ async def voip_call(websocket: WebSocket):
             "type": "ready",
             "status": "connected",
             "session_id": session_id,
-            "message": "voice pipeline stub is ready",
+            "message": "voice pipeline is ready",
         }
     )
 
@@ -66,10 +119,22 @@ async def voip_call(websocket: WebSocket):
                     }
                 )
             elif message_type == "audio":
-                text = await transcribe_audio(message.get('data', b''), sample_rate=message.get('sample_rate', 16000))
-                await websocket.send_json({'type': 'asr_partial', 'session_id': session_id, 'text': text['text']})
+                asr_service = websocket.app.state.asr_service
+                text = await asr_service.transcribe_pcm(
+                    message.get("data", b""),
+                    sample_rate=message.get("sample_rate", 16000),
+                )
+                await websocket.send_json(
+                    {
+                        "type": "asr_partial",
+                        "session_id": session_id,
+                        "text": text["text"],
+                    }
+                )
             elif message_type == "operator_text":
-                asyncio.create_task(_emit_voice_pipeline_stub(websocket, session_id, message))
+                asyncio.create_task(
+                    _emit_voice_pipeline(websocket, session_id, message)
+                )
             elif message_type in ["end", "stop"]:
                 await websocket.send_json(
                     {
