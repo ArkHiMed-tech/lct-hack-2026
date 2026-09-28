@@ -15,6 +15,8 @@ from routers.scenarios import router as scenarios_router
 from routers.sessions import router as sessions_router
 from routers.users import router as users_router
 
+from asr.asr_service import get_asr_service, transcribe_audio
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -23,6 +25,7 @@ async def lifespan(_: FastAPI):
         initialize_dev_data()
     else:
         initialize_database()
+    get_asr_service()
     yield
 
 

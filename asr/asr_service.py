@@ -1,6 +1,8 @@
 from faster_whisper import WhisperModel
 import numpy as np
 from typing import Optional
+import asyncio
+from pathlib import Path
 
 class ASRService:
     """
@@ -111,14 +113,14 @@ class ASRService:
 # Singleton для переиспользования модели (загружается один раз)
 _asr_instance: Optional[ASRService] = None
 
-def get_asr_service() -> ASRService:
+async def get_asr_service() -> ASRService:
     """Получить экземпляр ASR сервиса (singleton)."""
     global _asr_instance
     if _asr_instance is None:
         _asr_instance = ASRService()
     return _asr_instance
 
-def transcribe_audio(pcm_data: bytes, **kwargs) -> dict:
+async def transcribe_audio(pcm_data: bytes, **kwargs) -> dict:
     """
     Удобная функция для распознавания речи.
     
@@ -129,16 +131,19 @@ def transcribe_audio(pcm_data: bytes, **kwargs) -> dict:
     Returns:
         dict с результатами распознавания
     """
-    service = get_asr_service() # ОБРАТИТЬ ВНИМАНИЕ !!!
+    service = await get_asr_service() # ОБРАТИТЬ ВНИМАНИЕ !!!
     return service.transcribe_pcm(pcm_data, **kwargs)
+
+async def main():
+    # Тестовый пример с файлом
+    with open(Path(__file__).resolve().parent / "test_audio.pcm", "rb") as f:
+        pcm_data = f.read()
+    
+    result = await transcribe_audio(pcm_data, sample_rate=16000)
+    print(f"Распознанный текст: {result['text']}")
+    print(f"Язык: {result['language']} (уверенность: {result['language_probability']:.2%})")
 
 
 # Пример использования (если запускаешь напрямую)
 if __name__ == "__main__":
-    # Тестовый пример с файлом
-    with open("test_audio.pcm", "rb") as f:
-        pcm_data = f.read()
-    
-    result = transcribe_audio(pcm_data, sample_rate=16000)
-    print(f"Распознанный текст: {result['text']}")
-    print(f"Язык: {result['language']} (уверенность: {result['language_probability']:.2%})")
+    asyncio.run(main())

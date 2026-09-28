@@ -3,15 +3,17 @@ from uuid import uuid4
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from asr.asr_service import transcribe_audio
+
 router = APIRouter(prefix="/api/connection", tags=["connection"])
 
 
-async def _emit_voice_pipeline_stub(websocket: WebSocket, session_id: str):
+async def _emit_voice_pipeline_stub(websocket: WebSocket, session_id: str, message):
     await websocket.send_json(
         {
             "type": "asr_partial",
             "session_id": session_id,
-            "text": "[stub] слышу вас, разбираю речь",
+            "text": f"[stub] слышу вас, разбираю речь. Слышу: {message.get('text', 'ничего не слышу')}",
         }
     )
     await asyncio.sleep(0.25)
@@ -51,6 +53,7 @@ async def voip_call(websocket: WebSocket):
     try:
         while True:
             message = await websocket.receive_json()
+            print(f"Received message: {message['type']}")
             message_type = message.get("type")
             session_id = message.get("session_id") or session_id
 
@@ -63,8 +66,11 @@ async def voip_call(websocket: WebSocket):
                     }
                 )
             elif message_type == "audio":
-                asyncio.create_task(_emit_voice_pipeline_stub(websocket, session_id))
-            elif message_type == "stop":
+                text = await transcribe_audio(message.get('data', b''), sample_rate=message.get('sample_rate', 16000))
+                await websocket.send_json({'type': 'asr_partial', 'session_id': session_id, 'text': text['text']})
+            elif message_type == "operator_text":
+                asyncio.create_task(_emit_voice_pipeline_stub(websocket, session_id, message))
+            elif message_type in ["end", "stop"]:
                 await websocket.send_json(
                     {
                         "type": "ack",
