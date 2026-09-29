@@ -757,7 +757,7 @@ export default function Card112() {
                           </>
                         ) : (
                           <>
-                            {(tree?.roots ?? []).map((r) => (
+                            {[...(tree?.roots ?? [])].sort((a, b) => String(a.title).localeCompare(String(b.title), 'ru')).map((r) => (
                               <button key={r.g} type="button" onClick={() => pushCascade({ g: r.g, value: r.title })}>
                                 {r.title}
                               </button>
