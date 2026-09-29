@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from database import get_connection
+from misc.crypto import dec_text
 
 router = APIRouter(prefix="/api", tags=["results"])
 
@@ -17,4 +18,14 @@ async def list_results(user_id: str | None = None):
                 "SELECT id AS session_id, user_id, scenario_id, total_score AS score, verdict, created_at AS date FROM results ORDER BY created_at DESC"
             ).fetchall()
 
-    return [dict(row) for row in rows]
+    return [
+        {
+            "session_id": row["session_id"],
+            "user_id": row["user_id"],
+            "scenario_id": row["scenario_id"],
+            "score": row["score"],
+            "verdict": dec_text(row["verdict"]),
+            "date": row["date"],
+        }
+        for row in rows
+    ]

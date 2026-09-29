@@ -17,7 +17,12 @@ def split_text_to_sentences(text: str) -> list[str]:
 
 
 async def _emit_voice_pipeline(websocket: WebSocket, session_id: str, message):
-    tts_service = websocket.app.state.tts_service
+    tts_service = getattr(websocket.app.state, "tts_service", None)
+    if tts_service is None:
+        from misc.tts_service import TTSService
+
+        tts_service = TTSService()
+        websocket.app.state.tts_service = tts_service
     text = (message.get("text") or "").strip()
     if not text:
         await websocket.send_json(
@@ -120,15 +125,19 @@ async def voip_call(websocket: WebSocket):
                 )
             elif message_type == "audio":
                 asr_service = websocket.app.state.asr_service
-                text = await asr_service.transcribe_pcm(
+                text = asr_service.transcribe_pcm(
                     message.get("data", b""),
                     sample_rate=message.get("sample_rate", 16000),
                 )
+                if asyncio.iscoroutine(text):
+                    text = await text
+                if isinstance(text, dict):
+                    text = text.get("text", "")
                 await websocket.send_json(
                     {
                         "type": "asr_partial",
                         "session_id": session_id,
-                        "text": text["text"],
+                        "text": text,
                     }
                 )
             elif message_type == "operator_text":

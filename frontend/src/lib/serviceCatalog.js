@@ -234,6 +234,15 @@ export const SERVICE_CATALOG = [
   'Мосжилинспекция (Государственная жилищная инспекция города Москвы)',
 ];
 
+// Основная служба типа (подчеркивается двойной линией по инструкции).
+export function isMainService(group, name) {
+  if (group === '101') return name === SVC_101;
+  if (group === '102') return name === SVC_102;
+  if (group === '103') return name === SVC_103;
+  if (group === '104') return name === SVC_104;
+  return false;
+}
+
 // Короткая форма для плашек (отрезаем расшифровку в скобках):
 // 'Служба 101 (ГУ МЧС ...)' → 'Служба 101'. Без скобок — как есть.
 export function serviceShortName(name) {
@@ -249,7 +258,7 @@ export const SERVICE_DOCK_ID = {
   [SVC_102]: 'police',
   [SVC_JKH]: 'utility',
   [SVC_CEMP]: 'ambulance',
-  [SVC_103]: 'ambulance',
+  [SVC_103]: 'smp103',
   [SVC_CODD]: 'codd',
   [SVC_MOSBEZ]: 'mosbez',
   [SVC_MOSLIFT]: 'moslift',
@@ -262,7 +271,7 @@ export const LEGACY_SERVICE_DOCK_ID = {
   'Служба 102': 'police',
   'Деп. ЖКХ': 'utility',
   'ЦЭМП': 'ambulance',
-  'Служба 103': 'ambulance',
+  'Служба 103': 'smp103',
   'ЦОДД': 'codd',
   'Мос.Без.': 'mosbez',
   'Мослифт': 'moslift',

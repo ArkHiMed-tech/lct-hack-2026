@@ -185,3 +185,5 @@ dist/
 *.local
 
 *.db
+.dbkey
+DB_ENCRYPTION_KEY.txt

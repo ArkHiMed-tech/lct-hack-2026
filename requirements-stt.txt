@@ -1,0 +1,7 @@
+# Опциональные тяжёлые зависимости (STT/TTS).
+# Без них сервер работает в stub/fallback-режиме (ASR_DISABLED=1 по умолчанию).
+# Установка: pip install -r requirements-stt.txt
+-r requirements.txt
+faster-whisper>=1.0
+numpy>=1.26
+piper-tts>=1.2

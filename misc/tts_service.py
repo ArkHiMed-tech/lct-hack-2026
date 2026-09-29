@@ -1,9 +1,13 @@
-import pypiper as piper
 import math
 import logging
 from pathlib import Path
 import wave
 import io
+
+try:  # pragma: no cover - опциональная зависимость
+    import pypiper as piper
+except ImportError:  # без piper работает PCM-фолбэк, билд не падает
+    piper = None
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +21,13 @@ class TTSService:
         self._load_model()
 
     def _load_model(self):
+        if piper is None:
+            logger.warning(
+                "pypiper не установлен; websocket будет отдавать PCM-фолбэк."
+            )
+            return
         base_dir = Path(__file__).resolve().parents[1]
-        candidates = [
-            base_dir / "tts-agent" / "ru_RU-ruslan-medium.onnx",
+        candidates = [            base_dir / "tts-agent" / "ru_RU-ruslan-medium.onnx",
             base_dir / "ru_RU-ruslan-medium.onnx",
             base_dir / "models" / "ru_RU-ruslan-medium.onnx",
         ]
