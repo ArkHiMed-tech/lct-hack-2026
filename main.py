@@ -1,9 +1,10 @@
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 
 from database import DB_PATH, FRONTEND_DIST, initialize_database, initialize_dev_data
+from misc.incident_tree_api import get_incident_next_levels, get_incident_types, load_incident_graph
 from routers.auth import router as auth_router
 from routers.classifier import router as classifier_router
 from routers.connection import router as connection_router
@@ -37,6 +38,37 @@ async def health() -> dict:
         "frontend_build_exists": FRONTEND_DIST.exists(),
         "database_exists": DB_PATH.exists(),
     }
+
+
+@app.get("/api/incident-tree")
+async def incident_tree(
+    group1: str | None = Query(default=None),
+    group2: str | None = Query(default=None),
+    group3: str | None = Query(default=None),
+    group4: str | None = Query(default=None),
+    group5: str | None = Query(default=None),
+    group6: str | None = Query(default=None),
+    group7: str | None = Query(default=None),
+    group8: str | None = Query(default=None),
+    path: str | None = Query(default=None),
+):
+    return get_incident_next_levels(
+        group1=group1,
+        group2=group2,
+        group3=group3,
+        group4=group4,
+        group5=group5,
+        group6=group6,
+        group7=group7,
+        group8=group8,
+        path=path,
+    )
+
+
+@app.get("/api/incident-types")
+async def incident_types():
+    graph = load_incident_graph()
+    return {"count": len(graph.get("root_children", [])), "items": get_incident_types(graph)}
 
 
 app.include_router(auth_router)

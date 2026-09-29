@@ -4,15 +4,14 @@ import { useAuth } from '../context/AuthContext';
 import AppHeader from '../components/AppHeader';
 import SideNav from '../components/SideNav';
 import {
+  QUICK_TYPES,
+  SIGNIFICANT_TYPES,
   CHANNELS,
   FLAG_DEFS,
   EMPTY_FLAGS,
   MAIN_SVC_GROUP,
-  CASCADE_LEVELS,
   searchLeaves,
   leafFactors,
-  walkCascadeTree,
-  cascadePathForLeaf,
 } from '../lib/incidentClassifier';
 import { INFO_TYPES } from '../lib/tagVisibility';
 import { SERVICE_CATALOG, SVC_103, serviceShortName, isMainService } from '../lib/serviceCatalog';
@@ -68,8 +67,6 @@ export default function Card112() {
   const [query, setQuery] = useState('');
   const [listOpen, setListOpen] = useState(false);
   const [leaves, setLeaves] = useState([]); // индекс классификатора (/api/classifier/leaves)
-  const [tree, setTree] = useState(null); // дерево каскада (/api/classifier/tree)
-  const [cascadePath, setCascadePath] = useState([]); // [{level,value,g?}] ручное ветвление
   const [selectedLeaf, setSelectedLeaf] = useState(null); // {code,result,path,group,section,main}
   const [infoType, setInfoType] = useState(''); // инфо-тип без выезда (вне классификатора)
   const [flags, setFlags] = useState({ ...EMPTY_FLAGS }); // флаги ТЭГов классификатора
@@ -127,6 +124,7 @@ export default function Card112() {
   const [done, setDone] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
   const [reminder, setReminder] = useState({ text: '', time: '' });
+  const [histOpen, setHistOpen] = useState(null);
   // Телефония (мок): статус + входящий звонок
   const [telStatus, setTelStatus] = useState('доступен');
   const [incomingOpen, setIncomingOpen] = useState(false);
@@ -139,10 +137,6 @@ export default function Card112() {
     // Индекс классификатора для выбора типа (Итоговый тип + путь признаков).
     fetch('/api/classifier/leaves?limit=1000').then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))).then((data) => {
       if (!cancelled && Array.isArray(data.items) && data.items.length) setLeaves(data.items);
-    }).catch(() => {});
-    // Дерево каскада «Что случилось?»: раздел -> Место -> Что -> Проявление.
-    fetch('/api/classifier/tree').then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))).then((data) => {
-      if (!cancelled && data && Array.isArray(data.roots) && data.roots.length) setTree(data);
     }).catch(() => {});
     return () => { cancelled = true; };
   }, []);
@@ -222,49 +216,10 @@ export default function Card112() {
   );
 
   const filteredLeaves = useMemo(() => searchLeaves(leaves, query), [query, leaves]);
-  // Инфо-типы без выезда в поиске (ряды плашек удалены).
-  const filteredInfo = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return INFO_TYPES.filter((t) => t.toLowerCase().includes(q));
-  }, [query]);
-
-  // Текущий шаг каскада: все кнопки узла разом + выбираемые листья.
-  const cascade = useMemo(() => walkCascadeTree(tree, cascadePath), [tree, cascadePath]);
-  const leafTitle = (code) => leaves.find((l) => String(l.code) === String(code))?.result || `№${code}`;
-  const pickLeafByCode = (code) => {
-    const found = leaves.find((l) => String(l.code) === String(code));
-    if (found) pickLeaf(found);
-  };
-  const pushCascade = (b) => {
-    let nextPath;
-    if (b.g != null) {
-      // Кнопка раздела — начать ветвление заново: раздел в поле, список скрыть.
-      const root = (tree?.roots ?? []).find((r) => r.g === b.g);
-      if (!root) return;
-      nextPath = [{ level: 'section', value: root.title, g: root.g }];
-      setQuery(root.title);
-      setListOpen(false);
-    } else if (!cascadePath.length) {
-      return;
-    } else {
-      const next = CASCADE_LEVELS[cascadePath.length];
-      if (!next) return;
-      nextPath = [...cascadePath, { level: next, value: b.value }];
-    }
-    // Лист без разветвления — отобразить/выбрать сразу, иначе — до разветвления.
-    const step = walkCascadeTree(tree, nextPath);
-    if (!step.buttons.length && step.selectable.length === 1) {
-      pickLeafByCode(step.selectable[0]);
-    } else {
-      setCascadePath(nextPath);
-    }
-  };
 
   const pickLeaf = (leaf) => {
     setSelectedLeaf(leaf); setInfoType('');
-    setCascadePath(cascadePathForLeaf(leaf));
-    setQuery(leaf.section?.title || ''); setListOpen(false); setFormError(''); setSavedScenarioId(null);
+    setQuery(''); setListOpen(false); setFormError(''); setSavedScenarioId(null);
     setFlags({ ...EMPTY_FLAGS }); setManualServices([]); setExcludedServices([]);
   };
   const pickInfo = (title) => {
@@ -273,7 +228,7 @@ export default function Card112() {
     setFlags({ ...EMPTY_FLAGS }); setManualServices([]); setExcludedServices([]);
   };
   const clearIncident = () => {
-    setSelectedLeaf(null); setInfoType(''); setCascadePath([]); setQuery('');
+    setSelectedLeaf(null); setInfoType('');
     setFlags({ ...EMPTY_FLAGS }); setTagDesc(''); setManualServices([]); setExcludedServices([]); setAutoServices([]);
   };
   const resetAll = () => {
@@ -291,7 +246,7 @@ export default function Card112() {
     resetAll();
     if (p.classifier_code && leaves.length) {
       const found = leaves.find((l) => String(l.code) === String(p.classifier_code));
-      if (found) { setSelectedLeaf(found); setCascadePath(cascadePathForLeaf(found)); setQuery(found.section?.title || ''); }
+      if (found) setSelectedLeaf(found);
       else { setQuery(p.what || ''); setManualServices(p.services || []); }
     } else if (p.what && isInfoTitle(p.what)) {
       setInfoType(p.what);
@@ -614,55 +569,13 @@ export default function Card112() {
                     <input ref={refs.t} className="arm-what" value={query} placeholder="что случилось? (поиск по классификатору: мусор, дтп, взрыв…)" onChange={(e) => { setQuery(e.target.value); setListOpen(true); }} onFocus={() => setListOpen(true)} />
                     {listOpen && (
                       <div className="arm-typelist">
-                        {query.trim() ? (
-                          <>
-                            {filteredInfo.map((t) => (
-                              <button key={`info-${t}`} type="button" onClick={() => pickInfo(t)}>{t} <small>· без выезда</small></button>
-                            ))}
-                            {filteredLeaves.map((l) => (
-                              <button key={l.code} type="button" onClick={() => pickLeaf(l)}>{l.result} <small>· {(l.path || []).join(' → ')} · №{l.code}</small></button>
-                            ))}
-                            {!filteredLeaves.length && !filteredInfo.length && <span className="arm-empty">Ничего не найдено в классификаторе — попробуйте синоним («пожар», «дтп», «взрыв»)</span>}
-                          </>
-                        ) : (
-                          <>
-                            {(tree?.roots ?? []).map((r) => (
-                              <button key={r.g} type="button" onClick={() => pushCascade({ g: r.g, value: r.title })}>
-                                {r.title}
-                              </button>
-                            ))}
-                            {!tree && <span className="arm-empty">Дерево загружается…</span>}
-                          </>
-                        )}
+                        {filteredLeaves.map((l) => (
+                          <button key={l.code} type="button" onClick={() => pickLeaf(l)}>{l.result} <small>· {(l.path || []).join(' → ')} · №{l.code}</small></button>
+                        ))}
+                        {!filteredLeaves.length && <span className="arm-empty">Ничего не найдено в классификаторе — попробуйте синоним («пожар», «дтп», «взрыв»)</span>}
                       </div>
                     )}
                   </div>
-                  {/* Плашки ветвления: отвеченные шаги «Вопрос: ответ» (клик — назад),
-                      активная плашка «Вопрос:» + кнопки (клик спавнит следующую). */}
-                  {cascadePath.length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-                      {cascade.breadcrumb.slice(0, -1).map((b, i) => (
-                        <div key={`${b.level}-${i}`} className="arm-card" style={{ padding: '6px 10px', cursor: 'pointer' }} title="Вернуться на этот шаг" onClick={() => setCascadePath(cascadePath.slice(0, i + 1))}>
-                          <div className="arm-taglabel">{b.label}: {b.value}</div>
-                        </div>
-                      ))}
-                      <div className="arm-card" style={{ padding: '6px 10px' }}>
-                        <div className="arm-taglabel">{(cascade.breadcrumb[cascade.breadcrumb.length - 1]?.label ?? 'Что случилось')}:</div>
-                        <div className="arm-quick" style={{ marginTop: 6 }}>
-                          {cascade.buttons.map((b) => (
-                            <button key={b.value} type="button" className="arm-tag" onClick={() => pushCascade(b)}>
-                              {b.value}{b.leaf_count ? ` · ${b.leaf_count}` : ''}
-                            </button>
-                          ))}
-                          {cascade.selectable.map((code) => (
-                            <button key={code} type="button" className="arm-tag sel" title="Выбрать этот тип" onClick={() => pickLeafByCode(code)}>
-                              ✓ {leafTitle(code)}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
                   {(selectedLeaf || infoType) && (
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                       <button type="button" className="arm-tag sel" title="Нажмите, чтобы отменить выбор" onClick={clearIncident}>
@@ -670,7 +583,17 @@ export default function Card112() {
                       </button>
                     </div>
                   )}
-                  {/* Каскад живёт в выпадающем списке выше; здесь только результат. */}
+                  <div className="arm-quick">
+                    {QUICK_TYPES.map((q) => (
+                      <button key={q} type="button" className="arm-tag" onClick={() => (isInfoTitle(q) ? pickInfo(q) : (setQuery(q), setListOpen(true)))}>{q}</button>
+                    ))}
+                  </div>
+                  <div className="arm-signif">Значимые типы происшествий:</div>
+                  <div className="arm-quick">
+                    {SIGNIFICANT_TYPES.map((q) => (
+                      <button key={q} type="button" className="arm-tag" onClick={() => { setQuery(q); setListOpen(true); }}>{q}</button>
+                    ))}
+                  </div>
                   <div className="arm-hint">Тип выбирается из классификатора (Итоговый тип + путь признаков). Совпадение кнопки «Совпадение»: {matchBy}.</div>
                   {services.includes(SVC_103) && (
                     <label style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 8 }}>
@@ -710,7 +633,11 @@ export default function Card112() {
                   <span key={s} className={`arm-svc ${isMainService(svcGroup, s) ? 'main' : ''}`} title={`${s}${isMainService(svcGroup, s) ? ' — основная (двойное подчеркивание)' : ''}${visServices.includes(s) ? ' · добавлена ВИС' : ''}`}>
                     <span className="arm-svctel">📞</span>
                     <span className="arm-svcname">{serviceShortName(s)}{visServices.includes(s) ? ' [ВИС]' : ''}</span>
+                    <button type="button" className="arm-histbtn" title="История статусов" onClick={() => setHistOpen(s)}>▴</button>
                     <button type="button" onClick={() => removeService(s)} title="убрать">×</button>
+                    {histOpen === s && (
+                      <span className="arm-histpop">Добавлена · Получена службой · <button type="button" className="arm-minibtn" onClick={() => setHistOpen(null)}>закрыть</button></span>
+                    )}
                   </span>
                 ))}
                 <div className="arm-svcadd" ref={svcMenuRef}>
