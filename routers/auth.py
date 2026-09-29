@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel
 
 from database import get_connection
+from misc.crypto import dec_text, login_index
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 SESSION_COOKIE_NAME = "sim112_session"
@@ -22,11 +23,11 @@ def serialize_user(row: dict) -> dict:
     return {
         "id": row["id"],
         "login": row["login"],
-        "name": row["name"],
-        "last_name": row["last_name"],
-        "role": row["role"],
-        "post": role_title.get(row["role"], "Пользователь"),
-        "group": row["group_name"],
+        "name": dec_text(row["name"]),
+        "last_name": dec_text(row["last_name"]),
+        "role": dec_text(row["role"]),
+        "post": role_title.get(dec_text(row["role"]), "Пользователь"),
+        "group": dec_text(row["group_name"]),
         "active": bool(row["active"]),
     }
 
@@ -36,10 +37,10 @@ async def login(payload: AuthRequest, response: Response):
     with get_connection() as connection:
         row = connection.execute(
             "SELECT * FROM users WHERE login = ?",
-            (payload.login,),
+            (login_index(payload.login),),
         ).fetchone()
 
-    if row is None or row["password"] != payload.password:
+    if row is None or dec_text(row["password"]) != payload.password:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Неверный логин или пароль",

@@ -4,9 +4,29 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, status
 
 from database import get_connection
+from misc.crypto import dec_blob, dec_text, enc_blob, enc_text
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 BASE_DIR = Path(__file__).resolve().parents[1]
+
+REPORT_TEXT_FIELDS = (
+    "what", "incident_category", "address", "time", "caller_name",
+    "victims", "conditions", "threat", "factors", "actions", "landmarks",
+)
+
+
+def _decrypt_report_row(row: dict) -> dict:
+    """Расшифровка строк incident_reports на границе БД -> клиент."""
+    record = dict(row)
+    for field in REPORT_TEXT_FIELDS:
+        record[field] = dec_text(record.get(field))
+    if "payload" in record:
+        try:
+            blob = dec_blob(record.get("payload"))
+            record["payload"] = blob
+        except (json.JSONDecodeError, TypeError, ValueError):
+            record["payload"] = {}
+    return record
 
 
 @router.post("/create")
@@ -23,20 +43,22 @@ async def create_report(report: dict):
             (
                 report.get("user_id"),
                 report.get("scenario_id"),
-                report.get("what", ""),
-                report.get("incident_category", ""),
-                report.get("address", "")
-                if isinstance(report.get("address", ""), str)
-                else json.dumps(report.get("address", ""), ensure_ascii=False),
-                report.get("time", ""),
-                report.get("caller_name", ""),
-                report.get("victims", ""),
-                report.get("conditions", ""),
-                report.get("threat", ""),
-                ";".join(report.get("factors", [])),
-                report.get("actions", ""),
-                report.get("landmarks"),
-                json.dumps(report, ensure_ascii=False),
+                enc_text(report.get("what", "")),
+                enc_text(report.get("incident_category", "")),
+                enc_text(
+                    report.get("address", "")
+                    if isinstance(report.get("address", ""), str)
+                    else json.dumps(report.get("address", ""), ensure_ascii=False)
+                ),
+                enc_text(report.get("time", "")),
+                enc_text(report.get("caller_name", "")),
+                enc_text(report.get("victims", "")),
+                enc_text(report.get("conditions", "")),
+                enc_text(report.get("threat", "")),
+                enc_text(";".join(report.get("factors", []))),
+                enc_text(report.get("actions", "")),
+                enc_text(report.get("landmarks")),
+                enc_blob(report),
             ),
         )
         report_id = cursor.lastrowid
@@ -44,7 +66,7 @@ async def create_report(report: dict):
         for service in report.get("services", []):
             cursor.execute(
                 "INSERT INTO dispatched_services (report_id, service_id) VALUES (?, ?)",
-                (report_id, service),
+                (report_id, enc_text(service)),
             )
 
         connection.commit()
@@ -170,10 +192,12 @@ async def publish_report(report_id: int):
         ).fetchone()
         if row is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
-        record = dict(row)
+        record = _decrypt_report_row(row)
     try:
-        payload = json.loads(record.get("payload") or "{}")
-    except (json.JSONDecodeError, TypeError):
+        payload = record.get("payload") or {}
+        if not isinstance(payload, dict):
+            payload = {}
+    except (TypeError, ValueError):
         payload = {}
     scenario = _build_scenario_from_report(report_id, record, payload)
     with get_connection() as connection:
@@ -185,9 +209,10 @@ async def publish_report(report_id: int):
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             """,
             (
-                scenario["id"], scenario["title"], scenario["category"],
-                scenario["difficulty"], scenario["severity"], scenario["rubric_id"],
-                scenario["sla_answer_sec"], json.dumps(scenario, ensure_ascii=False),
+                scenario["id"], enc_text(scenario["title"]), enc_text(scenario["category"]),
+                enc_text(scenario["difficulty"]), enc_text(scenario["severity"]),
+                enc_text(scenario["rubric_id"]),
+                scenario["sla_answer_sec"], enc_blob(scenario),
             ),
         )
         connection.commit()
@@ -206,7 +231,7 @@ async def list_reports(user_id: str | None = None):
             rows = connection.execute(
                 "SELECT * FROM incident_reports ORDER BY created_at DESC"
             ).fetchall()
-    return [dict(row) for row in rows]
+    return [_decrypt_report_row(row) for row in rows]
 
 
 @router.get("/{report_id}")
@@ -227,9 +252,16 @@ async def get_report(report_id: int):
             (report_id,),
         ).fetchall()
 
-    payload = dict(report)
-    payload["messages"] = [dict(item) for item in messages]
-    payload["services"] = [row["service_id"] for row in services]
+    payload = _decrypt_report_row(report)
+    payload["messages"] = [
+        {
+            "sender": dec_text(item["sender"]),
+            "text": dec_text(item["text"]),
+            "created_at": item["created_at"],
+        }
+        for item in messages
+    ]
+    payload["services"] = [dec_text(row["service_id"]) for row in services]
     return payload
 
 
@@ -238,7 +270,7 @@ async def add_message(report_id: int, payload: dict):
     with get_connection() as connection:
         connection.execute(
             "INSERT INTO app_messages (report_id, sender, text) VALUES (?, ?, ?)",
-            (report_id, payload.get("sender", "user"), payload.get("text", "")),
+            (report_id, enc_text(payload.get("sender", "user")), enc_text(payload.get("text", ""))),
         )
         connection.commit()
     return {"message": "Message saved", "report_id": report_id}

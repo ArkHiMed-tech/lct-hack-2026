@@ -1,8 +1,7 @@
-import json
-
 from fastapi import APIRouter, HTTPException, status
 
 from database import get_connection, initialize_database, seed_rubrics_from_json
+from misc.crypto import dec_blob
 
 router = APIRouter(prefix="/api/rubrics", tags=["rubrics"])
 
@@ -21,4 +20,4 @@ async def get_rubric(rubric_id: str):
             status_code=status.HTTP_404_NOT_FOUND, detail="Rubric not found"
         )
 
-    return json.loads(row["payload"])
+    return dec_blob(row["payload"])

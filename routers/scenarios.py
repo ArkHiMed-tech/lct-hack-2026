@@ -1,9 +1,8 @@
-import json
-
 from fastapi import APIRouter, HTTPException, Query, status
 
 from database import get_connection, initialize_database, seed_scenarios_from_json
 from misc.card_generator import generate_card, validate_card_payload
+from misc.crypto import dec_blob, dec_text, enc_blob, enc_text
 
 router = APIRouter(prefix="/api/scenarios", tags=["scenarios"])
 
@@ -46,14 +45,14 @@ async def list_scenarios():
 
     result = []
     for row in rows:
-        payload = json.loads(row["payload"])
+        payload = dec_blob(row["payload"])
         result.append(
             {
                 "id": row["id"],
-                "title": row["title"],
-                "category": row["category"],
-                "difficulty": row["difficulty"],
-                "severity": row["severity"],
+                "title": dec_text(row["title"]),
+                "category": dec_text(row["category"]),
+                "difficulty": dec_text(row["difficulty"]),
+                "severity": dec_text(row["severity"]),
                 "estimate_sec": payload.get("sla_answer_sec", 240),
                 "status": "done",
                 "best_score": None,
@@ -124,18 +123,18 @@ async def generate_scenarios(
                     (
                         report.get("user_id"),
                         None,
-                        report.get("what", ""),
-                        report.get("incident_category", ""),
-                        report.get("address", ""),
+                        enc_text(report.get("what", "")),
+                        enc_text(report.get("incident_category", "")),
+                        enc_text(report.get("address", "")),
                         "",
-                        report.get("caller_name", ""),
-                        report.get("victims", ""),
+                        enc_text(report.get("caller_name", "")),
+                        enc_text(report.get("victims", "")),
                         "",
                         "",
-                        ";".join(report.get("factors", [])),
+                        enc_text(";".join(report.get("factors", []))),
                         "",
                         None,
-                        json.dumps(report, ensure_ascii=False),
+                        enc_blob(report),
                     ),
                 )
                 report_id = cursor.lastrowid
@@ -143,13 +142,16 @@ async def generate_scenarios(
                 for service in report.get("services", []):
                     cursor.execute(
                         "INSERT INTO dispatched_services (report_id, service_id) VALUES (?, ?)",
-                        (report_id, service),
+                        (report_id, enc_text(service)),
                     )
                 row = cursor.execute(
                     "SELECT * FROM incident_reports WHERE id = ?", (report_id,)
                 ).fetchone()
+                from routers.reports import _build_scenario_from_report, _decrypt_report_row
+
+                record = _decrypt_report_row(row)
                 scenario = _build_scenario_from_report(
-                    report_id, dict(row), json.loads(dict(row).get("payload") or "{}")
+                    report_id, record, record.get("payload") or {}
                 )
                 cursor.execute(
                     """
@@ -160,13 +162,13 @@ async def generate_scenarios(
                     """,
                     (
                         scenario["id"],
-                        scenario["title"],
-                        scenario["category"],
-                        scenario["difficulty"],
-                        scenario["severity"],
-                        scenario["rubric_id"],
+                        enc_text(scenario["title"]),
+                        enc_text(scenario["category"]),
+                        enc_text(scenario["difficulty"]),
+                        enc_text(scenario["severity"]),
+                        enc_text(scenario["rubric_id"]),
                         scenario["sla_answer_sec"],
-                        json.dumps(scenario, ensure_ascii=False),
+                        enc_blob(scenario),
                     ),
                 )
                 scenario_ids.append(scenario["id"])
@@ -204,5 +206,5 @@ async def get_scenario(scenario_id: str):
             status_code=status.HTTP_404_NOT_FOUND, detail="Scenario not found"
         )
 
-    return json.loads(row["payload"])
+    return dec_blob(row["payload"])
 
