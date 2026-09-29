@@ -24,6 +24,7 @@ from misc.incident_tree_api import (
     classifier_leaves,
     dispatch_for_leaf,
     get_leaf_by_code,
+    informed_for_leaf,
     load_incident_graph,
     service_display_name,
 )
@@ -268,9 +269,12 @@ def generate_card(
             "crowd": crowd,
         }
         disp = dispatch_for_leaf(graph, leaf, flags)
+        inform = informed_for_leaf(graph, leaf, flags)
         services = [service_display_name(graph, gid) for gid in disp]
+        services_informed = [service_display_name(graph, gid) for gid in inform]
         if fias:
             services = []  # ФИАС: службы добавляются вручную
+            services_informed = []
         what = leaf.get("result") or "Происшествие"
         classifier_code = leaf.get("code")
         classifier_path = path
@@ -284,6 +288,7 @@ def generate_card(
             factors.append(tags["tagDesc"])
     else:
         services = []
+        services_informed = []
         what = info_title or "Происшествие"
         classifier_code = None
         classifier_path = []
@@ -337,6 +342,7 @@ def generate_card(
         "factors": factors,
         "tags": tags,
         "services": services,
+        "services_informed": services_informed,
         "services_manual": [],
         "services_vis": [],
         "description": description,
@@ -352,7 +358,7 @@ def generate_card(
         f"address={addr_str} [{addr_src}]",
         f"caller={caller_name} ({caller_status}) {aon} {channel}",
         f"victims={victims_val}",
-        f"services={len(services)}",
+        f"services={len(services)} informed={len(services_informed)}",
     ]
     return {"seed": seed, "payload": payload, "trace": trace}
 

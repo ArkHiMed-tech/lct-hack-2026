@@ -190,6 +190,8 @@
 .arm-icobtn:hover { background: rgba(255,255,255,.15); }
 .arm-overhint { background: #fdecea; border: 1px solid #c0392b; color: #c0392b; font-size: 12px; font-weight: 600; padding: 6px 12px; margin-top: 6px; }
 .arm-svc.main .arm-svcname { border-bottom: 3px double #fff; }
+.arm-svc.informed { background: #1c7fb8; }
+.arm-svc.informed .arm-svctel { filter: grayscale(1) brightness(0) invert(1); }
 .arm-histbtn { position: absolute; bottom: 1px; left: 50%; transform: translateX(-50%); background: none; border: none; color: #fff; cursor: pointer; font-size: 10px; line-height: 1; padding: 0 4px; }
 .arm-histpop { position: absolute; bottom: 56px; left: 0; background: #1c7fb8; color: #fff; font-size: 11px; padding: 6px 10px; z-index: 80; white-space: nowrap; }
 .arm-err { background: #fdecea; border: 1px solid #c0392b; color: #c0392b; font-size: 12px; font-weight: 600; padding: 6px 12px; margin-top: 8px; }

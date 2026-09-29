@@ -63,6 +63,7 @@ export default function Card112() {
   const [flags, setFlags] = useState({ ...EMPTY_FLAGS }); // флаги ТЭГов классификатора
   const [tagDesc, setTagDesc] = useState(''); // уточнение ТЭГа
   const [autoServices, setAutoServices] = useState([]); // диспетчеризация листа
+  const [autoInformed, setAutoInformed] = useState([]); // уведомляемые (синие плашки)
   const [refusal103, setRefusal103] = useState(false); // Отказ от реагирования (103)
   const [formError, setFormError] = useState('');
   const [manualServices, setManualServices] = useState([]);
@@ -138,7 +139,7 @@ export default function Card112() {
   // Диспетчеризация выбранного листа по флагам (бэкенд считает по xlsx).
   useEffect(() => {
     let cancelled = false;
-    if (!selectedLeaf || fiasWarn) { setAutoServices([]); return () => { cancelled = true; }; }
+    if (!selectedLeaf || fiasWarn) { setAutoServices([]); setAutoInformed([]); return () => { cancelled = true; }; }
     const params = new URLSearchParams({ code: selectedLeaf.code });
     if (flags.no_access) params.set('nd', 'true');
     if (flags.threat) { params.set('threat', 'true'); params.set('ul', 'true'); }
@@ -154,6 +155,7 @@ export default function Card112() {
         // Накопление: уже добавленные службы не сбрасываются при прокликивании флагов.
         setManualServices((prev) => [...new Set([...prev, ...data.services])]);
       }
+      if (Array.isArray(data.informed)) setAutoInformed(data.informed);
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [selectedLeaf, flags, victims, fiasWarn]);
@@ -212,6 +214,12 @@ export default function Card112() {
   const services = useMemo(
     () => [...new Set([...autoServices.filter((s) => !excludedServices.includes(s)), ...manualServices.filter((s) => !excludedServices.includes(s))])],
     [autoServices, manualServices, excludedServices],
+  );
+
+  // Уведомляемые службы — синие плашки (голубой = уведомлены, не выезд).
+  const informed = useMemo(
+    () => [...new Set(autoInformed.filter((s) => !excludedServices.includes(s) && !services.includes(s)))],
+    [autoInformed, excludedServices, services],
   );
 
   const filteredLeaves = useMemo(() => searchLeaves(leaves, query), [query, leaves]);
@@ -292,13 +300,13 @@ export default function Card112() {
     setFlags({ ...EMPTY_FLAGS }); setManualServices([]); setExcludedServices([]);
   };
   const pickInfo = (title) => {
-    setInfoType(title); setSelectedLeaf(null); setAutoServices([]);
+    setInfoType(title); setSelectedLeaf(null); setAutoServices([]); setAutoInformed([]);
     setQuery(''); setListOpen(false); setFormError(''); setSavedScenarioId(null);
     setFlags({ ...EMPTY_FLAGS }); setManualServices([]); setExcludedServices([]);
   };
   const clearIncident = () => {
     setSelectedLeaf(null); setInfoType(''); setCascadePath([]); setQuery('');
-    setFlags({ ...EMPTY_FLAGS }); setTagDesc(''); setManualServices([]); setExcludedServices([]); setAutoServices([]);
+    setFlags({ ...EMPTY_FLAGS }); setTagDesc(''); setManualServices([]); setExcludedServices([]); setAutoServices([]); setAutoInformed([]);
   };
   const resetAll = () => {
     clearIncident();
@@ -414,6 +422,7 @@ export default function Card112() {
     setSaving(true); setSavedScenarioId(null);
     const addrStr = [addr.subject, addr.okrug && `округ ${addr.okrug}`, addr.street && `ул. ${addr.street}`, addr.house && `д. ${addr.house}`].filter(Boolean).join(', ');
     const finalServices = asEmpty ? [] : [...services];
+    const finalInformed = asEmpty ? [] : [...informed];
     const leafPath = selectedLeaf ? (selectedLeaf.path || []) : [];
     const tags = {
       attr1: leafPath[0] || '', attr2: leafPath[1] || '', attr3: leafPath[2] || '',
@@ -432,7 +441,7 @@ export default function Card112() {
       caller_status: appStatus, caller_foreign_lang: foreignLang, external_system: EXTERNAL_SYSTEM,
       victims: victims === 'Есть' ? victimsCount || '1' : 'нет', refusal103,
       factors: selectedLeaf ? leafFactors(selectedLeaf, flags, tagDesc) : (tagDesc ? [tagDesc] : []),
-      tags, services: finalServices, services_manual: manualServices.filter((s) => !excludedServices.includes(s)),
+      tags, services: finalServices, services_informed: finalInformed, services_manual: manualServices.filter((s) => !excludedServices.includes(s)),
       services_vis: visServices, description: desc, elapsed_sec: elapsedSec, overtime, empty: asEmpty ? emptyModal : null, links,
     };
     try {
@@ -744,6 +753,13 @@ export default function Card112() {
                   <span key={s} className={`arm-svc ${isMainService(svcGroup, s) ? 'main' : ''}`} title={`${s}${isMainService(svcGroup, s) ? ' — основная (двойное подчеркивание)' : ''}${visServices.includes(s) ? ' · добавлена ВИС' : ''}`}>
                     <span className="arm-svctel">📞</span>
                     <span className="arm-svcname">{serviceShortName(s)}{visServices.includes(s) ? ' [ВИС]' : ''}</span>
+                    <button type="button" onClick={() => removeService(s)} title="убрать">×</button>
+                  </span>
+                ))}
+                {informed.map((s) => (
+                  <span key={`inf-${s}`} className="arm-svc informed" title={`${s} — уведомлена (не выезд)`}>
+                    <span className="arm-svctel">✉</span>
+                    <span className="arm-svcname">{serviceShortName(s)}</span>
                     <button type="button" onClick={() => removeService(s)} title="убрать">×</button>
                   </span>
                 ))}

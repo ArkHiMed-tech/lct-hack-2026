@@ -106,18 +106,31 @@ def test_api_generate_publish_creates_scenario():
     )
 
 
-def test_informed_never_dispatched():
+def test_informed_blue_mechanism():
     from misc.incident_tree_api import get_classifier
 
     graph = load_incident_graph()
+    responder_names = {
+        (s["catalog"] or s["title"])
+        for s in get_classifier(graph)["services"]
+        if s.get("auto")
+    }
     informed_names = {
         (s["catalog"] or s["title"])
         for s in get_classifier(graph)["services"]
         if not s.get("auto")
     }
     assert "Аппарат МЭРА" in informed_names
+    seen_informed = False
     for seed in range(100):
         payload = generate_card(seed=seed)["payload"]
-        assert "services_informed" not in payload
+        informed = payload.get("services_informed", [])
+        assert set(payload["services"]) & set(informed) == set()
         for service in payload["services"]:
+            assert service in responder_names, (seed, service)
             assert service not in informed_names, (seed, service)
+        for service in informed:
+            assert service in informed_names, (seed, service)
+        if informed:
+            seen_informed = True
+    assert seen_informed
