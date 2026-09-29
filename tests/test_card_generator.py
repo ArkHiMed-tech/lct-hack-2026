@@ -121,8 +121,8 @@ def test_informed_blue_mechanism():
         if not s.get("auto")
     }
     assert "Аппарат МЭРА" in informed_names
-    seen_informed = False
-    for seed in range(100):
+    seen_informed = seen_auto_marker_blue = False
+    for seed in range(200):
         payload = generate_card(seed=seed)["payload"]
         informed = payload.get("services_informed", [])
         assert set(payload["services"]) & set(informed) == set()
@@ -130,7 +130,12 @@ def test_informed_blue_mechanism():
             assert service in responder_names, (seed, service)
             assert service not in informed_names, (seed, service)
         for service in informed:
-            assert service in informed_names, (seed, service)
+            # Синие: маркерные non-auto группы + маркерные ячейки auto-групп
+            # («карточка-112» = уведомить, без выезда).
+            assert service in informed_names or service in responder_names, (seed, service)
+            if service in responder_names:
+                seen_auto_marker_blue = True
         if informed:
             seen_informed = True
     assert seen_informed
+    assert seen_auto_marker_blue

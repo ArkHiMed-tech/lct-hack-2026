@@ -3,8 +3,56 @@ from fastapi import APIRouter, HTTPException, Query, status
 from database import get_connection, initialize_database, seed_scenarios_from_json
 from misc.card_generator import generate_card, validate_card_payload
 from misc.crypto import dec_blob, dec_text, enc_blob, enc_text
+from misc.incident_tree_api import (
+    flag_guaranteed_services,
+    get_leaf_by_code,
+    informed_for_leaf,
+    load_incident_graph,
+    service_display_name,
+    vis_class_for_leaf,
+    vis_flags_from_tags,
+)
 
 router = APIRouter(prefix="/api/scenarios", tags=["scenarios"])
+
+
+def _backfill_scenario(payload: dict) -> dict:
+    """Достройка старых сценариев на чтении (в БД не пишется):
+    - vis_class из classifier_code + tags;
+    - гарантии активных флагов в expected_services (исключённые не трогаем);
+    - expected_services_informed из диспетчеризации, если поля нет вообще.
+    Без classifier_code (статика scn-*, инфо-карточки) вычислить нечего.
+    """
+    expected = payload.get("expected") if isinstance(payload, dict) else None
+    if not isinstance(expected, dict):
+        return payload
+    if not expected.get("classifier_code"):
+        return payload
+    try:
+        graph = load_incident_graph()
+        leaf = get_leaf_by_code(graph, expected["classifier_code"])
+        if leaf is None:
+            return payload
+        tags = expected.get("tags") or {}
+        flags = vis_flags_from_tags(tags)
+        if not expected.get("vis_class"):
+            vis = vis_class_for_leaf(graph, leaf, flags)
+            expected["vis_class"] = vis["value"]
+            expected["vis_class_fallback"] = vis["is_fallback"]
+        excluded = set(expected.get("services_excluded") or [])
+        services = expected.get("expected_services") or []
+        for name in flag_guaranteed_services(graph, tags).values():
+            if name not in services and name not in excluded:
+                services.append(name)
+        expected["expected_services"] = services
+        if "expected_services_informed" not in expected:
+            informed = informed_for_leaf(graph, leaf, flags)
+            expected["expected_services_informed"] = [
+                service_display_name(graph, gid) for gid in informed
+            ]
+    except Exception:
+        return payload
+    return payload
 
 
 def _summary_from_payload(payload: dict) -> str:
@@ -206,5 +254,5 @@ async def get_scenario(scenario_id: str):
             status_code=status.HTTP_404_NOT_FOUND, detail="Scenario not found"
         )
 
-    return dec_blob(row["payload"])
+    return _backfill_scenario(dec_blob(row["payload"]))
 

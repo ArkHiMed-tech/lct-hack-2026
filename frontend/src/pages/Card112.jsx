@@ -520,7 +520,14 @@ export default function Card112() {
     if (err) { setFormError(err); return; }
     setSaving(true); setSavedScenarioId(null);
     const addrStr = [addr.subject, addr.okrug && `округ ${addr.okrug}`, addr.street && `ул. ${addr.street}`, addr.house && `д. ${addr.house}`].filter(Boolean).join(', ');
-    const finalServices = asEmpty ? [] : [...services];
+    // Финальная сверка гарантий: службы активных флагов обязаны сохраниться,
+    // даже если какой-то путь UI их не добавил. Явно исключённые (×) уважаем.
+    const activeGuaranteed = asEmpty ? [] : [...new Set(
+      Object.keys(flags).filter((k) => flags[k]).map((k) => FLAG_SERVICE[k]).filter(Boolean),
+    )];
+    const missingGuaranteed = activeGuaranteed.filter((s) => !excludedServices.includes(s) && !services.includes(s));
+    const manualForSave = manualServices.filter((s) => !excludedServices.includes(s));
+    const finalServices = asEmpty ? [] : [...services, ...missingGuaranteed];
     const finalInformed = asEmpty ? [] : [...informed];
     const leafPath = selectedLeaf ? (selectedLeaf.path || []) : [];
     const tags = {
@@ -542,7 +549,8 @@ export default function Card112() {
       caller_status: appStatus, external_system: EXTERNAL_SYSTEM,
       victims: victims === 'Есть' ? victimsCount || '1' : 'нет',
       factors: selectedLeaf ? leafFactors(selectedLeaf, flags, tagDesc) : (tagDesc ? [tagDesc] : []),
-      tags, services: finalServices, services_informed: finalInformed, services_manual: manualServices.filter((s) => !excludedServices.includes(s)),
+      tags, services: finalServices, services_informed: finalInformed, services_manual: [...new Set([...manualForSave, ...missingGuaranteed])],
+      services_excluded: [...excludedServices],
       services_vis: visServices, description: desc, elapsed_sec: elapsedSec, overtime, empty: asEmpty ? emptyModal : null, links,
     };
     try {

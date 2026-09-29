@@ -92,6 +92,23 @@ export default function Simulator() {
 
   useEffect(() => () => voice.disconnect(), []);
 
+  // Смена сценария без размонтирования (тот же роут, другой :id):
+  // сбрасываем состояние тренировки, иначе серая полоса служб, диалог
+  // и таймеры показывают предыдущий сценарий.
+  useEffect(() => {
+    servicesSeeded.current = false;
+    setServices([]); setMessages([]); setSentSeq(0); setForm({});
+    setDispatchedAtMs(null); setEndedAtMs(null);
+    setInput(''); setToast(null);
+    setAddrParts({ okrug: '', rayon: '', street: '', house: '', corpus: '', flat: '' });
+    setOtrab([]); setOtrabDraft(''); setPostNote(null);
+    setStatus('ringing');
+    // startedAtRef — сразу сейчас: mount-эффект таймера при смене id не перезапускается.
+    startedAtRef.current = Date.now(); answeredAtRef.current = null; endingRef.current = false;
+    voice.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
   useEffect(() => {
     startedAtRef.current = Date.now();
     const t = setInterval(() => setNow(Date.now()), 200);
@@ -101,7 +118,7 @@ export default function Simulator() {
   const timeline = scenario.data?.timeline ?? [];
 
   // Предвыбор служб из карточки 112 (имена справочника → id дока ДДС).
-  const DOCK_IDS = ['fire', 'gas', 'police', 'utility', 'ambulance', 'codd', 'mosbez', 'moslift'];
+  const DOCK_IDS = ['fire', 'gas', 'police', 'utility', 'ambulance', 'smp103', 'codd', 'mosbez', 'moslift'];
   // Карточный сценарий: id card-* или флаг from_card из publish.
   const isCardData = (d) => !!d && (!!d.from_card || String(d.id || '').startsWith('card-'));
   const servicesSeeded = useRef(false);
@@ -256,12 +273,16 @@ export default function Simulator() {
 
   return (
     <div className="app-shell">
-      <AppHeader title={`Происшествие ${incidentNum}`} />
-
-      <div className="dds-back dark">
-        <Link to="/">← К списку происшествий</Link>
-        <Link to="/card">Создать карточку</Link>
-      </div>
+      <AppHeader
+        title={`Происшествие ${incidentNum}`}
+        showCreateButton={false}
+        actions={(
+          <>
+            <Link to="/" className="arm-topbtn">← К списку происшествий</Link>
+            <Link to="/card" className="arm-topbtn accent">Создать карточку</Link>
+          </>
+        )}
+      />
 
       <div className="arm-wrap">
         {/* Верхний ряд как на Рисунке1: телефоны + инфо-блок + просмотр/дополнение */}

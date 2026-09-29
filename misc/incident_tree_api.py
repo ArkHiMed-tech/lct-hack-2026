@@ -311,42 +311,49 @@ def match_leaf(
     return best
 
 
-def _dispatch_core(
-    graph: dict[str, Any] | None,
-    leaf: dict[str, Any],
-    flags: dict[str, bool] | None,
-    auto: bool | None,
-) -> dict[str, str]:
-    """Ядро диспетчеризации. auto=True/False — только выезжающие/уведомляемые,
-    None — все группы. Строгий режим: стоят свои флаги -> ответ только
-    из вариантных ячеек (пустой вариант = нет выезда, без fallback на базу);
-    своих флагов нет -> база."""
-    g = graph or load_incident_graph()
-    flags = flags or {}
-    services = {s["id"]: s for s in get_classifier(g).get("services", [])}
-    dispatch = leaf.get("dispatch", {}) or {}
-    out: dict[str, str] = {}
-    for gid, meta in services.items():
-        if auto is not None and bool(meta.get("auto", True)) is not auto:
-            continue
-        base_sid = gid  # вариант без флага носит id группы
-        own_flags = [
-            col for col in meta.get("columns", [])
-            if col.get("flag") and flags.get(col["flag"])
-        ]
-        chosen: str | None = None
-        if own_flags:
-            for col in own_flags:
-                if col["variant"] in dispatch:
-                    chosen = dispatch[col["variant"]]
-                    break
-            if chosen is None:
-                continue  # строгий режим: пустое окошко варианта = нет выезда
-        elif base_sid in dispatch:
-            chosen = dispatch[base_sid]
-        if chosen and normalize_token(chosen) != NO_RESPONSE_MARKER:
-            out[gid] = chosen
-    return out
+def _is_no_response(value: str | None) -> bool:
+    """Маркер «нет реагирования»."""
+    if value is None:
+        return False
+    return normalize_token(value) == NO_RESPONSE_MARKER
+
+
+def _is_marker_value(value: str | None) -> bool:
+    """Маркер информирования «карточка-112» (+ известные опечатки).
+
+    Семантика xlsx: адресату отправляется только карточка (уведомить),
+    выезда нет.
+    """
+    import re
+
+    if value is None:
+        return False
+    text = str(value).strip().lower().replace("ё", "е").replace(" ", "")
+    return bool(re.match(_VIS_MARKER_RE, text)) or text in _VIS_MARKER_TYPOS
+
+
+def _chosen_variant(
+    dispatch: dict[str, str],
+    columns: list[dict[str, Any]],
+    flags: dict[str, bool],
+    gid: str,
+) -> str | None:
+    """Выбранное значение группы по флагам (строгий режим).
+
+    Свои флаги стоят -> только вариантные ячейки (пустое окошко = нет
+    значения, без fallback на базу); своих флагов нет -> базовая ячейка
+    (вариант без флага носит id группы).
+    """
+    own_flags = [
+        col for col in columns
+        if col.get("flag") and flags.get(col["flag"])
+    ]
+    if own_flags:
+        for col in own_flags:
+            if col["variant"] in dispatch:
+                return dispatch[col["variant"]]
+        return None
+    return dispatch.get(gid)
 
 
 def dispatch_for_leaf(
@@ -358,10 +365,22 @@ def dispatch_for_leaf(
 
     flags: nd/ul/pp/violation/victims/victims_absent/gas/threat/medical/evac/
     crowd/block/tunnel/pesh/av/sites/stroyka/pozhar/moscow. Свои флаги стоят ->
-    ответ только из вариантных ячеек; значение-маркер «нет реагирования»
-    означает отсутствие выезда. Возвращает {service_group_id: значение}.
+    ответ только из вариантных ячеек; значение-маркер («нет реагирования»,
+    «карточка-112») означает отсутствие выезда — такие ячейки пропускаются
+    (маркерные уходят в informed_for_leaf). Возвращает {group_id: значение}.
     """
-    return _dispatch_core(graph, leaf, flags, auto=True)
+    g = graph or load_incident_graph()
+    flags = flags or {}
+    services = {s["id"]: s for s in get_classifier(g).get("services", [])}
+    dispatch = leaf.get("dispatch", {}) or {}
+    out: dict[str, str] = {}
+    for gid, meta in services.items():
+        if not meta.get("auto", True):
+            continue
+        chosen = _chosen_variant(dispatch, meta.get("columns", []), flags, gid)
+        if chosen and not _vis_value_empty(chosen):
+            out[gid] = chosen
+    return out
 
 
 def informed_for_leaf(
@@ -369,9 +388,27 @@ def informed_for_leaf(
     leaf: dict[str, Any],
     flags: dict[str, bool] | None = None,
 ) -> dict[str, str]:
-    """УВЕДОМЛЯЕМЫЕ службы листа (маркерные группы, синие плашки).
-    Та же строгая логика вариантов, что в dispatch_for_leaf."""
-    return _dispatch_core(graph, leaf, flags, auto=False)
+    """УВЕДОМЛЯЕМЫЕ службы листа (синие плашки).
+
+    Та же строгая логика вариантов, что в dispatch_for_leaf, плюс сюда
+    попадают маркерные («карточка-112») ячейки auto-групп: адресат получает
+    только карточку, без выезда. Возвращает {group_id: значение}.
+    """
+    g = graph or load_incident_graph()
+    flags = flags or {}
+    services = {s["id"]: s for s in get_classifier(g).get("services", [])}
+    dispatch = leaf.get("dispatch", {}) or {}
+    out: dict[str, str] = {}
+    for gid, meta in services.items():
+        chosen = _chosen_variant(dispatch, meta.get("columns", []), flags, gid)
+        if not chosen or _is_no_response(chosen):
+            continue
+        if meta.get("auto", True):
+            if _is_marker_value(chosen):
+                out[gid] = chosen
+        else:
+            out[gid] = chosen
+    return out
 
 
 # Главная служба классификатора (кол. 12 xlsx) -> группа ВИС
@@ -489,6 +526,51 @@ def service_display_name(
         if meta.get("id") == group_id:
             return meta.get("catalog") or meta.get("title", group_id)
     return group_id
+
+
+# Флаг панели карточки -> группа гарантированной службы.
+# Зеркало frontend FLAG_SERVICE (incidentClassifier.js): имена совпадают
+# с backend-каталогами (проверяется tests/test_flag_services.py).
+FLAG_TO_GID: dict[str, str] = {
+    "no_access": "mchs101",
+    "threat": "cemp",
+    "violation": "mvd",
+    "medical": "smp",
+    "evac": "cemp",
+    "gas": "mosgaz",
+}
+
+
+def flag_guaranteed_services(
+    graph: dict[str, Any] | None,
+    flags: dict[str, bool] | None,
+) -> dict[str, str]:
+    """Гарантированные службы активных флагов: {gid: display_name}.
+
+    Жёсткий контроль: служба активного флага обязана быть в карточке
+    и в сценарии тренажёра независимо от вариантных ячеек xlsx.
+    """
+    g = graph or load_incident_graph()
+    flags = flags or {}
+    out: dict[str, str] = {}
+    for flag, gid in FLAG_TO_GID.items():
+        if flags.get(flag):
+            out[gid] = service_display_name(g, gid)
+    return out
+
+
+def vis_flags_from_tags(tags: dict[str, Any] | None) -> dict[str, bool]:
+    """Флаги диспетчеризации/ВИС из tags payload'а карточки."""
+    tags = tags or {}
+    return {
+        "nd": bool(tags.get("no_access")),
+        "ul": bool(tags.get("threat")),
+        "threat": bool(tags.get("threat")),
+        "violation": bool(tags.get("violation")),
+        "medical": bool(tags.get("medical")),
+        "evac": bool(tags.get("evac")),
+        "gas": bool(tags.get("gas")),
+    }
 
 
 def compact_leaf(leaf: dict[str, Any], sections: dict[int, str] | None = None) -> dict[str, Any]:

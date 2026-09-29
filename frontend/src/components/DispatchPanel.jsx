@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { SERVICES } from '../lib/meta';
 
-// Полный состав дока как в АРМ ДДС: 101 / 104 / 102 / Деп. ЖКХ / ЦЭМП / ЦОДД / Мос.Без. / Мослифт
+// Полный состав дока как в АРМ ДДС: 101 / 104 / 102 / Деп. ЖКХ / ЦЭМП / Служба 103 / ЦОДД / Мос.Без. / Мослифт
+// 103 и ЦЭМП — разные ячейки (раньше делили одну ambulance с подписью ЦЭМП).
 const DDS_ORDER = [
   { id: 'fire', dds: 'Служба 101' },
   { id: 'gas', dds: 'Служба 104' },
   { id: 'police', dds: 'Служба 102' },
   { id: 'utility', dds: 'Деп. ЖКХ' },
   { id: 'ambulance', dds: 'ЦЭМП' },
+  { id: 'smp103', dds: 'Служба 103' },
   { id: 'codd', dds: 'ЦОДД' },
   { id: 'mosbez', dds: 'Мос.Без.' },
   { id: 'moslift', dds: 'Мослифт' },

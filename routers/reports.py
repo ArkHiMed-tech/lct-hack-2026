@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from database import get_connection
 from misc.crypto import dec_blob, dec_text, enc_blob, enc_text
+from misc.incident_tree_api import flag_guaranteed_services, load_incident_graph
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -136,7 +137,18 @@ def _build_scenario_from_report(report_id: int, row: dict, payload: dict) -> dic
     factors = payload.get("factors") or []
     if isinstance(factors, str):
         factors = [factors]
-    services = payload.get("services") or []
+    services = list(payload.get("services") or [])
+    # Жёсткий контроль: службы активных флагов обязаны быть в сценарии,
+    # даже если фронт их не прислал. Явно исключённые (×) уважаем.
+    tags = payload.get("tags") or {}
+    excluded = set(payload.get("services_excluded") or [])
+    try:
+        guaranteed = flag_guaranteed_services(load_incident_graph(), tags)
+        for name in guaranteed.values():
+            if name not in services and name not in excluded:
+                services.append(name)
+    except Exception:
+        pass
     description = (payload.get("description") or "").strip() or what
     caller = payload.get("caller_name") or row.get("caller_name") or ""
     created = row.get("created_at") or ""
@@ -161,6 +173,8 @@ def _build_scenario_from_report(report_id: int, row: dict, payload: dict) -> dic
             "vis_class": payload.get("vis_class"),
             "vis_class_fallback": payload.get("vis_class_fallback", False),
             "expected_services": services,
+            "expected_services_informed": payload.get("services_informed") or [],
+            "services_excluded": payload.get("services_excluded") or [],
             "address": address_obj if isinstance(address_obj, dict) and address_obj else {"raw": address_str},
             "address_str": address_str,
             "factors": factors,
