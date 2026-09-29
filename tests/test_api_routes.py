@@ -267,6 +267,33 @@ def test_connection_websocket_route_exists():
         assert message["status"] == "started"
 
 
+def test_connection_websocket_sends_real_tts_chunk():
+    with client.websocket_connect("/api/connection/call") as websocket:
+        websocket.receive_json()
+        websocket.send_json({"type": "start", "session_id": "demo-session"})
+        websocket.receive_json()
+
+        websocket.send_json(
+            {
+                "type": "operator_text",
+                "session_id": "demo-session",
+                "text": "Привет, мир",
+            }
+        )
+
+        messages = []
+        for _ in range(20):
+            try:
+                messages.append(websocket.receive_json())
+            except Exception:
+                break
+
+        tts_messages = [msg for msg in messages if msg.get("type") == "tts_chunk"]
+        assert tts_messages, "Expected a tts_chunk message from websocket"
+        assert tts_messages[0].get("audio")
+        assert tts_messages[0].get("audio") != "stub-audio-chunk"
+
+
 def test_finish_session_uses_db_rubric_when_json_file_missing():
     initialize_database()
     with get_connection() as connection:

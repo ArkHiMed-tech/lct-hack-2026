@@ -88,6 +88,7 @@ export default function Simulator() {
         ...prev,
         { seq: voiceSeq.current, sender: 'system', text: `Голосовой канал: ${msg.text ?? msg.type}`, time: stamp() },
       ]);
+      
     },
   });
 
@@ -179,6 +180,7 @@ export default function Simulator() {
   const handleSend = () => {
     const text = input.trim();
     if (!text || status !== 'connected') return;
+    voice.sendText(text);
     nextUserSeq.current += 1;
     setMessages((prev) => [...prev, { seq: nextUserSeq.current, sender: 'operator', text, time: stamp() }]);
     setInput('');

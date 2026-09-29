@@ -107,5 +107,5 @@ export default function useCallSocket({ onServerMessage } = {}) {
 
   useEffect(() => () => socketRef.current?.close(), []);
 
-  return { state, lastMessage, sendAudio, sendText, connect, disconnect };
+  return { state, lastMessage, sendAudio, sendText, sendSafe, connect, disconnect };
 }
