@@ -13,7 +13,6 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 
 from database import DB_PATH, FRONTEND_DIST, initialize_database, initialize_dev_data
-from misc.incident_tree_api import get_incident_next_levels, get_incident_types, load_incident_graph
 from misc.tts_service import TTSService
 from routers.auth import router as auth_router
 from routers.classifier import router as classifier_router
