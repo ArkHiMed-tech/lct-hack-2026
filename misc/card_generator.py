@@ -91,14 +91,6 @@ def _pick(rng: random.Random, options: list[str]) -> str:
     return rng.choice(options)
 
 
-def _pick_weighted(
-    rng: random.Random, options: list[str], weights: list[float]
-) -> str:
-    if not options:
-        return ""
-    return rng.choices(options, weights=weights, k=1)[0]
-
-
 def validate_card_payload(payload: dict[str, Any]) -> str:
     """Проверка карточки. Пусто = валидно."""
     if not str(payload.get("what", "")).strip():
@@ -136,6 +128,28 @@ def _resolve_override_leaf(
     return None
 
 
+def _walk_tree_leaf(
+    rng: random.Random, graph: dict[str, Any], card: dict[str, Any]
+) -> dict[str, Any]:
+    """Спуск по дереву каскада (та же логика, что кнопки фронта):
+    раздел (взвешенно) -> Место -> Что -> Проявление -> лист.
+    На узле-листе-с-детьми — шанс остановиться, иначе углубиться.
+    """
+    tree = graph.get("classifier", {}).get("tree", []) or []
+    weights_cfg = card.get("section_weights", {})
+    weights = [float(weights_cfg.get(str(root["g"]), 1)) for root in tree]
+    node = rng.choices(tree, weights=weights, k=1)[0]
+    while True:
+        kids = node.get("children", []) or []
+        here = node.get("leaves", []) or []
+        if not kids or (here and rng.random() < 0.35):
+            code = rng.choice(here)
+            break
+        node = rng.choice(kids)
+    by_code = {leaf["code"]: leaf for leaf in classifier_leaves(graph)}
+    return by_code[code]
+
+
 def generate_card(
     seed: int | None = None,
     overrides: dict[str, Any] | None = None,
@@ -160,17 +174,7 @@ def generate_card(
     elif rng.random() < info_prob:
         info_title = _pick(rng, INFO_TYPES)
     else:
-        weights_cfg = card.get("section_weights", {})
-        pool = classifier_leaves(graph, visible_only=True)
-        bucket: dict[int, list[dict[str, Any]]] = {}
-        for item in pool:
-            bucket.setdefault(item["g"], []).append(item)
-        g_ids = sorted(bucket)
-        weights = [float(weights_cfg.get(str(gid), 1)) for gid in g_ids]
-        chosen_g = _pick_weighted(
-            rng, [str(gid) for gid in g_ids], weights
-        )
-        leaf = _pick(rng, bucket[int(chosen_g)])
+        leaf = _walk_tree_leaf(rng, graph, card)
 
     if leaf is not None:
         path = list(leaf.get("path", []) or [])

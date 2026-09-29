@@ -12,9 +12,11 @@ from misc.incident_tree_api import (
     dispatch_for_leaf,
     get_classifier,
     get_leaf_by_code,
+    get_tree_children,
     load_incident_graph,
     search_leaves,
     service_display_name,
+    tree_path_for_code,
 )
 
 router = APIRouter(prefix="/api/classifier", tags=["classifier"])
@@ -133,3 +135,45 @@ async def dispatch(
             for gid, value in disp.items()
         },
     }
+
+
+@router.get("/tree")
+async def get_tree():
+    """Всё дерево навигации: раздел -> Место -> Что -> Проявление -> листья."""
+    from misc.incident_tree_api import LEVEL_LABELS, TREE_LEVELS
+
+    graph = load_incident_graph()
+    return {
+        "levels": TREE_LEVELS,
+        "level_labels": LEVEL_LABELS,
+        "roots": get_classifier(graph).get("tree", []) or [],
+    }
+
+
+@router.get("/children")
+async def get_children(
+    g: int | None = Query(default=None),
+    p1: str | None = Query(default=None),
+    p2: str | None = Query(default=None),
+    p3: str | None = Query(default=None),
+):
+    """Один шаг каскада: все кнопки текущего узла разом + выбираемые листья."""
+    from misc.incident_tree_api import LEVEL_LABELS, TREE_LEVELS
+
+    graph = load_incident_graph()
+    step = get_tree_children(graph, g=g, p1=p1, p2=p2, p3=p3)
+    step["levels"] = TREE_LEVELS
+    step["level_labels"] = LEVEL_LABELS
+    return step
+
+
+@router.get("/breadcrumb/{code}")
+async def get_breadcrumb(code: str):
+    """Breadcrumb листа по Номеру для раскрытия каскада из поиска."""
+    graph = load_incident_graph()
+    crumbs = tree_path_for_code(graph, code)
+    if not crumbs:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Leaf not found"
+        )
+    return {"code": code, "breadcrumb": crumbs}

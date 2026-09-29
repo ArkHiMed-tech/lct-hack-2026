@@ -7,13 +7,14 @@ from misc.card_generator import generate_card, validate_card_payload
 from misc.incident_tree_api import (
     classifier_leaves,
     dispatch_for_leaf,
+    get_tree_children,
     leaves_for_root,
     load_incident_graph,
     match_leaf,
+    tree_path_for_code,
 )
 
 GRAPH_PATH = Path("misc/incident_graph.json")
-V1_BACKUP = Path("/tmp/opencode/incident_graph.v1.json")
 
 
 def test_parser_yields_509_unique_leaves():
@@ -27,11 +28,14 @@ def test_parser_yields_509_unique_leaves():
     assert filled == {1, 2, 3, 4, 5, 6, 7, 8, 9}
 
 
-def test_v1_keys_unchanged():
+def test_graph_v3_shape_no_legacy_keys():
     current = json.loads(GRAPH_PATH.read_text(encoding="utf-8"))
-    backup = json.loads(V1_BACKUP.read_text(encoding="utf-8"))
+    assert current["version"] == 3
     for key in ("root", "root_children", "type_meta", "tag_sets", "children", "flow"):
-        assert current[key] == backup[key], f"v1 key changed: {key}"
+        assert key not in current, f"legacy key remains: {key}"
+    classifier = current["classifier"]
+    assert classifier["leaf_count"] == 509
+    assert len(classifier["tree"]) == 9  # только заполненные разделы
 
 
 def test_classifier_section_shape():
@@ -130,3 +134,78 @@ def test_generated_classifier_codes_valid():
             assert payload["classifier_code"] in codes
             for service in payload["services"]:
                 assert service in names, service
+
+
+def _walk_all_leaves(tree):
+    """Все коды листьев, достижимые из дерева (g, путь)."""
+    found = []
+
+    def visit(node, prefix):
+        for code in node.get("leaves", []) or []:
+            found.append((code, prefix))
+        for child in node.get("children", []) or []:
+            visit(child, prefix + [child["value"]])
+
+    for root in tree:
+        visit(root, [])
+    return found
+
+
+def test_tree_covers_all_visible_leaves_exactly_once():
+    graph = load_incident_graph()
+    tree = graph["classifier"]["tree"]
+    assert [r["g"] for r in tree] == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    reached = _walk_all_leaves(tree)
+    codes = [c for c, _ in reached]
+    visible = {leaf["code"] for leaf in classifier_leaves(graph, visible_only=True)}
+    assert set(codes) == visible
+    assert len(set(codes)) == len(codes)
+    by_code = {leaf["code"]: leaf for leaf in classifier_leaves(graph)}
+    for code, prefix in reached:
+        assert by_code[code]["path"] == prefix, code
+
+
+def test_tree_has_no_hidden_branches():
+    graph = load_incident_graph()
+
+    def values(node):
+        out = [node.get("value", "")]
+        for child in node.get("children", []) or []:
+            out += values(child)
+        return out
+
+    for root in graph["classifier"]["tree"]:
+        assert "Не отображается оператору 112" not in values(root)
+
+
+def test_cascade_fire_path():
+    graph = load_incident_graph()
+    step0 = get_tree_children(graph)
+    assert [b["g"] for b in step0["buttons"]] == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert step0["selectable"] == []
+    step1 = get_tree_children(graph, g=1)
+    assert [b["value"] for b in step1["buttons"]] == [
+        "на улице", "транспорт", "метро", "МЦК", "жилой дом", "объект",
+    ]
+    step2 = get_tree_children(graph, g=1, p1="на улице", p2="мусор")
+    assert [b["value"] for b in step2["buttons"]] == ["открытое пламя", "дым"]
+    assert step2["selectable"] == []
+    step3 = get_tree_children(graph, g=1, p1="на улице", p2="мусор", p3="открытое пламя")
+    assert step3["buttons"] == []
+    assert step3["selectable"] == [{"code": "1010101", "result": "пожар: мусор"}]
+
+
+def test_cascade_leaf_with_children_and_sections_separated():
+    graph = load_incident_graph()
+    dtp = get_tree_children(graph, g=2, p1="ДТП", p2="Транспорт служебный")
+    assert dtp["selectable"] == [
+        {"code": "2010300", "result": "ДТП без пострадавших - служебный"}
+    ]
+    assert [b["value"] for b in dtp["buttons"]] == ["104"]
+    g4 = get_tree_children(graph, g=4)
+    g5 = get_tree_children(graph, g=5)
+    assert g4["buttons"] != g5["buttons"]
+    assert tree_path_for_code(graph, "1010101")[-1] == {
+        "level": "p3", "label": "Проявление", "value": "открытое пламя",
+    }
+    assert tree_path_for_code(graph, "нет-кода") == []

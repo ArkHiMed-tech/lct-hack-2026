@@ -1,22 +1,19 @@
-"""Классификатор «Что случилось?» — переписан под ТЗ КАРТОЧКА 112.docx.
+"""Навигация по дереву классификатора происшествий (xlsx, граф v3).
 
-Источник: Таблица 0 (51 значение: 101/102/103/104 + 47 типов) +
-подписи скриншотов ветки 101-Пожар
-(УЛИЦА / ОТКРЫТОЕ ПЛАМЯ-дыМ / ДОСТУП / МУСОР / ТОННЕЛЬ-ПЕРЕХОД / УГРОЗА / НАРУШЕНИЕ).
+Дерево: раздел (9 шт) -> Место (Признак1) -> Что (Признак2) ->
+Проявление (Признак3) -> лист (Номер + Итоговый тип + диспетчеризация).
+Дети каждого узла вычислены пересечением строк классификатора
+(см. misc/build_incident_graph.py), только видимые оператору ветви.
 
-Формат incident_graph.json:
-  root_children: 51 строка уровня 1
-  type_meta[title] = {"groups": [...], "kind": "fire101"|"generic"}
-  tag_sets: именованные наборы ТЭГов
-  children: материализованные пути глубины <= 4
-  flow: порядок шагов мастера для fire101 / generic
+Тип происшествия карточки — Итоговый тип классификатора,
+а не номера служб 101/102/103/104.
 """
 from __future__ import annotations
 
 import json
 import os
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 _MISC_DIR = Path(__file__).resolve().parent
 DEFAULT_JSON_PATH = Path(
@@ -26,37 +23,14 @@ DEFAULT_JSON_PATH = Path(
     )
 )
 
-# Хвост ветки 101 после выбора детализации (не материализован в JSON,
-# возвращается ручкой по глубине пути — одинаков для всех веток пожара).
-_FIRE_TAIL: list[list[str]] = [
-    ["Тоннель", "Пешеходный переход"],  # place
-    ["Да", "Нет"],  # threat
-    ["Есть правонарушение"],  # violation (single) + фронт добавит "Нет" как сброс
-    ["Да", "Нет"],  # medical
-    ["Да", "Нет"],  # evac
-    ["Да", "Нет", "Нет данных"],  # gas
-]
-
-_FIRE_TAIL_KEYS = ["place", "threat", "violation", "medical", "evac", "gas"]
-
-
-def _clean_path_parts(parts: Iterable[str | None]) -> list[str]:
-    cleaned: list[str] = []
-    for part in parts:
-        if part is None:
-            continue
-        value = str(part).strip()
-        if value:
-            cleaned.append(value)
-    return cleaned
-
-
-def _lookup_path_key(path: list[str]) -> str:
-    return ">".join(path)
-
-
-def _canonical_key(path: list[str]) -> str:
-    return ">".join(p.strip().lower() for p in path if p and p.strip())
+# Уровни каскада: раздел -> место -> что -> проявление.
+TREE_LEVELS = ["section", "p1", "p2", "p3"]
+LEVEL_LABELS = {
+    "section": "Раздел",
+    "p1": "Место",
+    "p2": "Что",
+    "p3": "Проявление",
+}
 
 
 def load_incident_graph(path: str | os.PathLike[str] | None = None) -> dict[str, Any]:
@@ -65,105 +39,117 @@ def load_incident_graph(path: str | os.PathLike[str] | None = None) -> dict[str,
         return json.load(handle)
 
 
-def get_incident_types(graph: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-    """Полный список уровня 1: 51 тип с группами служб и видом ветки."""
+# ---------------------------------------------------------------------------
+# Навигация по дереву: раздел -> Место -> Что -> Проявление -> лист.
+# Путь задаётся значениями [g, p1?, p2?, p3?]; на каждом шаге возвращаются
+# ВСЕ доступные варианты разом + листья, заканчивающиеся в текущем узле
+# (узел может быть одновременно выбираемым типом и родителем).
+# ---------------------------------------------------------------------------
+
+def _tree_roots(graph: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     g = graph or load_incident_graph()
-    meta = g.get("type_meta", {})
-    out: list[dict[str, Any]] = []
-    for title in g.get("root_children", []):
-        m = meta.get(title, {})
-        out.append({"title": title, "groups": list(m.get("groups", [])), "kind": m.get("kind", "generic")})
-    return out
+    return list(get_classifier(g).get("tree", []) or [])
 
 
-def get_type_meta(graph: dict[str, Any], title: str) -> dict[str, Any] | None:
-    meta = graph.get("type_meta", {})
-    if title in meta:
-        return {"title": title, **meta[title]}
-    low = title.strip().lower()
-    for k, v in meta.items():
-        if k.strip().lower() == low:
-            return {"title": k, **v}
+def _find_section_node(
+    graph: dict[str, Any] | None, g: int
+) -> dict[str, Any] | None:
+    for root in _tree_roots(graph):
+        if root.get("g") == g:
+            return root
     return None
 
 
-def _fire_tail_for_depth(depth_after_type: int) -> list[str]:
-    """depth_after_type: сколько шагов выбрано после типа (where=1, sign=2, ...)."""
-    # materialized: 1->signs, 2->access, 3->access? нет: type>w>s>a => details (depth 4 = detail выбран)
-    # depth 4 (detail) -> place, 5 -> threat, 6 -> violation, 7 -> medical, 8 -> evac, 9 -> gas, 10+ -> []
-    idx = depth_after_type - 4
-    if 0 <= idx < len(_FIRE_TAIL):
-        return list(_FIRE_TAIL[idx])
-    return []
+def _find_child(node: dict[str, Any], value: str) -> dict[str, Any] | None:
+    for child in node.get("children", []) or []:
+        if child.get("value") == value:
+            return child
+    return None
 
 
-def get_next_levels(
-    graph: dict[str, Any], path: str | list[str] | tuple[str, ...] | None
-) -> list[str]:
-    if path is None:
-        return list(graph.get("root_children", []))
-    current = _clean_path_parts(path.split(">")) if isinstance(path, str) else _clean_path_parts(path)
-    if not current:
-        return list(graph.get("root_children", []))
-
-    children = graph.get("children", {})
-    direct = _lookup_path_key(current)
-    if direct in children:
-        return list(children[direct])
-
-    norm = _canonical_key(current)
-    for key, value in children.items():
-        if isinstance(key, str) and _canonical_key(key.split(">")) == norm:
-            return list(value)
-
-    # Нематериализованный хвост ветки fire101 (place/threat/...): вычисляем по глубине.
-    meta = get_type_meta(graph, current[0])
-    if meta and meta.get("kind") == "fire101" and len(current) >= 5:
-        tail = _fire_tail_for_depth(len(current) - 1)
-        if tail:
-            return tail
-    return []
-
-
-def get_incident_next_levels(
-    *,
-    group1: str | None = None,
-    group2: str | None = None,
-    group3: str | None = None,
-    group4: str | None = None,
-    group5: str | None = None,
-    group6: str | None = None,
-    group7: str | None = None,
-    group8: str | None = None,
-    path: str | None = None,
+def get_tree_children(
+    graph: dict[str, Any] | None = None,
+    g: int | None = None,
+    p1: str | None = None,
+    p2: str | None = None,
+    p3: str | None = None,
 ) -> dict[str, Any]:
-    """Контракт ручки: path + next_levels + is_leaf + meta уровня 1."""
-    if path is not None:
-        groups = _clean_path_parts(path.split(">"))
-    else:
-        groups = _clean_path_parts([group1, group2, group3, group4, group5, group6, group7, group8])
+    """Один шаг каскада. Пустой путь -> 9 разделов.
 
-    graph = load_incident_graph()
-    nxt = get_next_levels(graph, groups)
-    meta = get_type_meta(graph, groups[0]) if groups else None
-    return {
-        "path": groups,
-        "next_levels": nxt,
-        "is_leaf": len(nxt) == 0,
-        "meta": meta,
-        "tag_sets": graph.get("tag_sets", {}),
-        "flow": graph.get("flow", {}),
-    }
+    Возвращает:
+      breadcrumb: [{level, label, value}] пройденный путь;
+      buttons: [{value, has_children, leaf_count}] все варианты разом;
+      selectable: [{code, result}] листья ровно в текущем узле (кнопки «Выбрать»).
+    """
+    graph = graph or load_incident_graph()
+    by_code = {leaf["code"]: leaf for leaf in get_classifier(graph).get("leaves", []) or []}
+    breadcrumb: list[dict[str, Any]] = []
+    if g is None:
+        buttons = [
+            {
+                "value": root.get("title"),
+                "g": root.get("g"),
+                "has_children": bool(root.get("children")),
+                "leaf_count": 0,
+            }
+            for root in _tree_roots(graph)
+        ]
+        return {"breadcrumb": breadcrumb, "buttons": buttons, "selectable": []}
+
+    root = _find_section_node(graph, g)
+    if root is None:
+        return {"breadcrumb": breadcrumb, "buttons": [], "selectable": []}
+    breadcrumb.append(
+        {"level": "section", "label": LEVEL_LABELS["section"],
+         "value": root.get("title"), "g": root.get("g")}
+    )
+    node: dict[str, Any] | None = root
+    for depth, part in (("p1", p1), ("p2", p2), ("p3", p3)):
+        if part is None or node is None:
+            break
+        node = _find_child(node, part)
+        if node is None:
+            return {"breadcrumb": breadcrumb, "buttons": [], "selectable": []}
+        breadcrumb.append(
+            {"level": depth, "label": LEVEL_LABELS[depth], "value": part}
+        )
+    if node is None:
+        return {"breadcrumb": breadcrumb, "buttons": [], "selectable": []}
+
+    buttons = []
+    for child in node.get("children", []) or []:
+        sub = len(child.get("leaves", []) or []) + sum(
+            len(c.get("leaves", []) or []) for c in child.get("children", []) or []
+        )
+        buttons.append(
+            {"value": child.get("value"),
+             "has_children": bool(child.get("children")),
+             "leaf_count": sub}
+        )
+    selectable = []
+    for code in node.get("leaves", []) or []:
+        leaf = by_code.get(code)
+        if leaf is not None:
+            selectable.append({"code": code, "result": leaf.get("result")})
+    return {"breadcrumb": breadcrumb, "buttons": buttons, "selectable": selectable}
 
 
-if __name__ == "__main__":
-    g = load_incident_graph()
-    print("types:", len(g.get("root_children", [])))
-    print(json.dumps(get_incident_next_levels(path="101"), ensure_ascii=False, indent=1)[:800])
-    print(json.dumps(
-        get_incident_next_levels(path="101>Улица>Открытое пламя / Дым>Есть доступ>Мусор"),
-        ensure_ascii=False, indent=1,
-    ))
+def tree_path_for_code(
+    graph: dict[str, Any] | None = None, code: str | None = None
+) -> list[dict[str, Any]]:
+    """Breadcrumb для листа по Номеру: [раздел, место?, что?, проявление?]."""
+    leaf = get_leaf_by_code(graph, code)
+    if leaf is None:
+        return []
+    g = graph or load_incident_graph()
+    sections = {s["g"]: s["title"] for s in get_classifier(g).get("sections", [])}
+    crumbs = [
+        {"level": "section", "label": LEVEL_LABELS["section"],
+         "value": sections.get(leaf.get("g"), ""), "g": leaf.get("g")}
+    ]
+    for depth, part in zip(("p1", "p2", "p3"), leaf.get("path", []) or []):
+        crumbs.append({"level": depth, "label": LEVEL_LABELS[depth], "value": part})
+    return crumbs
 
 
 # ---------------------------------------------------------------------------
@@ -427,9 +413,9 @@ def get_leaf_by_code(
 
 if __name__ == "__main__":
     g = load_incident_graph()
-    print("types:", len(g.get("root_children", [])))
-    print(json.dumps(get_incident_next_levels(path="101"), ensure_ascii=False, indent=1)[:800])
-    print(json.dumps(
-        get_incident_next_levels(path="101>Улица>Открытое пламя / Дым>Есть доступ>Мусор"),
-        ensure_ascii=False, indent=1,
-    ))
+    step0 = get_tree_children(g)
+    print("sections:", [(b["g"], b["value"]) for b in step0["buttons"]])
+    step1 = get_tree_children(g, g=1)
+    print("g=1 buttons:", [b["value"] for b in step1["buttons"]])
+    step3 = get_tree_children(g, g=1, p1="на улице", p2="мусор")
+    print("fire/musor:", json.dumps(step3, ensure_ascii=False)[:300])

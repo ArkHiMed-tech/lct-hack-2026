@@ -55,3 +55,54 @@ export function leafFactors(leaf, flags, tagDesc) {
   if (tagDesc) out.push(tagDesc);
   return out;
 }
+
+// Уровни каскада «Что случилось?»: раздел -> Место -> Что -> Проявление -> лист.
+// Зеркало backend get_tree_children (дерево грузится с /api/classifier/tree).
+export const CASCADE_LEVELS = ['section', 'p1', 'p2', 'p3'];
+export const CASCADE_LABELS = { section: 'Раздел', p1: 'Место', p2: 'Что', p3: 'Проявление' };
+
+// Локальный шаг каскада по загруженному дереву.
+// path: [{level, value, g?}] (g — только у раздела). Возвращает все варианты
+// текущего узла разом + коды листьев, заканчивающихся ровно здесь.
+export function walkCascadeTree(tree, path) {
+  const roots = tree?.roots ?? [];
+  if (!path.length) {
+    return {
+      breadcrumb: [],
+      buttons: roots.map((r) => ({ value: r.title, g: r.g, has_children: true, leaf_count: 0 })),
+      selectable: [],
+    };
+  }
+  const [sec, ...rest] = path;
+  let node = roots.find((r) => r.g === sec.g) ?? null;
+  if (!node) return { breadcrumb: [], buttons: [], selectable: [] };
+  const breadcrumb = [{ level: 'section', label: CASCADE_LABELS.section, value: node.title, g: node.g }];
+  for (const step of rest) {
+    const child = (node.children ?? []).find((c) => c.value === step.value) ?? null;
+    if (!child) return { breadcrumb, buttons: [], selectable: [] };
+    node = child;
+    breadcrumb.push({ level: step.level, label: CASCADE_LABELS[step.level] ?? step.level, value: step.value });
+  }
+  return {
+    breadcrumb,
+    buttons: (node.children ?? []).map((c) => ({
+      value: c.value,
+      has_children: (c.children ?? []).length > 0,
+      leaf_count: (c.leaves ?? []).length,
+    })),
+    selectable: [...(node.leaves ?? [])],
+  };
+}
+
+// Breadcrumb для листа (раскрытие каскада из поиска/генератора).
+export function cascadePathForLeaf(leaf) {
+  if (!leaf) return [];
+  return [
+    { level: 'section', label: CASCADE_LABELS.section, value: leaf.section?.title || '', g: leaf.section?.g },
+    ...(leaf.path || []).map((v, i) => ({
+      level: CASCADE_LEVELS[i + 1],
+      label: CASCADE_LABELS[CASCADE_LEVELS[i + 1]],
+      value: v,
+    })),
+  ];
+}

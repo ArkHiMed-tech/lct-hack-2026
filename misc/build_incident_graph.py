@@ -11,8 +11,10 @@
      Условные колонки (признаки НД/УЛ/ПП, Правонарушение/Пострадавшие,
      газификация, тоннель/пеш/ав, перекрытие и т.д.) сохраняются как
      варианты выбора по флагам карточки.
-  3. Сохраняет обратно-совместимые ключи v1 (root_children/type_meta/
-     children/tag_sets/flow) без изменений и добавляет секцию "classifier".
+  3. Строит явное дерево навигации classifier.tree
+     (раздел -> Место -> Что -> Проявление -> листья, только видимые ветви).
+     Старый рукотворный граф v1 (root_children/type_meta/tag_sets/children/flow)
+     удалён: навигация строится только из xlsx.
 
 Запуск:  python3 misc/build_incident_graph.py [--check]
   --check  только сверить xlsx с текущим json (без записи).
@@ -220,9 +222,9 @@ ROOT_MAP: dict[str, dict] = {
     "104": {"services_any": ["mosgaz"]},
     "ДТП": {"g": [2]},
     "Взрыв": {"g": [3]},
-    "Угроза взрыва/террористического акта": {"g": [4, 5]},
-    "Угроза обрушения": {"g": [6]},
-    "Обрушение": {"g": [6]},
+    "Угроза взрыва/террористического акта": {"g": [4]},
+    "Угроза обрушения": {"g": [5, 6]},
+    "Обрушение": {"g": [5, 6]},
     "БПЛА": {"services_any": ["fsb", "rosgvard"]},
     "Природная стихия": {"g": [7], "groups": ["Природная стихия"]},
     "Скопление воды": {"g": [7], "groups": ["Скопление воды Подтопление Паводок"]},
@@ -303,7 +305,41 @@ def parse_xlsx(path: Path):
     return sections, leaves
 
 
-def build_graph(sections: dict[int, str], leaves: list[dict], prev: dict, source: str) -> dict:
+def build_tree(
+    sections: dict[int, str], leaves: list[dict]
+) -> list[dict]:
+    """Явное дерево навигации: раздел -> Место(p1) -> Что(p2) -> Проявление(p3).
+
+    Только видимые оператору ветви. Узел: {value, children:[...], leaves:[codes]},
+    где leaves — коды листьев, чей путь заканчивается ровно в этом узле
+    (узел может быть одновременно выбираемым листом и родителем).
+    """
+    visible = [leaf for leaf in leaves if leaf.get("operator_visible")]
+    seen: set[tuple] = set()
+    for leaf in visible:
+        key = (leaf["g"], tuple(leaf["path"]))
+        assert key not in seen, f"дублирующийся путь: {key}"
+        seen.add(key)
+
+    roots: dict[int, dict] = {}
+    for leaf in sorted(visible, key=lambda x: x["code"]):
+        g = leaf["g"]
+        node = roots.setdefault(
+            g, {"g": g, "title": sections.get(g, ""), "children": [], "leaves": []}
+        )
+        for part in leaf["path"]:
+            child = next(
+                (c for c in node["children"] if c["value"] == part), None
+            )
+            if child is None:
+                child = {"value": part, "children": [], "leaves": []}
+                node["children"].append(child)
+            node = child
+        node["leaves"].append(leaf["code"])
+    return [roots[g] for g in sorted(roots)]
+
+
+def build_graph(sections: dict[int, str], leaves: list[dict], source: str) -> dict:
     service_ids = sorted({gid for _, gid, _ in SERVICE_COLUMNS.values()})
     services = []
     for gid in service_ids:
@@ -323,15 +359,11 @@ def build_graph(sections: dict[int, str], leaves: list[dict], prev: dict, source
         for num, title in sorted(sections.items())
     ]
 
+    # Старый рукотворный граф (root_children/type_meta/tag_sets/children/flow,
+    # словарь «101>Улица>…») удалён: навигация строится только из xlsx.
     return {
-        "version": 2,
+        "version": 3,
         "source": source,
-        "root": prev.get("root", "112"),
-        "root_children": prev["root_children"],
-        "type_meta": prev["type_meta"],
-        "tag_sets": prev["tag_sets"],
-        "children": prev["children"],
-        "flow": prev["flow"],
         "classifier": {
             "sections": sections_out,
             "flags": FLAGS,
@@ -339,6 +371,7 @@ def build_graph(sections: dict[int, str], leaves: list[dict], prev: dict, source
             "leaf_count": len(leaves),
             "hidden_leaf_count": sum(1 for leaf in leaves if not leaf["operator_visible"]),
             "leaves": sorted(leaves, key=lambda leaf: leaf["code"]),
+            "tree": build_tree(sections, leaves),
             "root_map": ROOT_MAP,
             "no_response_marker": NO_RESPONSE,
         },
@@ -357,7 +390,7 @@ def main() -> int:
 
     with open(GRAPH_PATH, encoding="utf-8") as fh:
         prev = json.load(fh)
-    graph = build_graph(sections, leaves, prev, f"{xlsx.name} ({len(leaves)} листьев)")
+    graph = build_graph(sections, leaves, f"{xlsx.name} ({len(leaves)} листьев)")
 
     if check_only:
         cur = prev.get("classifier", {})
