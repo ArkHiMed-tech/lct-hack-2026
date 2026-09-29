@@ -6,6 +6,7 @@ from fastapi import FastAPI, Query
 from database import DB_PATH, FRONTEND_DIST, initialize_database, initialize_dev_data
 from misc.incident_tree_api import get_incident_next_levels, get_incident_types, load_incident_graph
 from routers.auth import router as auth_router
+from routers.cards import router as cards_router
 from routers.connection import router as connection_router
 from routers.reports import router as reports_router
 from routers.results import router as results_router
@@ -79,5 +80,6 @@ app.include_router(sessions_router)
 app.include_router(connection_router)
 app.include_router(results_router)
 app.include_router(reports_router)
+app.include_router(cards_router)
 
 app.frontend("/", directory=str(FRONTEND_DIST))

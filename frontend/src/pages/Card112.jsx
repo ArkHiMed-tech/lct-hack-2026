@@ -117,6 +117,44 @@ export default function Card112() {
   const [linkCandidates] = useState([{ id: '36812180', by: 'тот же АОН' }, { id: '36812177', by: 'тот же адрес' }]);
   const [matchBy] = useState('АОН +7(9__) ___-__-__'); // мок кнопки «Совпадение»
   // Пост-карточка
+  const [genLoading, setGenLoading] = useState(false);
+  const applyGenerated = (card) => {
+    if (!card) return;
+    resetAll();
+    // Тип: ищем в справочнике по точному названию, иначе собираем из payload.
+    const found = (types || []).find((t) => t.title === card.what)
+      || (card.what ? { title: card.what, groups: [card.incident_category || '101'], kind: card.incident_kind || 'generic' } : null);
+    if (found) setSelectedTypes([found]);
+    if (card.tags) setTags({ ...EMPTY_TAGS, ...card.tags });
+    if (card.address_obj) setAddr((a) => ({ ...a, ...card.address_obj }));
+    if (card.address) setAddrQuery(card.address);
+    if (card.address_src) setAddrSrc(card.address_src);
+    if (card.phones) setPhones({ aon: card.phones.aon || '', provided: card.phones.provided || '', onsite: card.phones.onsite || '' });
+    if (card.channel) setChannel(card.channel);
+    if (card.caller_name) setApplicant(card.caller_name);
+    if (card.caller_status) setAppStatus(card.caller_status);
+    if (card.victims && card.victims !== 'нет') { setVictims('Есть'); setVictimsCount(card.victims); }
+    if (card.description) setDesc(card.description);
+    if (Array.isArray(card.services) && card.services.length) setManualServices(card.services);
+    setFormError('');
+    setSavedScenarioId(null);
+  };
+  const handleGenerate = async () => {
+    setGenLoading(true);
+    setFormError('');
+    try {
+      const seed = Math.floor(Math.random() * 1e9);
+      const res = await fetch(`/api/cards/generate?seed=${seed}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const card = await res.json();
+      applyGenerated(card);
+      setToast(`Сгенерировано обходом графа: «${card.what}» (seed ${seed}). Проверьте поля и нажмите «сохранить».`);
+    } catch {
+      setFormError('Генератор недоступен (бэкенд не отвечает).');
+    } finally {
+      setGenLoading(false);
+    }
+  };
   const [otrab, setOtrab] = useState([]);
   const [otrabDraft, setOtrabDraft] = useState({ service: '', where: '', phone: '', who: '', msg: '' });
   const [supplement, setSupplement] = useState(false);
@@ -347,6 +385,7 @@ export default function Card112() {
           <div className="dds-back">
             <Link to="/">← К списку происшествий</Link>
             <button type="button" className="btn-reset" onClick={resetAll} title="Insert — новая карточка">Новая карточка (Insert)</button>
+            <button type="button" className="btn-reset" onClick={handleGenerate} disabled={genLoading} title="Сгенерировать карточку обходом графа (GET /api/cards/generate) и заполнить поля">{genLoading ? 'Генерация…' : '⚄ Сгенерировать'}</button>
             <button type="button" className="btn-reset" onClick={() => setIncomingOpen(true)} title="Мок входящего звонка">Входящий звонок</button>
             <span style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
               <span title="Статус телефонии (мок). Недоступен проставляется при открытой карточке">☎ {telStatus}</span>
