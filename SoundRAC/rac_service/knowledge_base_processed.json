@@ -1,0 +1,2456 @@
+[
+  {
+    "intent": "location_112_report",
+    "question": "Я нахожусь по адресу [данные].",
+    "answer": "Принято, категория: location_112_report. Продолжайте.",
+    "original_template": "Я нахожусь по адресу {text}."
+  },
+  {
+    "intent": "location_112_report",
+    "question": "Происшествие случилось здесь: [данные].",
+    "answer": "Принято, категория: location_112_report. Продолжайте.",
+    "original_template": "Происшествие случилось здесь: {text}."
+  },
+  {
+    "intent": "location_112_report",
+    "question": "Вызываю экстренные службы на [данные].",
+    "answer": "Принято, категория: location_112_report. Продолжайте.",
+    "original_template": "Вызываю экстренные службы на {text}."
+  },
+  {
+    "intent": "location_112_report",
+    "question": "Мой точный адрес: [данные].",
+    "answer": "Принято, категория: location_112_report. Продолжайте.",
+    "original_template": "Мой точный адрес: {text}."
+  },
+  {
+    "intent": "location_112_report",
+    "question": "Место инцидента: [данные].",
+    "answer": "Принято, категория: location_112_report. Продолжайте.",
+    "original_template": "Место инцидента: {text}."
+  },
+  {
+    "intent": "location_112_report",
+    "question": "Направляйте бригаду сюда: [данные].",
+    "answer": "Принято, категория: location_112_report. Продолжайте.",
+    "original_template": "Направляйте бригаду сюда: {text}."
+  },
+  {
+    "intent": "location_112_report",
+    "question": "Я звоню с места событий, это [данные].",
+    "answer": "Принято, категория: location_112_report. Продолжайте.",
+    "original_template": "Я звоню с места событий, это {text}."
+  },
+  {
+    "intent": "location_112_report",
+    "question": "Помощь нужно отправить по адресу [данные].",
+    "answer": "Принято, категория: location_112_report. Продолжайте.",
+    "original_template": "Помощь нужно отправить по адресу {text}."
+  },
+  {
+    "intent": "location_112_report",
+    "question": "Мы сейчас находимся на [данные].",
+    "answer": "Принято, категория: location_112_report. Продолжайте.",
+    "original_template": "Мы сейчас находимся на {text}."
+  },
+  {
+    "intent": "location_112_report",
+    "question": "Я в здании, которое расположено по адресу [данные].",
+    "answer": "Принято, категория: location_112_report. Продолжайте.",
+    "original_template": "Я в здании, которое расположено по адресу {text}."
+  },
+  {
+    "intent": "location_112_report",
+    "question": "Адрес, где всё произошло: [данные].",
+    "answer": "Принято, категория: location_112_report. Продолжайте.",
+    "original_template": "Адрес, где всё произошло: {text}."
+  },
+  {
+    "intent": "location_112_report",
+    "question": "Отправляйте спасателей сюда, это [данные].",
+    "answer": "Принято, категория: location_112_report. Продолжайте.",
+    "original_template": "Отправляйте спасателей сюда, это {text}."
+  },
+  {
+    "intent": "caller_name",
+    "question": "Меня зовут [данные].",
+    "answer": "Принято, категория: caller_name. Продолжайте.",
+    "original_template": "Меня зовут {text}."
+  },
+  {
+    "intent": "caller_name",
+    "question": "Моё имя [данные].",
+    "answer": "Принято, категория: caller_name. Продолжайте.",
+    "original_template": "Моё имя {text}."
+  },
+  {
+    "intent": "caller_name",
+    "question": "Я - [данные].",
+    "answer": "Принято, категория: caller_name. Продолжайте.",
+    "original_template": "Я - {text}."
+  },
+  {
+    "intent": "caller_name",
+    "question": "Это говорит [данные].",
+    "answer": "Принято, категория: caller_name. Продолжайте.",
+    "original_template": "Это говорит {text}."
+  },
+  {
+    "intent": "caller_name",
+    "question": "Запишите мои данные: [данные].",
+    "answer": "Принято, категория: caller_name. Продолжайте.",
+    "original_template": "Запишите мои данные: {text}."
+  },
+  {
+    "intent": "caller_name",
+    "question": "Вас беспокоит [данные].",
+    "answer": "Принято, категория: caller_name. Продолжайте.",
+    "original_template": "Вас беспокоит {text}."
+  },
+  {
+    "intent": "caller_name",
+    "question": "Представляюсь, [данные].",
+    "answer": "Принято, категория: caller_name. Продолжайте.",
+    "original_template": "Представляюсь, {text}."
+  },
+  {
+    "intent": "caller_name",
+    "question": "Я тот, кто звонит, меня зовут [данные].",
+    "answer": "Принято, категория: caller_name. Продолжайте.",
+    "original_template": "Я тот, кто звонит, меня зовут {text}."
+  },
+  {
+    "intent": "caller_name",
+    "question": "Можно записать вызов на [данные].",
+    "answer": "Принято, категория: caller_name. Продолжайте.",
+    "original_template": "Можно записать вызов на {text}."
+  },
+  {
+    "intent": "caller_name",
+    "question": "Мои фамилия и имя: [данные].",
+    "answer": "Принято, категория: caller_name. Продолжайте.",
+    "original_template": "Мои фамилия и имя: {text}."
+  },
+  {
+    "intent": "caller_name",
+    "question": "На кого оформить заявку? На [данные].",
+    "answer": "Принято, категория: caller_name. Продолжайте.",
+    "original_template": "На кого оформить заявку? На {text}."
+  },
+  {
+    "intent": "caller_name",
+    "question": "Я [данные], это я сообщаю о происшествии.",
+    "answer": "Принято, категория: caller_name. Продолжайте.",
+    "original_template": "Я {text}, это я сообщаю о происшествии."
+  },
+  {
+    "intent": "caller_status",
+    "question": "Я [данные].",
+    "answer": "Принято, категория: caller_status. Продолжайте.",
+    "original_template": "Я {text}."
+  },
+  {
+    "intent": "caller_status",
+    "question": "Я здесь в качестве [данные].",
+    "answer": "Принято, категория: caller_status. Продолжайте.",
+    "original_template": "Я здесь в качестве {text}."
+  },
+  {
+    "intent": "caller_status",
+    "question": "По отношению к произошедшему я [данные].",
+    "answer": "Принято, категория: caller_status. Продолжайте.",
+    "original_template": "По отношению к произошедшему я {text}."
+  },
+  {
+    "intent": "caller_status",
+    "question": "Кем я являюсь? Я [данные].",
+    "answer": "Принято, категория: caller_status. Продолжайте.",
+    "original_template": "Кем я являюсь? Я {text}."
+  },
+  {
+    "intent": "caller_status",
+    "question": "Запишите мой статус: я [данные].",
+    "answer": "Принято, категория: caller_status. Продолжайте.",
+    "original_template": "Запишите мой статус: я {text}."
+  },
+  {
+    "intent": "caller_status",
+    "question": "Я нахожусь на месте события как [данные].",
+    "answer": "Принято, категория: caller_status. Продолжайте.",
+    "original_template": "Я нахожусь на месте события как {text}."
+  },
+  {
+    "intent": "incident_type",
+    "question": "Здесь произошло [данные].",
+    "answer": "Принято, категория: incident_type. Продолжайте.",
+    "original_template": "Здесь произошло {text}."
+  },
+  {
+    "intent": "incident_type",
+    "question": "Срочно, у нас [данные]!",
+    "answer": "Принято, категория: incident_type. Продолжайте.",
+    "original_template": "Срочно, у нас {text}!"
+  },
+  {
+    "intent": "incident_type",
+    "question": "Случилось [данные].",
+    "answer": "Принято, категория: incident_type. Продолжайте.",
+    "original_template": "Случилось {text}."
+  },
+  {
+    "intent": "incident_type",
+    "question": "У нас тут [данные].",
+    "answer": "Принято, категория: incident_type. Продолжайте.",
+    "original_template": "У нас тут {text}."
+  },
+  {
+    "intent": "incident_type",
+    "question": "Я наблюдаю [данные].",
+    "answer": "Принято, категория: incident_type. Продолжайте.",
+    "original_template": "Я наблюдаю {text}."
+  },
+  {
+    "intent": "incident_type",
+    "question": "Произошло [данные].",
+    "answer": "Принято, категория: incident_type. Продолжайте.",
+    "original_template": "Произошло {text}."
+  },
+  {
+    "intent": "incident_type",
+    "question": "Тут просто [данные]!",
+    "answer": "Принято, категория: incident_type. Продолжайте.",
+    "original_template": "Тут просто {text}!"
+  },
+  {
+    "intent": "incident_type",
+    "question": "Что случилось? У нас [данные].",
+    "answer": "Принято, категория: incident_type. Продолжайте.",
+    "original_template": "Что случилось? У нас {text}."
+  },
+  {
+    "intent": "incident_type",
+    "question": "Вижу на улице [данные].",
+    "answer": "Принято, категория: incident_type. Продолжайте.",
+    "original_template": "Вижу на улице {text}."
+  },
+  {
+    "intent": "incident_type",
+    "question": "Сообщаю о том, что произошло [данные].",
+    "answer": "Принято, категория: incident_type. Продолжайте.",
+    "original_template": "Сообщаю о том, что произошло {text}."
+  },
+  {
+    "intent": "incident_type",
+    "question": "Вызываю службу из-за [данные].",
+    "answer": "Принято, категория: incident_type. Продолжайте.",
+    "original_template": "Вызываю службу из-за {text}."
+  },
+  {
+    "intent": "incident_type",
+    "question": "Ситуация следующая: [данные].",
+    "answer": "Принято, категория: incident_type. Продолжайте.",
+    "original_template": "Ситуация следующая: {text}."
+  },
+  {
+    "intent": "call_reason_non_incident",
+    "question": "Я звоню не из-за чрезвычайной ситуации, мой повод обращения: [данные].",
+    "answer": "Принято, категория: call_reason_non_incident. Продолжайте.",
+    "original_template": "Я звоню не из-за чрезвычайной ситуации, мой повод обращения: {text}."
+  },
+  {
+    "intent": "call_reason_non_incident",
+    "question": "Цель моего звонка — [данные].",
+    "answer": "Принято, категория: call_reason_non_incident. Продолжайте.",
+    "original_template": "Цель моего звонка — {text}."
+  },
+  {
+    "intent": "call_reason_non_incident",
+    "question": "У меня нет сообщения о происшествии, я хочу [данные].",
+    "answer": "Принято, категория: call_reason_non_incident. Продолжайте.",
+    "original_template": "У меня нет сообщения о происшествии, я хочу {text}."
+  },
+  {
+    "intent": "call_reason_non_incident",
+    "question": "Звоню, чтобы спросить [данные].",
+    "answer": "Принято, категория: call_reason_non_incident. Продолжайте.",
+    "original_template": "Звоню, чтобы спросить {text}."
+  },
+  {
+    "intent": "call_reason_non_incident",
+    "question": "Меня интересует не вызов бригады, а [данные].",
+    "answer": "Принято, категория: call_reason_non_incident. Продолжайте.",
+    "original_template": "Меня интересует не вызов бригады, а {text}."
+  },
+  {
+    "intent": "call_reason_non_incident",
+    "question": "Я обращаюсь к вам по вопросу: [данные].",
+    "answer": "Принято, категория: call_reason_non_incident. Продолжайте.",
+    "original_template": "Я обращаюсь к вам по вопросу: {text}."
+  },
+  {
+    "intent": "call_reason_non_incident",
+    "question": "Я звоню по поводу того, что [данные].",
+    "answer": "Принято, категория: call_reason_non_incident. Продолжайте.",
+    "original_template": "Я звоню по поводу того, что {text}."
+  },
+  {
+    "intent": "call_reason_non_incident",
+    "question": "Мне нужно сообщить информацию следующего характера: [данные].",
+    "answer": "Принято, категория: call_reason_non_incident. Продолжайте.",
+    "original_template": "Мне нужно сообщить информацию следующего характера: {text}."
+  },
+  {
+    "intent": "call_reason_non_incident",
+    "question": "Повод для моего звонка не связан со спасением, дело в том, что [данные].",
+    "answer": "Принято, категория: call_reason_non_incident. Продолжайте.",
+    "original_template": "Повод для моего звонка не связан со спасением, дело в том, что {text}."
+  },
+  {
+    "intent": "call_reason_non_incident",
+    "question": "Я хотел бы прояснить ситуацию, а именно [данные].",
+    "answer": "Принято, категория: call_reason_non_incident. Продолжайте.",
+    "original_template": "Я хотел бы прояснить ситуацию, а именно {text}."
+  },
+  {
+    "intent": "call_reason_non_incident",
+    "question": "Обращаюсь в службу 112, потому что [данные].",
+    "answer": "Принято, категория: call_reason_non_incident. Продолжайте.",
+    "original_template": "Обращаюсь в службу 112, потому что {text}."
+  },
+  {
+    "intent": "caller_phone_number",
+    "question": "Я звоню с номера [данные].",
+    "answer": "Принято, категория: caller_phone_number. Продолжайте.",
+    "original_template": "Я звоню с номера {text}."
+  },
+  {
+    "intent": "caller_phone_number",
+    "question": "Запишите мой телефон: [данные].",
+    "answer": "Принято, категория: caller_phone_number. Продолжайте.",
+    "original_template": "Запишите мой телефон: {text}."
+  },
+  {
+    "intent": "caller_phone_number",
+    "question": "Перезвоните мне по номеру [данные].",
+    "answer": "Принято, категория: caller_phone_number. Продолжайте.",
+    "original_template": "Перезвоните мне по номеру {text}."
+  },
+  {
+    "intent": "caller_phone_number",
+    "question": "Мой контактный номер [данные].",
+    "answer": "Принято, категория: caller_phone_number. Продолжайте.",
+    "original_template": "Мой контактный номер {text}."
+  },
+  {
+    "intent": "caller_phone_number",
+    "question": "Для связи со мной используйте [данные].",
+    "answer": "Принято, категория: caller_phone_number. Продолжайте.",
+    "original_template": "Для связи со мной используйте {text}."
+  },
+  {
+    "intent": "caller_phone_number",
+    "question": "Звоню вам с мобильного [данные].",
+    "answer": "Принято, категория: caller_phone_number. Продолжайте.",
+    "original_template": "Звоню вам с мобильного {text}."
+  },
+  {
+    "intent": "caller_phone_number",
+    "question": "Номер, с которого я говорю: [данные].",
+    "answer": "Принято, категория: caller_phone_number. Продолжайте.",
+    "original_template": "Номер, с которого я говорю: {text}."
+  },
+  {
+    "intent": "caller_phone_number",
+    "question": "Если связь прервется, набирайте [данные].",
+    "answer": "Принято, категория: caller_phone_number. Продолжайте.",
+    "original_template": "Если связь прервется, набирайте {text}."
+  },
+  {
+    "intent": "caller_phone_number",
+    "question": "Мой сотовый: [данные].",
+    "answer": "Принято, категория: caller_phone_number. Продолжайте.",
+    "original_template": "Мой сотовый: {text}."
+  },
+  {
+    "intent": "caller_phone_number",
+    "question": "Оставляю номер для обратной связи: [данные].",
+    "answer": "Принято, категория: caller_phone_number. Продолжайте.",
+    "original_template": "Оставляю номер для обратной связи: {text}."
+  },
+  {
+    "intent": "caller_phone_number",
+    "question": "Со своего телефона [данные].",
+    "answer": "Принято, категория: caller_phone_number. Продолжайте.",
+    "original_template": "Со своего телефона {text}."
+  },
+  {
+    "intent": "caller_phone_number",
+    "question": "Можете связаться со мной по номеру [данные].",
+    "answer": "Принято, категория: caller_phone_number. Продолжайте.",
+    "original_template": "Можете связаться со мной по номеру {text}."
+  },
+  {
+    "intent": "victims_count",
+    "question": "Тут [данные] пострадавших.",
+    "answer": "Принято, категория: victims_count. Продолжайте.",
+    "original_template": "Тут {text} пострадавших."
+  },
+  {
+    "intent": "victims_count",
+    "question": "Вижу [данные] человек, которым нужна помощь.",
+    "answer": "Принято, категория: victims_count. Продолжайте.",
+    "original_template": "Вижу {text} человек, которым нужна помощь."
+  },
+  {
+    "intent": "victims_count",
+    "question": "В результате инцидента пострадало [данные] человек.",
+    "answer": "Принято, категория: victims_count. Продолжайте.",
+    "original_template": "В результате инцидента пострадало {text} человек."
+  },
+  {
+    "intent": "victims_count",
+    "question": "Количество пострадавших: [данные].",
+    "answer": "Принято, категория: victims_count. Продолжайте.",
+    "original_template": "Количество пострадавших: {text}."
+  },
+  {
+    "intent": "victims_count",
+    "question": "Здесь [данные] раненых.",
+    "answer": "Принято, категория: victims_count. Продолжайте.",
+    "original_template": "Здесь {text} раненых."
+  },
+  {
+    "intent": "victims_count",
+    "question": "Нужна медицинская помощь для [данные] человек.",
+    "answer": "Принято, категория: victims_count. Продолжайте.",
+    "original_template": "Нужна медицинская помощь для {text} человек."
+  },
+  {
+    "intent": "victims_count",
+    "question": "Кажется, тут [данные] пострадавших, возможно больше.",
+    "answer": "Принято, категория: victims_count. Продолжайте.",
+    "original_template": "Кажется, тут {text} пострадавших, возможно больше."
+  },
+  {
+    "intent": "victims_count",
+    "question": "Я насчитал [данные] пострадавших.",
+    "answer": "Принято, категория: victims_count. Продолжайте.",
+    "original_template": "Я насчитал {text} пострадавших."
+  },
+  {
+    "intent": "victims_count",
+    "question": "На месте происшествия находится [данные] человек с травмами.",
+    "answer": "Принято, категория: victims_count. Продолжайте.",
+    "original_template": "На месте происшествия находится {text} человек с травмами."
+  },
+  {
+    "intent": "victims_count",
+    "question": "Помощь нужна [данные] людям.",
+    "answer": "Принято, категория: victims_count. Продолжайте.",
+    "original_template": "Помощь нужна {text} людям."
+  },
+  {
+    "intent": "victims_count",
+    "question": "Всего пострадало [данные] человек.",
+    "answer": "Принято, категория: victims_count. Продолжайте.",
+    "original_template": "Всего пострадало {text} человек."
+  },
+  {
+    "intent": "victims_count",
+    "question": "Есть пострадавшие, их ровно [данные].",
+    "answer": "Принято, категория: victims_count. Продолжайте.",
+    "original_template": "Есть пострадавшие, их ровно {text}."
+  },
+  {
+    "intent": "no_victims",
+    "question": "Нет, пострадавших нет.",
+    "answer": "Принято, категория: no_victims. Продолжайте.",
+    "original_template": "Нет, пострадавших нет."
+  },
+  {
+    "intent": "no_victims",
+    "question": "Никто не пострадал.",
+    "answer": "Принято, категория: no_victims. Продолжайте.",
+    "original_template": "Никто не пострадал."
+  },
+  {
+    "intent": "no_victims",
+    "question": "К счастью, обошлось без жертв.",
+    "answer": "Принято, категория: no_victims. Продолжайте.",
+    "original_template": "К счастью, обошлось без жертв."
+  },
+  {
+    "intent": "no_victims",
+    "question": "Травмированных здесь нет.",
+    "answer": "Принято, категория: no_victims. Продолжайте.",
+    "original_template": "Травмированных здесь нет."
+  },
+  {
+    "intent": "no_victims",
+    "question": "Все в порядке, люди целы.",
+    "answer": "Принято, категория: no_victims. Продолжайте.",
+    "original_template": "Все в порядке, люди целы."
+  },
+  {
+    "intent": "no_victims",
+    "question": "Помощь врачей никому не нужна.",
+    "answer": "Принято, категория: no_victims. Продолжайте.",
+    "original_template": "Помощь врачей никому не нужна."
+  },
+  {
+    "intent": "no_victims",
+    "question": "Никого не задело, все живы.",
+    "answer": "Принято, категория: no_victims. Продолжайте.",
+    "original_template": "Никого не задело, все живы."
+  },
+  {
+    "intent": "no_victims",
+    "question": "Пострадавших на месте происшествия нет.",
+    "answer": "Принято, категория: no_victims. Продолжайте.",
+    "original_template": "Пострадавших на месте происшествия нет."
+  },
+  {
+    "intent": "no_victims",
+    "question": "Всё хорошо, люди не пострадали.",
+    "answer": "Принято, категория: no_victims. Продолжайте.",
+    "original_template": "Всё хорошо, люди не пострадали."
+  },
+  {
+    "intent": "no_victims",
+    "question": "Кажется, обошлось, пострадавших не вижу.",
+    "answer": "Принято, категория: no_victims. Продолжайте.",
+    "original_template": "Кажется, обошлось, пострадавших не вижу."
+  },
+  {
+    "intent": "no_victims",
+    "question": "Никто не ранен.",
+    "answer": "Принято, категория: no_victims. Продолжайте.",
+    "original_template": "Никто не ранен."
+  },
+  {
+    "intent": "no_victims",
+    "question": "Все люди в безопасности, пострадавших нет.",
+    "answer": "Принято, категория: no_victims. Продолжайте.",
+    "original_template": "Все люди в безопасности, пострадавших нет."
+  },
+  {
+    "intent": "fire_location",
+    "question": "Горит [данные].",
+    "answer": "Принято, категория: fire_location. Продолжайте.",
+    "original_template": "Горит {text}."
+  },
+  {
+    "intent": "fire_location",
+    "question": "Пожар произошел в [данные].",
+    "answer": "Принято, категория: fire_location. Продолжайте.",
+    "original_template": "Пожар произошел в {text}."
+  },
+  {
+    "intent": "fire_location",
+    "question": "Огонь находится в [данные].",
+    "answer": "Принято, категория: fire_location. Продолжайте.",
+    "original_template": "Огонь находится в {text}."
+  },
+  {
+    "intent": "fire_location",
+    "question": "Вижу сильный дым из [данные].",
+    "answer": "Принято, категория: fire_location. Продолжайте.",
+    "original_template": "Вижу сильный дым из {text}."
+  },
+  {
+    "intent": "fire_location",
+    "question": "Загорелось в [данные].",
+    "answer": "Принято, категория: fire_location. Продолжайте.",
+    "original_template": "Загорелось в {text}."
+  },
+  {
+    "intent": "fire_location",
+    "question": "Пламя охватило [данные].",
+    "answer": "Принято, категория: fire_location. Продолжайте.",
+    "original_template": "Пламя охватило {text}."
+  },
+  {
+    "intent": "fire_location",
+    "question": "Возгорание зафиксировано в [данные].",
+    "answer": "Принято, категория: fire_location. Продолжайте.",
+    "original_template": "Возгорание зафиксировано в {text}."
+  },
+  {
+    "intent": "fire_location",
+    "question": "Горит не просто здание, а конкретно [данные].",
+    "answer": "Принято, категория: fire_location. Продолжайте.",
+    "original_template": "Горит не просто здание, а конкретно {text}."
+  },
+  {
+    "intent": "fire_location",
+    "question": "Огонь вспыхнул в [данные].",
+    "answer": "Принято, категория: fire_location. Продолжайте.",
+    "original_template": "Огонь вспыхнул в {text}."
+  },
+  {
+    "intent": "fire_location",
+    "question": "Пожар на [данные].",
+    "answer": "Принято, категория: fire_location. Продолжайте.",
+    "original_template": "Пожар на {text}."
+  },
+  {
+    "intent": "fire_location",
+    "question": "Дым валит прямо из [данные].",
+    "answer": "Принято, категория: fire_location. Продолжайте.",
+    "original_template": "Дым валит прямо из {text}."
+  },
+  {
+    "intent": "fire_location",
+    "question": "Горит [данные], нужно срочно тушить.",
+    "answer": "Принято, категория: fire_location. Продолжайте.",
+    "original_template": "Горит {text}, нужно срочно тушить."
+  },
+  {
+    "intent": "smoke_smell_location",
+    "question": "Я чувствую запах дыма в [данные].",
+    "answer": "Принято, категория: smoke_smell_location. Продолжайте.",
+    "original_template": "Я чувствую запах дыма в {text}."
+  },
+  {
+    "intent": "smoke_smell_location",
+    "question": "Пахнет гарью на [данные].",
+    "answer": "Принято, категория: smoke_smell_location. Продолжайте.",
+    "original_template": "Пахнет гарью на {text}."
+  },
+  {
+    "intent": "smoke_smell_location",
+    "question": "Запах дыма доносится из [данные].",
+    "answer": "Принято, категория: smoke_smell_location. Продолжайте.",
+    "original_template": "Запах дыма доносится из {text}."
+  },
+  {
+    "intent": "smoke_smell_location",
+    "question": "У нас в [данные] сильно пахнет дымом.",
+    "answer": "Принято, категория: smoke_smell_location. Продолжайте.",
+    "original_template": "У нас в {text} сильно пахнет дымом."
+  },
+  {
+    "intent": "smoke_smell_location",
+    "question": "Ощущается стойкий запах гари в [данные].",
+    "answer": "Принято, категория: smoke_smell_location. Продолжайте.",
+    "original_template": "Ощущается стойкий запах гари в {text}."
+  },
+  {
+    "intent": "smoke_smell_location",
+    "question": "Дымом пахнет прямо возле [данные].",
+    "answer": "Принято, категория: smoke_smell_location. Продолжайте.",
+    "original_template": "Дымом пахнет прямо возле {text}."
+  },
+  {
+    "intent": "smoke_smell_location",
+    "question": "Я нахожусь в [данные], и здесь сильно пахнет дымом.",
+    "answer": "Принято, категория: smoke_smell_location. Продолжайте.",
+    "original_template": "Я нахожусь в {text}, и здесь сильно пахнет дымом."
+  },
+  {
+    "intent": "smoke_smell_location",
+    "question": "В [данные] ощущается сильный запах дыма.",
+    "answer": "Принято, категория: smoke_smell_location. Продолжайте.",
+    "original_template": "В {text} ощущается сильный запах дыма."
+  },
+  {
+    "intent": "smoke_smell_location",
+    "question": "Не пойму откуда, но дымом тянет со стороны [данные].",
+    "answer": "Принято, категория: smoke_smell_location. Продолжайте.",
+    "original_template": "Не пойму откуда, но дымом тянет со стороны {text}."
+  },
+  {
+    "intent": "smoke_smell_location",
+    "question": "Запах гари идет из [данные].",
+    "answer": "Принято, категория: smoke_smell_location. Продолжайте.",
+    "original_template": "Запах гари идет из {text}."
+  },
+  {
+    "intent": "smoke_smell_location",
+    "question": "Чувствую едкий запах дыма, находясь на [данные].",
+    "answer": "Принято, категория: smoke_smell_location. Продолжайте.",
+    "original_template": "Чувствую едкий запах дыма, находясь на {text}."
+  },
+  {
+    "intent": "smoke_smell_location",
+    "question": "У нас в [данные] пахнет, как будто что-то горит.",
+    "answer": "Принято, категория: smoke_smell_location. Продолжайте.",
+    "original_template": "У нас в {text} пахнет, как будто что-то горит."
+  },
+  {
+    "intent": "fire_object",
+    "question": "Горит [данные].",
+    "answer": "Принято, категория: fire_object. Продолжайте.",
+    "original_template": "Горит {text}."
+  },
+  {
+    "intent": "fire_object",
+    "question": "Загорелся [данные].",
+    "answer": "Принято, категория: fire_object. Продолжайте.",
+    "original_template": "Загорелся {text}."
+  },
+  {
+    "intent": "fire_object",
+    "question": "Вижу, как полыхает [данные].",
+    "answer": "Принято, категория: fire_object. Продолжайте.",
+    "original_template": "Вижу, как полыхает {text}."
+  },
+  {
+    "intent": "fire_object",
+    "question": "Огонь охватил [данные].",
+    "answer": "Принято, категория: fire_object. Продолжайте.",
+    "original_template": "Огонь охватил {text}."
+  },
+  {
+    "intent": "fire_object",
+    "question": "Дым идет от [данные].",
+    "answer": "Принято, категория: fire_object. Продолжайте.",
+    "original_template": "Дым идет от {text}."
+  },
+  {
+    "intent": "fire_object",
+    "question": "Здесь сгорает [данные].",
+    "answer": "Принято, категория: fire_object. Продолжайте.",
+    "original_template": "Здесь сгорает {text}."
+  },
+  {
+    "intent": "fire_object",
+    "question": "Прямо на моих глазах горит [данные].",
+    "answer": "Принято, категория: fire_object. Продолжайте.",
+    "original_template": "Прямо на моих глазах горит {text}."
+  },
+  {
+    "intent": "fire_object",
+    "question": "Кажется, загорелся [данные].",
+    "answer": "Принято, категория: fire_object. Продолжайте.",
+    "original_template": "Кажется, загорелся {text}."
+  },
+  {
+    "intent": "fire_object",
+    "question": "Воспламенился [данные].",
+    "answer": "Принято, категория: fire_object. Продолжайте.",
+    "original_template": "Воспламенился {text}."
+  },
+  {
+    "intent": "fire_object",
+    "question": "В огне находится [данные].",
+    "answer": "Принято, категория: fire_object. Продолжайте.",
+    "original_template": "В огне находится {text}."
+  },
+  {
+    "intent": "fire_object",
+    "question": "Сильно дымит [данные].",
+    "answer": "Принято, категория: fire_object. Продолжайте.",
+    "original_template": "Сильно дымит {text}."
+  },
+  {
+    "intent": "fire_object",
+    "question": "Горит не здание, а [данные].",
+    "answer": "Принято, категория: fire_object. Продолжайте.",
+    "original_template": "Горит не здание, а {text}."
+  },
+  {
+    "intent": "access_to_victims_positive",
+    "question": "Да, доступ к людям есть.",
+    "answer": "Принято, категория: access_to_victims_positive. Продолжайте.",
+    "original_template": "Да, доступ к людям есть."
+  },
+  {
+    "intent": "access_to_victims_positive",
+    "question": "Я могу к ним подойти, проход свободен.",
+    "answer": "Принято, категория: access_to_victims_positive. Продолжайте.",
+    "original_template": "Я могу к ним подойти, проход свободен."
+  },
+  {
+    "intent": "access_to_victims_positive",
+    "question": "Доступ к пострадавшим не заблокирован.",
+    "answer": "Принято, категория: access_to_victims_positive. Продолжайте.",
+    "original_template": "Доступ к пострадавшим не заблокирован."
+  },
+  {
+    "intent": "access_to_victims_positive",
+    "question": "Я нахожусь прямо рядом с ними.",
+    "answer": "Принято, категория: access_to_victims_positive. Продолжайте.",
+    "original_template": "Я нахожусь прямо рядом с ними."
+  },
+  {
+    "intent": "access_to_victims_positive",
+    "question": "Да, к ним можно спокойно пройти.",
+    "answer": "Принято, категория: access_to_victims_positive. Продолжайте.",
+    "original_template": "Да, к ним можно спокойно пройти."
+  },
+  {
+    "intent": "access_to_victims_positive",
+    "question": "Мы можем к ним пробраться, путь открыт.",
+    "answer": "Принято, категория: access_to_victims_positive. Продолжайте.",
+    "original_template": "Мы можем к ним пробраться, путь открыт."
+  },
+  {
+    "intent": "access_to_victims_positive",
+    "question": "У меня есть прямой доступ к людям.",
+    "answer": "Принято, категория: access_to_victims_positive. Продолжайте.",
+    "original_template": "У меня есть прямой доступ к людям."
+  },
+  {
+    "intent": "access_to_victims_positive",
+    "question": "Дверь открыта, я внутри вместе с ними.",
+    "answer": "Принято, категория: access_to_victims_positive. Продолжайте.",
+    "original_template": "Дверь открыта, я внутри вместе с ними."
+  },
+  {
+    "intent": "access_to_victims_positive",
+    "question": "Да, я их вижу и могу до них дотянуться.",
+    "answer": "Принято, категория: access_to_victims_positive. Продолжайте.",
+    "original_template": "Да, я их вижу и могу до них дотянуться."
+  },
+  {
+    "intent": "access_to_victims_positive",
+    "question": "Ничто не преграждает путь, я рядом с пострадавшими.",
+    "answer": "Принято, категория: access_to_victims_positive. Продолжайте.",
+    "original_template": "Ничто не преграждает путь, я рядом с пострадавшими."
+  },
+  {
+    "intent": "access_to_victims_positive",
+    "question": "Подход к людям свободен, я уже у них.",
+    "answer": "Принято, категория: access_to_victims_positive. Продолжайте.",
+    "original_template": "Подход к людям свободен, я уже у них."
+  },
+  {
+    "intent": "access_to_victims_positive",
+    "question": "Да, доступ есть, я прямо возле них.",
+    "answer": "Принято, категория: access_to_victims_positive. Продолжайте.",
+    "original_template": "Да, доступ есть, я прямо возле них."
+  },
+  {
+    "intent": "access_to_victims_negative",
+    "question": "Нет, доступа к ним нет.",
+    "answer": "Принято, категория: access_to_victims_negative. Продолжайте.",
+    "original_template": "Нет, доступа к ним нет."
+  },
+  {
+    "intent": "access_to_victims_negative",
+    "question": "Не могу к ним пробиться, проход закрыт.",
+    "answer": "Принято, категория: access_to_victims_negative. Продолжайте.",
+    "original_template": "Не могу к ним пробиться, проход закрыт."
+  },
+  {
+    "intent": "access_to_victims_negative",
+    "question": "Доступ к пострадавшим заблокирован.",
+    "answer": "Принято, категория: access_to_victims_negative. Продолжайте.",
+    "original_template": "Доступ к пострадавшим заблокирован."
+  },
+  {
+    "intent": "access_to_victims_negative",
+    "question": "Дверь заперта, я не могу к ним попасть.",
+    "answer": "Принято, категория: access_to_victims_negative. Продолжайте.",
+    "original_template": "Дверь заперта, я не могу к ним попасть."
+  },
+  {
+    "intent": "access_to_victims_negative",
+    "question": "Нет, проход завален, к людям не подобраться.",
+    "answer": "Принято, категория: access_to_victims_negative. Продолжайте.",
+    "original_template": "Нет, проход завален, к людям не подобраться."
+  },
+  {
+    "intent": "access_to_victims_negative",
+    "question": "Я их слышу, но подойти не могу, путь перекрыт.",
+    "answer": "Принято, категория: access_to_victims_negative. Продолжайте.",
+    "original_template": "Я их слышу, но подойти не могу, путь перекрыт."
+  },
+  {
+    "intent": "access_to_victims_negative",
+    "question": "К сожалению, доступа нет.",
+    "answer": "Принято, категория: access_to_victims_negative. Продолжайте.",
+    "original_template": "К сожалению, доступа нет."
+  },
+  {
+    "intent": "access_to_victims_negative",
+    "question": "Нет, я не могу к ним пройти.",
+    "answer": "Принято, категория: access_to_victims_negative. Продолжайте.",
+    "original_template": "Нет, я не могу к ним пройти."
+  },
+  {
+    "intent": "access_to_victims_negative",
+    "question": "Подхода нет, всё заблокировано.",
+    "answer": "Принято, категория: access_to_victims_negative. Продолжайте.",
+    "original_template": "Подхода нет, всё заблокировано."
+  },
+  {
+    "intent": "access_to_victims_negative",
+    "question": "Добраться до людей невозможно.",
+    "answer": "Принято, категория: access_to_victims_negative. Продолжайте.",
+    "original_template": "Добраться до людей невозможно."
+  },
+  {
+    "intent": "access_to_victims_negative",
+    "question": "Нет, двери не поддаются, к людям доступа нет.",
+    "answer": "Принято, категория: access_to_victims_negative. Продолжайте.",
+    "original_template": "Нет, двери не поддаются, к людям доступа нет."
+  },
+  {
+    "intent": "access_to_victims_negative",
+    "question": "Проход к пострадавшим полностью перекрыт.",
+    "answer": "Принято, категория: access_to_victims_negative. Продолжайте.",
+    "original_template": "Проход к пострадавшим полностью перекрыт."
+  },
+  {
+    "intent": "threat_to_people_positive",
+    "question": "Да, есть угроза жизни людей.",
+    "answer": "Принято, категория: threat_to_people_positive. Продолжайте.",
+    "original_template": "Да, есть угроза жизни людей."
+  },
+  {
+    "intent": "threat_to_people_positive",
+    "question": "Люди сейчас в опасности.",
+    "answer": "Принято, категория: threat_to_people_positive. Продолжайте.",
+    "original_template": "Люди сейчас в опасности."
+  },
+  {
+    "intent": "threat_to_people_positive",
+    "question": "Да, их жизни угрожает опасность.",
+    "answer": "Принято, категория: threat_to_people_positive. Продолжайте.",
+    "original_template": "Да, их жизни угрожает опасность."
+  },
+  {
+    "intent": "threat_to_people_positive",
+    "question": "Есть прямая угроза для находящихся здесь.",
+    "answer": "Принято, категория: threat_to_people_positive. Продолжайте.",
+    "original_template": "Есть прямая угроза для находящихся здесь."
+  },
+  {
+    "intent": "threat_to_people_positive",
+    "question": "Да, ситуация угрожает жизни и здоровью.",
+    "answer": "Принято, категория: threat_to_people_positive. Продолжайте.",
+    "original_template": "Да, ситуация угрожает жизни и здоровью."
+  },
+  {
+    "intent": "threat_to_people_positive",
+    "question": "Люди могут пострадать, есть реальная угроза из-за [данные].",
+    "answer": "Принято, категория: threat_to_people_positive. Продолжайте.",
+    "original_template": "Люди могут пострадать, есть реальная угроза из-за {text}."
+  },
+  {
+    "intent": "threat_to_people_positive",
+    "question": "Да, здесь опасно для всех, есть угроза.",
+    "answer": "Принято, категория: threat_to_people_positive. Продолжайте.",
+    "original_template": "Да, здесь опасно для всех, есть угроза."
+  },
+  {
+    "intent": "threat_to_people_positive",
+    "question": "Жизни людей находятся под угрозой.",
+    "answer": "Принято, категория: threat_to_people_positive. Продолжайте.",
+    "original_template": "Жизни людей находятся под угрозой."
+  },
+  {
+    "intent": "threat_to_people_positive",
+    "question": "Да, существует высокий риск для человеческих жизней.",
+    "answer": "Принято, категория: threat_to_people_positive. Продолжайте.",
+    "original_template": "Да, существует высокий риск для человеческих жизней."
+  },
+  {
+    "intent": "threat_to_people_positive",
+    "question": "Опасность для людей есть, они могут пострадать от [данные].",
+    "answer": "Принято, категория: threat_to_people_positive. Продолжайте.",
+    "original_template": "Опасность для людей есть, они могут пострадать от {text}."
+  },
+  {
+    "intent": "threat_to_people_positive",
+    "question": "Да, есть угроза того, что кто-то пострадает.",
+    "answer": "Принято, категория: threat_to_people_positive. Продолжайте.",
+    "original_template": "Да, есть угроза того, что кто-то пострадает."
+  },
+  {
+    "intent": "threat_to_people_positive",
+    "question": "Подтверждаю, людям угрожает опасность.",
+    "answer": "Принято, категория: threat_to_people_positive. Продолжайте.",
+    "original_template": "Подтверждаю, людям угрожает опасность."
+  },
+  {
+    "intent": "threat_to_people_negative",
+    "question": "Нет, угрозы для людей нет.",
+    "answer": "Принято, категория: threat_to_people_negative. Продолжайте.",
+    "original_template": "Нет, угрозы для людей нет."
+  },
+  {
+    "intent": "threat_to_people_negative",
+    "question": "Никому ничего не угрожает.",
+    "answer": "Принято, категория: threat_to_people_negative. Продолжайте.",
+    "original_template": "Никому ничего не угрожает."
+  },
+  {
+    "intent": "threat_to_people_negative",
+    "question": "Люди в безопасности, опасности нет.",
+    "answer": "Принято, категория: threat_to_people_negative. Продолжайте.",
+    "original_template": "Люди в безопасности, опасности нет."
+  },
+  {
+    "intent": "threat_to_people_negative",
+    "question": "Нет, ситуация не представляет угрозы для жизни.",
+    "answer": "Принято, категория: threat_to_people_negative. Продолжайте.",
+    "original_template": "Нет, ситуация не представляет угрозы для жизни."
+  },
+  {
+    "intent": "threat_to_people_negative",
+    "question": "Все в порядке, угрозы для окружающих нет.",
+    "answer": "Принято, категория: threat_to_people_negative. Продолжайте.",
+    "original_template": "Все в порядке, угрозы для окружающих нет."
+  },
+  {
+    "intent": "threat_to_people_negative",
+    "question": "Никто не находится в опасности.",
+    "answer": "Принято, категория: threat_to_people_negative. Продолжайте.",
+    "original_template": "Никто не находится в опасности."
+  },
+  {
+    "intent": "threat_to_people_negative",
+    "question": "Нет, люди вне зоны риска.",
+    "answer": "Принято, категория: threat_to_people_negative. Продолжайте.",
+    "original_template": "Нет, люди вне зоны риска."
+  },
+  {
+    "intent": "threat_to_people_negative",
+    "question": "Опасности для жизни и здоровья не наблюдается.",
+    "answer": "Принято, категория: threat_to_people_negative. Продолжайте.",
+    "original_template": "Опасности для жизни и здоровья не наблюдается."
+  },
+  {
+    "intent": "threat_to_people_negative",
+    "question": "Угрозы для людей отсутствуют, все целы.",
+    "answer": "Принято, категория: threat_to_people_negative. Продолжайте.",
+    "original_template": "Угрозы для людей отсутствуют, все целы."
+  },
+  {
+    "intent": "threat_to_people_negative",
+    "question": "Нет, здесь безопасно, людям ничего не грозит.",
+    "answer": "Принято, категория: threat_to_people_negative. Продолжайте.",
+    "original_template": "Нет, здесь безопасно, людям ничего не грозит."
+  },
+  {
+    "intent": "threat_to_people_negative",
+    "question": "Нет, прямой угрозы для человека здесь не вижу.",
+    "answer": "Принято, категория: threat_to_people_negative. Продолжайте.",
+    "original_template": "Нет, прямой угрозы для человека здесь не вижу."
+  },
+  {
+    "intent": "offense_committed_positive",
+    "question": "Да, здесь совершено правонарушение.",
+    "answer": "Принято, категория: offense_committed_positive. Продолжайте.",
+    "original_template": "Да, здесь совершено правонарушение."
+  },
+  {
+    "intent": "offense_committed_positive",
+    "question": "Я вижу явное нарушение закона.",
+    "answer": "Принято, категория: offense_committed_positive. Продолжайте.",
+    "original_template": "Я вижу явное нарушение закона."
+  },
+  {
+    "intent": "offense_committed_positive",
+    "question": "Да, это преступление.",
+    "answer": "Принято, категория: offense_committed_positive. Продолжайте.",
+    "original_template": "Да, это преступление."
+  },
+  {
+    "intent": "offense_committed_positive",
+    "question": "Произошло правонарушение, кто-то нарушил закон.",
+    "answer": "Принято, категория: offense_committed_positive. Продолжайте.",
+    "original_template": "Произошло правонарушение, кто-то нарушил закон."
+  },
+  {
+    "intent": "offense_committed_positive",
+    "question": "Да, здесь имеет место противоправное деяние.",
+    "answer": "Принято, категория: offense_committed_positive. Продолжайте.",
+    "original_template": "Да, здесь имеет место противоправное деяние."
+  },
+  {
+    "intent": "offense_committed_positive",
+    "question": "Это не просто происшествие, это правонарушение.",
+    "answer": "Принято, категория: offense_committed_positive. Продолжайте.",
+    "original_template": "Это не просто происшествие, это правонарушение."
+  },
+  {
+    "intent": "offense_committed_positive",
+    "question": "Да, я стал свидетелем преступления.",
+    "answer": "Принято, категория: offense_committed_positive. Продолжайте.",
+    "original_template": "Да, я стал свидетелем преступления."
+  },
+  {
+    "intent": "offense_committed_positive",
+    "question": "Здесь явно нарушен закон.",
+    "answer": "Принято, категория: offense_committed_positive. Продолжайте.",
+    "original_template": "Здесь явно нарушен закон."
+  },
+  {
+    "intent": "offense_committed_positive",
+    "question": "Да, есть состав правонарушения.",
+    "answer": "Принято, категория: offense_committed_positive. Продолжайте.",
+    "original_template": "Да, есть состав правонарушения."
+  },
+  {
+    "intent": "offense_committed_positive",
+    "question": "Совершено противоправное действие.",
+    "answer": "Принято, категория: offense_committed_positive. Продолжайте.",
+    "original_template": "Совершено противоправное действие."
+  },
+  {
+    "intent": "offense_committed_positive",
+    "question": "Да, это уголовное преступление.",
+    "answer": "Принято, категория: offense_committed_positive. Продолжайте.",
+    "original_template": "Да, это уголовное преступление."
+  },
+  {
+    "intent": "offense_committed_positive",
+    "question": "Правонарушение налицо.",
+    "answer": "Принято, категория: offense_committed_positive. Продолжайте.",
+    "original_template": "Правонарушение налицо."
+  },
+  {
+    "intent": "offense_committed_negative",
+    "question": "Нет, правонарушения здесь нет.",
+    "answer": "Принято, категория: offense_committed_negative. Продолжайте.",
+    "original_template": "Нет, правонарушения здесь нет."
+  },
+  {
+    "intent": "offense_committed_negative",
+    "question": "Это не преступление, просто несчастный случай.",
+    "answer": "Принято, категория: offense_committed_negative. Продолжайте.",
+    "original_template": "Это не преступление, просто несчастный случай."
+  },
+  {
+    "intent": "offense_committed_negative",
+    "question": "Нет, закона никто не нарушал.",
+    "answer": "Принято, категория: offense_committed_negative. Продолжайте.",
+    "original_template": "Нет, закона никто не нарушал."
+  },
+  {
+    "intent": "offense_committed_negative",
+    "question": "Противоправных действий здесь не было.",
+    "answer": "Принято, категория: offense_committed_negative. Продолжайте.",
+    "original_template": "Противоправных действий здесь не было."
+  },
+  {
+    "intent": "offense_committed_negative",
+    "question": "Нет, это обычное происшествие, без криминала.",
+    "answer": "Принято, категория: offense_committed_negative. Продолжайте.",
+    "original_template": "Нет, это обычное происшествие, без криминала."
+  },
+  {
+    "intent": "offense_committed_negative",
+    "question": "Никто ничего противозаконного не делал.",
+    "answer": "Принято, категория: offense_committed_negative. Продолжайте.",
+    "original_template": "Никто ничего противозаконного не делал."
+  },
+  {
+    "intent": "offense_committed_negative",
+    "question": "Нет, состава преступления я не вижу.",
+    "answer": "Принято, категория: offense_committed_negative. Продолжайте.",
+    "original_template": "Нет, состава преступления я не вижу."
+  },
+  {
+    "intent": "offense_committed_negative",
+    "question": "Это не правонарушение, просто авария или случайность.",
+    "answer": "Принято, категория: offense_committed_negative. Продолжайте.",
+    "original_template": "Это не правонарушение, просто авария или случайность."
+  },
+  {
+    "intent": "offense_committed_negative",
+    "question": "Нет, умысла или нарушения закона здесь нет.",
+    "answer": "Принято, категория: offense_committed_negative. Продолжайте.",
+    "original_template": "Нет, умысла или нарушения закона здесь нет."
+  },
+  {
+    "intent": "offense_committed_negative",
+    "question": "Никакого криминала, просто стечение обстоятельств.",
+    "answer": "Принято, категория: offense_committed_negative. Продолжайте.",
+    "original_template": "Никакого криминала, просто стечение обстоятельств."
+  },
+  {
+    "intent": "offense_committed_negative",
+    "question": "Нет, это не подпадает под нарушение, правонарушения нет.",
+    "answer": "Принято, категория: offense_committed_negative. Продолжайте.",
+    "original_template": "Нет, это не подпадает под нарушение, правонарушения нет."
+  },
+  {
+    "intent": "offense_committed_negative",
+    "question": "Здесь нет чьей-то вины, это просто случайность.",
+    "answer": "Принято, категория: offense_committed_negative. Продолжайте.",
+    "original_template": "Здесь нет чьей-то вины, это просто случайность."
+  },
+  {
+    "intent": "medical_help_needed",
+    "question": "Да, нужна медицинская помощь.",
+    "answer": "Принято, категория: medical_help_needed. Продолжайте.",
+    "original_template": "Да, нужна медицинская помощь."
+  },
+  {
+    "intent": "medical_help_needed",
+    "question": "Срочно вызовите скорую.",
+    "answer": "Принято, категория: medical_help_needed. Продолжайте.",
+    "original_template": "Срочно вызовите скорую."
+  },
+  {
+    "intent": "medical_help_needed",
+    "question": "Да, людям нужны врачи.",
+    "answer": "Принято, категория: medical_help_needed. Продолжайте.",
+    "original_template": "Да, людям нужны врачи."
+  },
+  {
+    "intent": "medical_help_needed",
+    "question": "Без медиков не обойтись, отправляйте бригаду.",
+    "answer": "Принято, категория: medical_help_needed. Продолжайте.",
+    "original_template": "Без медиков не обойтись, отправляйте бригаду."
+  },
+  {
+    "intent": "medical_help_needed",
+    "question": "Да, требуется неотложная медицинская помощь.",
+    "answer": "Принято, категория: medical_help_needed. Продолжайте.",
+    "original_template": "Да, требуется неотложная медицинская помощь."
+  },
+  {
+    "intent": "medical_help_needed",
+    "question": "Нужна скорая помощь, есть раненые.",
+    "answer": "Принято, категория: medical_help_needed. Продолжайте.",
+    "original_template": "Нужна скорая помощь, есть раненые."
+  },
+  {
+    "intent": "medical_help_needed",
+    "question": "Да, отправьте сюда медицинских работников.",
+    "answer": "Принято, категория: medical_help_needed. Продолжайте.",
+    "original_template": "Да, отправьте сюда медицинских работников."
+  },
+  {
+    "intent": "medical_help_needed",
+    "question": "Помощь врачей необходима прямо сейчас.",
+    "answer": "Принято, категория: medical_help_needed. Продолжайте.",
+    "original_template": "Помощь врачей необходима прямо сейчас."
+  },
+  {
+    "intent": "medical_help_needed",
+    "question": "Да, без скорой не справиться.",
+    "answer": "Принято, категория: medical_help_needed. Продолжайте.",
+    "original_template": "Да, без скорой не справиться."
+  },
+  {
+    "intent": "medical_help_needed",
+    "question": "Требуется медицинское вмешательство, да.",
+    "answer": "Принято, категория: medical_help_needed. Продолжайте.",
+    "original_template": "Требуется медицинское вмешательство, да."
+  },
+  {
+    "intent": "medical_help_needed",
+    "question": "Да, нужны медики, у людей [данные].",
+    "answer": "Принято, категория: medical_help_needed. Продолжайте.",
+    "original_template": "Да, нужны медики, у людей {text}."
+  },
+  {
+    "intent": "medical_help_needed",
+    "question": "Да, вызывайте скорую, она очень нужна.",
+    "answer": "Принято, категория: medical_help_needed. Продолжайте.",
+    "original_template": "Да, вызывайте скорую, она очень нужна."
+  },
+  {
+    "intent": "medical_help_not_needed",
+    "question": "Нет, медицинская помощь не требуется.",
+    "answer": "Принято, категория: medical_help_not_needed. Продолжайте.",
+    "original_template": "Нет, медицинская помощь не требуется."
+  },
+  {
+    "intent": "medical_help_not_needed",
+    "question": "Скорая не нужна, все в порядке.",
+    "answer": "Принято, категория: medical_help_not_needed. Продолжайте.",
+    "original_template": "Скорая не нужна, все в порядке."
+  },
+  {
+    "intent": "medical_help_not_needed",
+    "question": "Нет, врачи не нужны, обошлось без травм.",
+    "answer": "Принято, категория: medical_help_not_needed. Продолжайте.",
+    "original_template": "Нет, врачи не нужны, обошлось без травм."
+  },
+  {
+    "intent": "medical_help_not_needed",
+    "question": "Медицинская помощь не нужна, никто не пострадал.",
+    "answer": "Принято, категория: medical_help_not_needed. Продолжайте.",
+    "original_template": "Медицинская помощь не нужна, никто не пострадал."
+  },
+  {
+    "intent": "medical_help_not_needed",
+    "question": "Нет, вызывайте только спасателей, медики не требуются.",
+    "answer": "Принято, категория: medical_help_not_needed. Продолжайте.",
+    "original_template": "Нет, вызывайте только спасателей, медики не требуются."
+  },
+  {
+    "intent": "medical_help_not_needed",
+    "question": "Врачи здесь не понадобятся, все целы.",
+    "answer": "Принято, категория: medical_help_not_needed. Продолжайте.",
+    "original_template": "Врачи здесь не понадобятся, все целы."
+  },
+  {
+    "intent": "medical_help_not_needed",
+    "question": "Нет, скорую вызывать не нужно.",
+    "answer": "Принято, категория: medical_help_not_needed. Продолжайте.",
+    "original_template": "Нет, скорую вызывать не нужно."
+  },
+  {
+    "intent": "medical_help_not_needed",
+    "question": "Обойдемся без медиков, помощь врачей не нужна.",
+    "answer": "Принято, категория: medical_help_not_needed. Продолжайте.",
+    "original_template": "Обойдемся без медиков, помощь врачей не нужна."
+  },
+  {
+    "intent": "medical_help_not_needed",
+    "question": "Нет, у нас нет раненых, медицина не требуется.",
+    "answer": "Принято, категория: medical_help_not_needed. Продолжайте.",
+    "original_template": "Нет, у нас нет раненых, медицина не требуется."
+  },
+  {
+    "intent": "medical_help_not_needed",
+    "question": "Скорая не нужна, пострадавших с травмами нет.",
+    "answer": "Принято, категория: medical_help_not_needed. Продолжайте.",
+    "original_template": "Скорая не нужна, пострадавших с травмами нет."
+  },
+  {
+    "intent": "medical_help_not_needed",
+    "question": "Нет, медицинское вмешательство не требуется.",
+    "answer": "Принято, категория: medical_help_not_needed. Продолжайте.",
+    "original_template": "Нет, медицинское вмешательство не требуется."
+  },
+  {
+    "intent": "medical_help_not_needed",
+    "question": "Люди чувствуют себя нормально, врачи не нужны.",
+    "answer": "Принято, категория: medical_help_not_needed. Продолжайте.",
+    "original_template": "Люди чувствуют себя нормально, врачи не нужны."
+  },
+  {
+    "intent": "evacuation_needed",
+    "question": "Да, нужна эвакуация.",
+    "answer": "Принято, категория: evacuation_needed. Продолжайте.",
+    "original_template": "Да, нужна эвакуация."
+  },
+  {
+    "intent": "evacuation_needed",
+    "question": "Людей нужно срочно эвакуировать.",
+    "answer": "Принято, категория: evacuation_needed. Продолжайте.",
+    "original_template": "Людей нужно срочно эвакуировать."
+  },
+  {
+    "intent": "evacuation_needed",
+    "question": "Да, требуется эвакуация.",
+    "answer": "Принято, категория: evacuation_needed. Продолжайте.",
+    "original_template": "Да, требуется эвакуация."
+  },
+  {
+    "intent": "evacuation_needed",
+    "question": "Без эвакуации не обойтись, людей нужно выводить.",
+    "answer": "Принято, категория: evacuation_needed. Продолжайте.",
+    "original_template": "Без эвакуации не обойтись, людей нужно выводить."
+  },
+  {
+    "intent": "evacuation_needed",
+    "question": "Да, здесь необходимо провести эвакуацию.",
+    "answer": "Принято, категория: evacuation_needed. Продолжайте.",
+    "original_template": "Да, здесь необходимо провести эвакуацию."
+  },
+  {
+    "intent": "evacuation_needed",
+    "question": "Срочно эвакуируйте всех отсюда.",
+    "answer": "Принято, категория: evacuation_needed. Продолжайте.",
+    "original_template": "Срочно эвакуируйте всех отсюда."
+  },
+  {
+    "intent": "evacuation_needed",
+    "question": "Да, людям нужно помочь выбраться, нужна эвакуация.",
+    "answer": "Принято, категория: evacuation_needed. Продолжайте.",
+    "original_template": "Да, людям нужно помочь выбраться, нужна эвакуация."
+  },
+  {
+    "intent": "evacuation_needed",
+    "question": "Требуется срочная эвакуация.",
+    "answer": "Принято, категория: evacuation_needed. Продолжайте.",
+    "original_template": "Требуется срочная эвакуация."
+  },
+  {
+    "intent": "evacuation_needed",
+    "question": "Да, отправляйте спасателей для эвакуации.",
+    "answer": "Принято, категория: evacuation_needed. Продолжайте.",
+    "original_template": "Да, отправляйте спасателей для эвакуации."
+  },
+  {
+    "intent": "evacuation_needed",
+    "question": "Эвакуация необходима, люди не могут выйти сами.",
+    "answer": "Принято, категория: evacuation_needed. Продолжайте.",
+    "original_template": "Эвакуация необходима, люди не могут выйти сами."
+  },
+  {
+    "intent": "evacuation_needed",
+    "question": "Да, нужна помощь в эвакуации людей.",
+    "answer": "Принято, категория: evacuation_needed. Продолжайте.",
+    "original_template": "Да, нужна помощь в эвакуации людей."
+  },
+  {
+    "intent": "evacuation_needed",
+    "question": "Всех нужно срочно эвакуировать из опасной зоны.",
+    "answer": "Принято, категория: evacuation_needed. Продолжайте.",
+    "original_template": "Всех нужно срочно эвакуировать из опасной зоны."
+  },
+  {
+    "intent": "evacuation_not_needed",
+    "question": "Нет, эвакуация не нужна.",
+    "answer": "Принято, категория: evacuation_not_needed. Продолжайте.",
+    "original_template": "Нет, эвакуация не нужна."
+  },
+  {
+    "intent": "evacuation_not_needed",
+    "question": "Люди могут выйти сами, эвакуация не требуется.",
+    "answer": "Принято, категория: evacuation_not_needed. Продолжайте.",
+    "original_template": "Люди могут выйти сами, эвакуация не требуется."
+  },
+  {
+    "intent": "evacuation_not_needed",
+    "question": "Нет, всех уже вывели, помощь в эвакуации не нужна.",
+    "answer": "Принято, категория: evacuation_not_needed. Продолжайте.",
+    "original_template": "Нет, всех уже вывели, помощь в эвакуации не нужна."
+  },
+  {
+    "intent": "evacuation_not_needed",
+    "question": "Нет, выводить никого не нужно.",
+    "answer": "Принято, категория: evacuation_not_needed. Продолжайте.",
+    "original_template": "Нет, выводить никого не нужно."
+  },
+  {
+    "intent": "evacuation_not_needed",
+    "question": "Люди уже покинули здание, эвакуация не нужна.",
+    "answer": "Принято, категория: evacuation_not_needed. Продолжайте.",
+    "original_template": "Люди уже покинули здание, эвакуация не нужна."
+  },
+  {
+    "intent": "evacuation_not_needed",
+    "question": "Нет, все в порядке, эвакуировать никого не надо.",
+    "answer": "Принято, категория: evacuation_not_needed. Продолжайте.",
+    "original_template": "Нет, все в порядке, эвакуировать никого не надо."
+  },
+  {
+    "intent": "evacuation_not_needed",
+    "question": "Эвакуация не требуется, все находятся в безопасном месте.",
+    "answer": "Принято, категория: evacuation_not_needed. Продолжайте.",
+    "original_template": "Эвакуация не требуется, все находятся в безопасном месте."
+  },
+  {
+    "intent": "evacuation_not_needed",
+    "question": "Нет, спасатели для эвакуации не нужны, все вышли сами.",
+    "answer": "Принято, категория: evacuation_not_needed. Продолжайте.",
+    "original_template": "Нет, спасатели для эвакуации не нужны, все вышли сами."
+  },
+  {
+    "intent": "evacuation_not_needed",
+    "question": "Никого эвакуировать не нужно, все уже на улице.",
+    "answer": "Принято, категория: evacuation_not_needed. Продолжайте.",
+    "original_template": "Никого эвакуировать не нужно, все уже на улице."
+  },
+  {
+    "intent": "evacuation_not_needed",
+    "question": "Нет, ситуация под контролем, эвакуация не нужна.",
+    "answer": "Принято, категория: evacuation_not_needed. Продолжайте.",
+    "original_template": "Нет, ситуация под контролем, эвакуация не нужна."
+  },
+  {
+    "intent": "evacuation_not_needed",
+    "question": "Эвакуация не требуется, люди в полной безопасности.",
+    "answer": "Принято, категория: evacuation_not_needed. Продолжайте.",
+    "original_template": "Эвакуация не требуется, люди в полной безопасности."
+  },
+  {
+    "intent": "gasification_positive",
+    "question": "Да, дом газифицирован.",
+    "answer": "Принято, категория: gasification_positive. Продолжайте.",
+    "original_template": "Да, дом газифицирован."
+  },
+  {
+    "intent": "gasification_positive",
+    "question": "Да, сюда проведен газ.",
+    "answer": "Принято, категория: gasification_positive. Продолжайте.",
+    "original_template": "Да, сюда проведен газ."
+  },
+  {
+    "intent": "gasification_positive",
+    "question": "В квартире есть газ.",
+    "answer": "Принято, категория: gasification_positive. Продолжайте.",
+    "original_template": "В квартире есть газ."
+  },
+  {
+    "intent": "gasification_positive",
+    "question": "Да, у нас газовое отопление.",
+    "answer": "Принято, категория: gasification_positive. Продолжайте.",
+    "original_template": "Да, у нас газовое отопление."
+  },
+  {
+    "intent": "gasification_positive",
+    "question": "Здание подключено к центральному газоснабжению.",
+    "answer": "Принято, категория: gasification_positive. Продолжайте.",
+    "original_template": "Здание подключено к центральному газоснабжению."
+  },
+  {
+    "intent": "gasification_positive",
+    "question": "Да, это газифицированный дом.",
+    "answer": "Принято, категория: gasification_positive. Продолжайте.",
+    "original_template": "Да, это газифицированный дом."
+  },
+  {
+    "intent": "gasification_positive",
+    "question": "Газ есть, стоит газовая колонка.",
+    "answer": "Принято, категория: gasification_positive. Продолжайте.",
+    "original_template": "Газ есть, стоит газовая колонка."
+  },
+  {
+    "intent": "gasification_positive",
+    "question": "Да, в доме есть бытовой газ.",
+    "answer": "Принято, категория: gasification_positive. Продолжайте.",
+    "original_template": "Да, в доме есть бытовой газ."
+  },
+  {
+    "intent": "gasification_positive",
+    "question": "Да, объект газифицирован.",
+    "answer": "Принято, категория: gasification_positive. Продолжайте.",
+    "original_template": "Да, объект газифицирован."
+  },
+  {
+    "intent": "gasification_positive",
+    "question": "Газовая труба идет прямо через наш участок.",
+    "answer": "Принято, категория: gasification_positive. Продолжайте.",
+    "original_template": "Газовая труба идет прямо через наш участок."
+  },
+  {
+    "intent": "gasification_positive",
+    "question": "Да, у нас проведен магистральный газ.",
+    "answer": "Принято, категория: gasification_positive. Продолжайте.",
+    "original_template": "Да, у нас проведен магистральный газ."
+  },
+  {
+    "intent": "gasification_positive",
+    "question": "Да, газ подключен, стоит газовая плита.",
+    "answer": "Принято, категория: gasification_positive. Продолжайте.",
+    "original_template": "Да, газ подключен, стоит газовая плита."
+  },
+  {
+    "intent": "gasification_negative",
+    "question": "Нет, газа здесь нет.",
+    "answer": "Принято, категория: gasification_negative. Продолжайте.",
+    "original_template": "Нет, газа здесь нет."
+  },
+  {
+    "intent": "gasification_negative",
+    "question": "Дом не газифицирован.",
+    "answer": "Принято, категория: gasification_negative. Продолжайте.",
+    "original_template": "Дом не газифицирован."
+  },
+  {
+    "intent": "gasification_negative",
+    "question": "Нет, газ сюда не проведен.",
+    "answer": "Принято, категория: gasification_negative. Продолжайте.",
+    "original_template": "Нет, газ сюда не проведен."
+  },
+  {
+    "intent": "gasification_negative",
+    "question": "У нас нет никакого газового оборудования.",
+    "answer": "Принято, категория: gasification_negative. Продолжайте.",
+    "original_template": "У нас нет никакого газового оборудования."
+  },
+  {
+    "intent": "gasification_negative",
+    "question": "Нет, в квартире нет газа.",
+    "answer": "Принято, категория: gasification_negative. Продолжайте.",
+    "original_template": "Нет, в квартире нет газа."
+  },
+  {
+    "intent": "gasification_negative",
+    "question": "Здание не подключено к газопроводу.",
+    "answer": "Принято, категория: gasification_negative. Продолжайте.",
+    "original_template": "Здание не подключено к газопроводу."
+  },
+  {
+    "intent": "gasification_negative",
+    "question": "Нет, мы пользуемся только электричеством, газа нет.",
+    "answer": "Принято, категория: gasification_negative. Продолжайте.",
+    "original_template": "Нет, мы пользуемся только электричеством, газа нет."
+  },
+  {
+    "intent": "gasification_negative",
+    "question": "Газовых труб в доме нет.",
+    "answer": "Принято, категория: gasification_negative. Продолжайте.",
+    "original_template": "Газовых труб в доме нет."
+  },
+  {
+    "intent": "gasification_negative",
+    "question": "Нет, центрального газоснабжения здесь нет.",
+    "answer": "Принято, категория: gasification_negative. Продолжайте.",
+    "original_template": "Нет, центрального газоснабжения здесь нет."
+  },
+  {
+    "intent": "gasification_negative",
+    "question": "Нет, к нашему участку газ не подведен.",
+    "answer": "Принято, категория: gasification_negative. Продолжайте.",
+    "original_template": "Нет, к нашему участку газ не подведен."
+  },
+  {
+    "intent": "gasification_negative",
+    "question": "Нет, это не газифицированный дом.",
+    "answer": "Принято, категория: gasification_negative. Продолжайте.",
+    "original_template": "Нет, это не газифицированный дом."
+  },
+  {
+    "intent": "gasification_negative",
+    "question": "У нас стоят электроплиты, газа в доме нет.",
+    "answer": "Принято, категория: gasification_negative. Продолжайте.",
+    "original_template": "У нас стоят электроплиты, газа в доме нет."
+  },
+  {
+    "intent": "gasification_unknown",
+    "question": "Не знаю, есть ли здесь газ.",
+    "answer": "Принято, категория: gasification_unknown. Продолжайте.",
+    "original_template": "Не знаю, есть ли здесь газ."
+  },
+  {
+    "intent": "gasification_unknown",
+    "question": "Я не в курсе, газифицирован дом или нет.",
+    "answer": "Принято, категория: gasification_unknown. Продолжайте.",
+    "original_template": "Я не в курсе, газифицирован дом или нет."
+  },
+  {
+    "intent": "gasification_unknown",
+    "question": "Затрудняюсь ответить, есть ли газоснабжение.",
+    "answer": "Принято, категория: gasification_unknown. Продолжайте.",
+    "original_template": "Затрудняюсь ответить, есть ли газоснабжение."
+  },
+  {
+    "intent": "gasification_unknown",
+    "question": "Понятия не имею, проведен ли сюда газ.",
+    "answer": "Принято, категория: gasification_unknown. Продолжайте.",
+    "original_template": "Понятия не имею, проведен ли сюда газ."
+  },
+  {
+    "intent": "gasification_unknown",
+    "question": "Не могу сказать точно, есть ли газ.",
+    "answer": "Принято, категория: gasification_unknown. Продолжайте.",
+    "original_template": "Не могу сказать точно, есть ли газ."
+  },
+  {
+    "intent": "gasification_unknown",
+    "question": "Я не знаю, пользуются ли здесь газом.",
+    "answer": "Принято, категория: gasification_unknown. Продолжайте.",
+    "original_template": "Я не знаю, пользуются ли здесь газом."
+  },
+  {
+    "intent": "gasification_unknown",
+    "question": "Без понятия, есть в здании газ или нет.",
+    "answer": "Принято, категория: gasification_unknown. Продолжайте.",
+    "original_template": "Без понятия, есть в здании газ или нет."
+  },
+  {
+    "intent": "gasification_unknown",
+    "question": "Не уверен, подключен ли объект к газовой трубе.",
+    "answer": "Принято, категория: gasification_unknown. Продолжайте.",
+    "original_template": "Не уверен, подключен ли объект к газовой трубе."
+  },
+  {
+    "intent": "gasification_unknown",
+    "question": "Информации о газификации этого места у меня нет.",
+    "answer": "Принято, категория: gasification_unknown. Продолжайте.",
+    "original_template": "Информации о газификации этого места у меня нет."
+  },
+  {
+    "intent": "gasification_unknown",
+    "question": "Не могу подтвердить наличие газа, не знаю.",
+    "answer": "Принято, категория: gasification_unknown. Продолжайте.",
+    "original_template": "Не могу подтвердить наличие газа, не знаю."
+  },
+  {
+    "intent": "gasification_unknown",
+    "question": "Я не местный, не знаю, есть ли тут газ.",
+    "answer": "Принято, категория: gasification_unknown. Продолжайте.",
+    "original_template": "Я не местный, не знаю, есть ли тут газ."
+  },
+  {
+    "intent": "gasification_unknown",
+    "question": "Точно не знаю, есть газ или нет.",
+    "answer": "Принято, категория: gasification_unknown. Продолжайте.",
+    "original_template": "Точно не знаю, есть газ или нет."
+  },
+  {
+    "intent": "dtp_event_type",
+    "question": "Произошло [данные].",
+    "answer": "Принято, категория: dtp_event_type. Продолжайте.",
+    "original_template": "Произошло {text}."
+  },
+  {
+    "intent": "dtp_event_type",
+    "question": "Случилось [данные].",
+    "answer": "Принято, категория: dtp_event_type. Продолжайте.",
+    "original_template": "Случилось {text}."
+  },
+  {
+    "intent": "dtp_event_type",
+    "question": "В результате аварии зафиксировано [данные].",
+    "answer": "Принято, категория: dtp_event_type. Продолжайте.",
+    "original_template": "В результате аварии зафиксировано {text}."
+  },
+  {
+    "intent": "dtp_event_type",
+    "question": "Характер происшествия: [данные].",
+    "answer": "Принято, категория: dtp_event_type. Продолжайте.",
+    "original_template": "Характер происшествия: {text}."
+  },
+  {
+    "intent": "dtp_event_type",
+    "question": "Водитель сообщает, что случилось [данные].",
+    "answer": "Принято, категория: dtp_event_type. Продолжайте.",
+    "original_template": "Водитель сообщает, что случилось {text}."
+  },
+  {
+    "intent": "dtp_event_type",
+    "question": "На месте события произошло [данные].",
+    "answer": "Принято, категория: dtp_event_type. Продолжайте.",
+    "original_template": "На месте события произошло {text}."
+  },
+  {
+    "intent": "dtp_event_type",
+    "question": "Ситуация квалифицируется как [данные].",
+    "answer": "Принято, категория: dtp_event_type. Продолжайте.",
+    "original_template": "Ситуация квалифицируется как {text}."
+  },
+  {
+    "intent": "dtp_event_type",
+    "question": "Произошло именно [данные], а не просто авария.",
+    "answer": "Принято, категория: dtp_event_type. Продолжайте.",
+    "original_template": "Произошло именно {text}, а не просто авария."
+  },
+  {
+    "intent": "dtp_event_type",
+    "question": "Уточняю детали инцидента: случилось [данные].",
+    "answer": "Принято, категория: dtp_event_type. Продолжайте.",
+    "original_template": "Уточняю детали инцидента: случилось {text}."
+  },
+  {
+    "intent": "dtp_event_type",
+    "question": "Диспетчеру нужно зафиксировать, что произошло [данные].",
+    "answer": "Принято, категория: dtp_event_type. Продолжайте.",
+    "original_template": "Диспетчеру нужно зафиксировать, что произошло {text}."
+  },
+  {
+    "intent": "dtp_obstacle_hit",
+    "question": "Транспортное средство врезалось в [данные].",
+    "answer": "Принято, категория: dtp_obstacle_hit. Продолжайте.",
+    "original_template": "Транспортное средство врезалось в {text}."
+  },
+  {
+    "intent": "dtp_obstacle_hit",
+    "question": "Произошел наезд на [данные].",
+    "answer": "Принято, категория: dtp_obstacle_hit. Продолжайте.",
+    "original_template": "Произошел наезд на {text}."
+  },
+  {
+    "intent": "dtp_obstacle_hit",
+    "question": "Машина ударилась о [данные].",
+    "answer": "Принято, категория: dtp_obstacle_hit. Продолжайте.",
+    "original_template": "Машина ударилась о {text}."
+  },
+  {
+    "intent": "dtp_obstacle_hit",
+    "question": "Препятствием на пути стал [данные].",
+    "answer": "Принято, категория: dtp_obstacle_hit. Продолжайте.",
+    "original_template": "Препятствием на пути стал {text}."
+  },
+  {
+    "intent": "dtp_obstacle_hit",
+    "question": "В результате удара поврежден [данные].",
+    "answer": "Принято, категория: dtp_obstacle_hit. Продолжайте.",
+    "original_template": "В результате удара поврежден {text}."
+  },
+  {
+    "intent": "dtp_obstacle_hit",
+    "question": "Водитель не справился с управлением и наехал на [данные].",
+    "answer": "Принято, категория: dtp_obstacle_hit. Продолжайте.",
+    "original_template": "Водитель не справился с управлением и наехал на {text}."
+  },
+  {
+    "intent": "dtp_obstacle_hit",
+    "question": "Автомобиль задел [данные].",
+    "answer": "Принято, категория: dtp_obstacle_hit. Продолжайте.",
+    "original_template": "Автомобиль задел {text}."
+  },
+  {
+    "intent": "dtp_obstacle_hit",
+    "question": "Столкновение произошло с объектом: [данные].",
+    "answer": "Принято, категория: dtp_obstacle_hit. Продолжайте.",
+    "original_template": "Столкновение произошло с объектом: {text}."
+  },
+  {
+    "intent": "dtp_obstacle_hit",
+    "question": "На дороге находилось [данные], в которое и врезались.",
+    "answer": "Принято, категория: dtp_obstacle_hit. Продолжайте.",
+    "original_template": "На дороге находилось {text}, в которое и врезались."
+  },
+  {
+    "intent": "dtp_obstacle_hit",
+    "question": "Повреждения получены из-за наезда на [данные].",
+    "answer": "Принято, категория: dtp_obstacle_hit. Продолжайте.",
+    "original_template": "Повреждения получены из-за наезда на {text}."
+  },
+  {
+    "intent": "explosion_object_type",
+    "question": "Произошел взрыв в [данные].",
+    "answer": "Принято, категория: explosion_object_type. Продолжайте.",
+    "original_template": "Произошел взрыв в {text}."
+  },
+  {
+    "intent": "explosion_object_type",
+    "question": "Взорвалось здание, это [данные].",
+    "answer": "Принято, категория: explosion_object_type. Продолжайте.",
+    "original_template": "Взорвалось здание, это {text}."
+  },
+  {
+    "intent": "explosion_object_type",
+    "question": "Эпицентр взрыва находится в [данные].",
+    "answer": "Принято, категория: explosion_object_type. Продолжайте.",
+    "original_template": "Эпицентр взрыва находится в {text}."
+  },
+  {
+    "intent": "explosion_object_type",
+    "question": "Сообщаю о взрыве на территории [данные].",
+    "answer": "Принято, категория: explosion_object_type. Продолжайте.",
+    "original_template": "Сообщаю о взрыве на территории {text}."
+  },
+  {
+    "intent": "explosion_object_type",
+    "question": "Разрушения зафиксированы в [данные].",
+    "answer": "Принято, категория: explosion_object_type. Продолжайте.",
+    "original_template": "Разрушения зафиксированы в {text}."
+  },
+  {
+    "intent": "explosion_object_type",
+    "question": "Взрывная волна задела [данные].",
+    "answer": "Принято, категория: explosion_object_type. Продолжайте.",
+    "original_template": "Взрывная волна задела {text}."
+  },
+  {
+    "intent": "explosion_object_type",
+    "question": "Грохот раздался со стороны [данные].",
+    "answer": "Принято, категория: explosion_object_type. Продолжайте.",
+    "original_template": "Грохот раздался со стороны {text}."
+  },
+  {
+    "intent": "explosion_object_type",
+    "question": "Объект, где произошел взрыв, это [данные].",
+    "answer": "Принято, категория: explosion_object_type. Продолжайте.",
+    "original_template": "Объект, где произошел взрыв, это {text}."
+  },
+  {
+    "intent": "explosion_object_type",
+    "question": "Видны серьезные повреждения [данные].",
+    "answer": "Принято, категория: explosion_object_type. Продолжайте.",
+    "original_template": "Видны серьезные повреждения {text}."
+  },
+  {
+    "intent": "explosion_object_type",
+    "question": "Взрыв прогремел внутри [данные].",
+    "answer": "Принято, категория: explosion_object_type. Продолжайте.",
+    "original_template": "Взрыв прогремел внутри {text}."
+  },
+  {
+    "intent": "explosion_transport_type",
+    "question": "Взорвалось транспортное средство, это [данные].",
+    "answer": "Принято, категория: explosion_transport_type. Продолжайте.",
+    "original_template": "Взорвалось транспортное средство, это {text}."
+  },
+  {
+    "intent": "explosion_transport_type",
+    "question": "Произошел взрыв в [данные].",
+    "answer": "Принято, категория: explosion_transport_type. Продолжайте.",
+    "original_template": "Произошел взрыв в {text}."
+  },
+  {
+    "intent": "explosion_transport_type",
+    "question": "Поврежден взрывом [данные].",
+    "answer": "Принято, категория: explosion_transport_type. Продолжайте.",
+    "original_template": "Поврежден взрывом {text}."
+  },
+  {
+    "intent": "explosion_transport_type",
+    "question": "Инцидент произошел с [данные].",
+    "answer": "Принято, категория: explosion_transport_type. Продолжайте.",
+    "original_template": "Инцидент произошел с {text}."
+  },
+  {
+    "intent": "explosion_transport_type",
+    "question": "Вижу последствия взрыва в [данные].",
+    "answer": "Принято, категория: explosion_transport_type. Продолжайте.",
+    "original_template": "Вижу последствия взрыва в {text}."
+  },
+  {
+    "intent": "explosion_transport_type",
+    "question": "Горит и взрывается [данные].",
+    "answer": "Принято, категория: explosion_transport_type. Продолжайте.",
+    "original_template": "Горит и взрывается {text}."
+  },
+  {
+    "intent": "explosion_transport_type",
+    "question": "Транспорт, подвергшийся взрыву, это [данные].",
+    "answer": "Принято, категория: explosion_transport_type. Продолжайте.",
+    "original_template": "Транспорт, подвергшийся взрыву, это {text}."
+  },
+  {
+    "intent": "explosion_transport_type",
+    "question": "Разрушения затронули [данные].",
+    "answer": "Принято, категория: explosion_transport_type. Продолжайте.",
+    "original_template": "Разрушения затронули {text}."
+  },
+  {
+    "intent": "explosion_transport_type",
+    "question": "Взрывное устройство сработало в [данные].",
+    "answer": "Принято, категория: explosion_transport_type. Продолжайте.",
+    "original_template": "Взрывное устройство сработало в {text}."
+  },
+  {
+    "intent": "explosion_transport_type",
+    "question": "Речь идет о взрыве [данные].",
+    "answer": "Принято, категория: explosion_transport_type. Продолжайте.",
+    "original_template": "Речь идет о взрыве {text}."
+  },
+  {
+    "intent": "explosion_hazardous_materials",
+    "question": "При взрыве пострадал [данные].",
+    "answer": "Принято, категория: explosion_hazardous_materials. Продолжайте.",
+    "original_template": "При взрыве пострадал {text}."
+  },
+  {
+    "intent": "explosion_hazardous_materials",
+    "question": "Есть угроза распространения [данные].",
+    "answer": "Принято, категория: explosion_hazardous_materials. Продолжайте.",
+    "original_template": "Есть угроза распространения {text}."
+  },
+  {
+    "intent": "explosion_hazardous_materials",
+    "question": "На месте взрыва разлит [данные].",
+    "answer": "Принято, категория: explosion_hazardous_materials. Продолжайте.",
+    "original_template": "На месте взрыва разлит {text}."
+  },
+  {
+    "intent": "explosion_hazardous_materials",
+    "question": "Взрыв произошел из-за [данные].",
+    "answer": "Принято, категория: explosion_hazardous_materials. Продолжайте.",
+    "original_template": "Взрыв произошел из-за {text}."
+  },
+  {
+    "intent": "explosion_hazardous_materials",
+    "question": "Обнаружены следы [данные] после взрыва.",
+    "answer": "Принято, категория: explosion_hazardous_materials. Продолжайте.",
+    "original_template": "Обнаружены следы {text} после взрыва."
+  },
+  {
+    "intent": "threat_target_object",
+    "question": "Поступила угроза взрыва в [данные].",
+    "answer": "Принято, категория: threat_target_object. Продолжайте.",
+    "original_template": "Поступила угроза взрыва в {text}."
+  },
+  {
+    "intent": "threat_target_object",
+    "question": "Сообщают о минировании [данные].",
+    "answer": "Принято, категория: threat_target_object. Продолжайте.",
+    "original_template": "Сообщают о минировании {text}."
+  },
+  {
+    "intent": "threat_target_object",
+    "question": "Угроза террористического акта касается [данные].",
+    "answer": "Принято, категория: threat_target_object. Продолжайте.",
+    "original_template": "Угроза террористического акта касается {text}."
+  },
+  {
+    "intent": "threat_target_object",
+    "question": "Анонимный звонок об угрозе [данные].",
+    "answer": "Принято, категория: threat_target_object. Продолжайте.",
+    "original_template": "Анонимный звонок об угрозе {text}."
+  },
+  {
+    "intent": "threat_target_object",
+    "question": "Подозрительный предмет обнаружен в [данные].",
+    "answer": "Принято, категория: threat_target_object. Продолжайте.",
+    "original_template": "Подозрительный предмет обнаружен в {text}."
+  },
+  {
+    "intent": "threat_target_object",
+    "question": "Заявитель сообщает о бомбе в [данные].",
+    "answer": "Принято, категория: threat_target_object. Продолжайте.",
+    "original_template": "Заявитель сообщает о бомбе в {text}."
+  },
+  {
+    "intent": "threat_target_object",
+    "question": "Угроза направлена на [данные].",
+    "answer": "Принято, категория: threat_target_object. Продолжайте.",
+    "original_template": "Угроза направлена на {text}."
+  },
+  {
+    "intent": "threat_target_object",
+    "question": "Требуется проверка [данные] на наличие взрывчатки.",
+    "answer": "Принято, категория: threat_target_object. Продолжайте.",
+    "original_template": "Требуется проверка {text} на наличие взрывчатки."
+  },
+  {
+    "intent": "threat_target_object",
+    "question": "Сообщение о минировании поступило насчет [данные].",
+    "answer": "Принято, категория: threat_target_object. Продолжайте.",
+    "original_template": "Сообщение о минировании поступило насчет {text}."
+  },
+  {
+    "intent": "threat_target_object",
+    "question": "Объект, которому угрожают, это [данные].",
+    "answer": "Принято, категория: threat_target_object. Продолжайте.",
+    "original_template": "Объект, которому угрожают, это {text}."
+  },
+  {
+    "intent": "threat_transport_type",
+    "question": "Угроза взрыва поступила в адрес [данные].",
+    "answer": "Принято, категория: threat_transport_type. Продолжайте.",
+    "original_template": "Угроза взрыва поступила в адрес {text}."
+  },
+  {
+    "intent": "threat_transport_type",
+    "question": "Сообщают о заложенном взрывном устройстве в [данные].",
+    "answer": "Принято, категория: threat_transport_type. Продолжайте.",
+    "original_template": "Сообщают о заложенном взрывном устройстве в {text}."
+  },
+  {
+    "intent": "threat_transport_type",
+    "question": "Требуется эвакуация [данные] из-за угрозы взрыва.",
+    "answer": "Принято, категория: threat_transport_type. Продолжайте.",
+    "original_template": "Требуется эвакуация {text} из-за угрозы взрыва."
+  },
+  {
+    "intent": "threat_transport_type",
+    "question": "Анонимная угроза касается [данные].",
+    "answer": "Принято, категория: threat_transport_type. Продолжайте.",
+    "original_template": "Анонимная угроза касается {text}."
+  },
+  {
+    "intent": "threat_transport_type",
+    "question": "Поступила информация о минировании [данные].",
+    "answer": "Принято, категория: threat_transport_type. Продолжайте.",
+    "original_template": "Поступила информация о минировании {text}."
+  },
+  {
+    "intent": "collapse_object_type",
+    "question": "Произошло обрушение [данные].",
+    "answer": "Принято, категория: collapse_object_type. Продолжайте.",
+    "original_template": "Произошло обрушение {text}."
+  },
+  {
+    "intent": "collapse_object_type",
+    "question": "Частично разрушено [данные].",
+    "answer": "Принято, категория: collapse_object_type. Продолжайте.",
+    "original_template": "Частично разрушено {text}."
+  },
+  {
+    "intent": "collapse_object_type",
+    "question": "Завалило [данные].",
+    "answer": "Принято, категория: collapse_object_type. Продолжайте.",
+    "original_template": "Завалило {text}."
+  },
+  {
+    "intent": "collapse_object_type",
+    "question": "Зафиксировано обрушение конструкции [данные].",
+    "answer": "Принято, категория: collapse_object_type. Продолжайте.",
+    "original_template": "Зафиксировано обрушение конструкции {text}."
+  },
+  {
+    "intent": "collapse_object_type",
+    "question": "Обрушилась крыша или стена в [данные].",
+    "answer": "Принято, категория: collapse_object_type. Продолжайте.",
+    "original_template": "Обрушилась крыша или стена в {text}."
+  },
+  {
+    "intent": "collapse_object_type",
+    "question": "На месте происшествия находится [данные].",
+    "answer": "Принято, категория: collapse_object_type. Продолжайте.",
+    "original_template": "На месте происшествия находится {text}."
+  },
+  {
+    "intent": "collapse_object_type",
+    "question": "Разрушения затронули [данные].",
+    "answer": "Принято, категория: collapse_object_type. Продолжайте.",
+    "original_template": "Разрушения затронули {text}."
+  },
+  {
+    "intent": "collapse_object_type",
+    "question": "Случилось обрушение [данные].",
+    "answer": "Принято, категория: collapse_object_type. Продолжайте.",
+    "original_template": "Случилось обрушение {text}."
+  },
+  {
+    "intent": "collapse_object_type",
+    "question": "Под завалами находится [данные].",
+    "answer": "Принято, категория: collapse_object_type. Продолжайте.",
+    "original_template": "Под завалами находится {text}."
+  },
+  {
+    "intent": "collapse_object_type",
+    "question": "Аварийное состояние имеет [данные].",
+    "answer": "Принято, категория: collapse_object_type. Продолжайте.",
+    "original_template": "Аварийное состояние имеет {text}."
+  },
+  {
+    "intent": "collapse_extent",
+    "question": "Обрушение затронуло [данные].",
+    "answer": "Принято, категория: collapse_extent. Продолжайте.",
+    "original_template": "Обрушение затронуло {text}."
+  },
+  {
+    "intent": "collapse_extent",
+    "question": "Полностью разрушен [данные].",
+    "answer": "Принято, категория: collapse_extent. Продолжайте.",
+    "original_template": "Полностью разрушен {text}."
+  },
+  {
+    "intent": "collapse_extent",
+    "question": "Частично обвалился [данные].",
+    "answer": "Принято, категория: collapse_extent. Продолжайте.",
+    "original_template": "Частично обвалился {text}."
+  },
+  {
+    "intent": "collapse_extent",
+    "question": "Повреждены [данные].",
+    "answer": "Принято, категория: collapse_extent. Продолжайте.",
+    "original_template": "Повреждены {text}."
+  },
+  {
+    "intent": "collapse_extent",
+    "question": "Произошел обвал [данные].",
+    "answer": "Принято, категория: collapse_extent. Продолжайте.",
+    "original_template": "Произошел обвал {text}."
+  },
+  {
+    "intent": "utility_system",
+    "question": "Затронутая система: [данные].",
+    "answer": "Принято, категория: utility_system. Продолжайте.",
+    "original_template": "Затронутая система: {text}."
+  },
+  {
+    "intent": "utility_system",
+    "question": "Тип коммуникации: [данные].",
+    "answer": "Принято, категория: utility_system. Продолжайте.",
+    "original_template": "Тип коммуникации: {text}."
+  },
+  {
+    "intent": "utility_system",
+    "question": "Объект инфраструктуры: [данные].",
+    "answer": "Принято, категория: utility_system. Продолжайте.",
+    "original_template": "Объект инфраструктуры: {text}."
+  },
+  {
+    "intent": "utility_system",
+    "question": "Вид сети: [данные].",
+    "answer": "Принято, категория: utility_system. Продолжайте.",
+    "original_template": "Вид сети: {text}."
+  },
+  {
+    "intent": "utility_system",
+    "question": "Тип оборудования: [данные].",
+    "answer": "Принято, категория: utility_system. Продолжайте.",
+    "original_template": "Тип оборудования: {text}."
+  },
+  {
+    "intent": "utility_system",
+    "question": "Затронутый ресурс: [данные].",
+    "answer": "Принято, категория: utility_system. Продолжайте.",
+    "original_template": "Затронутый ресурс: {text}."
+  },
+  {
+    "intent": "utility_system",
+    "question": "Элемент инженерной сети: [данные].",
+    "answer": "Принято, категория: utility_system. Продолжайте.",
+    "original_template": "Элемент инженерной сети: {text}."
+  },
+  {
+    "intent": "utility_system",
+    "question": "Вид коммунальной системы: [данные].",
+    "answer": "Принято, категория: utility_system. Продолжайте.",
+    "original_template": "Вид коммунальной системы: {text}."
+  },
+  {
+    "intent": "utility_system",
+    "question": "Объект, на котором произошел сбой: [данные].",
+    "answer": "Принято, категория: utility_system. Продолжайте.",
+    "original_template": "Объект, на котором произошел сбой: {text}."
+  },
+  {
+    "intent": "utility_system",
+    "question": "Тип поврежденной магистрали: [данные].",
+    "answer": "Принято, категория: utility_system. Продолжайте.",
+    "original_template": "Тип поврежденной магистрали: {text}."
+  },
+  {
+    "intent": "utility_failure",
+    "question": "Характер неисправности: [данные].",
+    "answer": "Принято, категория: utility_failure. Продолжайте.",
+    "original_template": "Характер неисправности: {text}."
+  },
+  {
+    "intent": "utility_failure",
+    "question": "Тип аварии: [данные].",
+    "answer": "Принято, категория: utility_failure. Продолжайте.",
+    "original_template": "Тип аварии: {text}."
+  },
+  {
+    "intent": "utility_failure",
+    "question": "Описание сбоя: [данные].",
+    "answer": "Принято, категория: utility_failure. Продолжайте.",
+    "original_template": "Описание сбоя: {text}."
+  },
+  {
+    "intent": "utility_failure",
+    "question": "Вид повреждения: [данные].",
+    "answer": "Принято, категория: utility_failure. Продолжайте.",
+    "original_template": "Вид повреждения: {text}."
+  },
+  {
+    "intent": "utility_failure",
+    "question": "Природа поломки: [данные].",
+    "answer": "Принято, категория: utility_failure. Продолжайте.",
+    "original_template": "Природа поломки: {text}."
+  },
+  {
+    "intent": "utility_failure",
+    "question": "Симптомы аварии: [данные].",
+    "answer": "Принято, категория: utility_failure. Продолжайте.",
+    "original_template": "Симптомы аварии: {text}."
+  },
+  {
+    "intent": "utility_failure",
+    "question": "Характер течи или разрыва: [данные].",
+    "answer": "Принято, категория: utility_failure. Продолжайте.",
+    "original_template": "Характер течи или разрыва: {text}."
+  },
+  {
+    "intent": "utility_failure",
+    "question": "Тип возникшей проблемы: [данные].",
+    "answer": "Принято, категория: utility_failure. Продолжайте.",
+    "original_template": "Тип возникшей проблемы: {text}."
+  },
+  {
+    "intent": "utility_failure",
+    "question": "Способ проявления аварии: [данные].",
+    "answer": "Принято, категория: utility_failure. Продолжайте.",
+    "original_template": "Способ проявления аварии: {text}."
+  },
+  {
+    "intent": "utility_failure",
+    "question": "Описание инцидента: [данные].",
+    "answer": "Принято, категория: utility_failure. Продолжайте.",
+    "original_template": "Описание инцидента: {text}."
+  },
+  {
+    "intent": "utility_impact",
+    "question": "Последствия для объекта: [данные].",
+    "answer": "Принято, категория: utility_impact. Продолжайте.",
+    "original_template": "Последствия для объекта: {text}."
+  },
+  {
+    "intent": "utility_impact",
+    "question": "Масштаб отключения: [данные].",
+    "answer": "Принято, категория: utility_impact. Продолжайте.",
+    "original_template": "Масштаб отключения: {text}."
+  },
+  {
+    "intent": "utility_impact",
+    "question": "Влияние на жителей: [данные].",
+    "answer": "Принято, категория: utility_impact. Продолжайте.",
+    "original_template": "Влияние на жителей: {text}."
+  },
+  {
+    "intent": "utility_impact",
+    "question": "Зона отсутствия услуг: [данные].",
+    "answer": "Принято, категория: utility_impact. Продолжайте.",
+    "original_template": "Зона отсутствия услуг: {text}."
+  },
+  {
+    "intent": "utility_impact",
+    "question": "Степень неудобств: [данные].",
+    "answer": "Принято, категория: utility_impact. Продолжайте.",
+    "original_template": "Степень неудобств: {text}."
+  },
+  {
+    "intent": "nature_phenomenon",
+    "question": "Наблюдаемое явление: [данные].",
+    "answer": "Принято, категория: nature_phenomenon. Продолжайте.",
+    "original_template": "Наблюдаемое явление: {text}."
+  },
+  {
+    "intent": "nature_phenomenon",
+    "question": "Тип стихии: [данные].",
+    "answer": "Принято, категория: nature_phenomenon. Продолжайте.",
+    "original_template": "Тип стихии: {text}."
+  },
+  {
+    "intent": "nature_phenomenon",
+    "question": "Зафиксированное событие: [данные].",
+    "answer": "Принято, категория: nature_phenomenon. Продолжайте.",
+    "original_template": "Зафиксированное событие: {text}."
+  },
+  {
+    "intent": "nature_phenomenon",
+    "question": "Вид природного фактора: [данные].",
+    "answer": "Принято, категория: nature_phenomenon. Продолжайте.",
+    "original_template": "Вид природного фактора: {text}."
+  },
+  {
+    "intent": "nature_phenomenon",
+    "question": "Характер явления: [данные].",
+    "answer": "Принято, категория: nature_phenomenon. Продолжайте.",
+    "original_template": "Характер явления: {text}."
+  },
+  {
+    "intent": "nature_impact",
+    "question": "Последствия явления: [данные].",
+    "answer": "Принято, категория: nature_impact. Продолжайте.",
+    "original_template": "Последствия явления: {text}."
+  },
+  {
+    "intent": "nature_impact",
+    "question": "Воздействие на среду: [данные].",
+    "answer": "Принято, категория: nature_impact. Продолжайте.",
+    "original_template": "Воздействие на среду: {text}."
+  },
+  {
+    "intent": "nature_impact",
+    "question": "Результат воздействия: [данные].",
+    "answer": "Принято, категория: nature_impact. Продолжайте.",
+    "original_template": "Результат воздействия: {text}."
+  },
+  {
+    "intent": "nature_impact",
+    "question": "Масштаб влияния: [данные].",
+    "answer": "Принято, категория: nature_impact. Продолжайте.",
+    "original_template": "Масштаб влияния: {text}."
+  },
+  {
+    "intent": "nature_impact",
+    "question": "Характер ущерба: [данные].",
+    "answer": "Принято, категория: nature_impact. Продолжайте.",
+    "original_template": "Характер ущерба: {text}."
+  },
+  {
+    "intent": "nature_location",
+    "question": "Зона воздействия: [данные].",
+    "answer": "Принято, категория: nature_location. Продолжайте.",
+    "original_template": "Зона воздействия: {text}."
+  },
+  {
+    "intent": "nature_location",
+    "question": "Территория явления: [данные].",
+    "answer": "Принято, категория: nature_location. Продолжайте.",
+    "original_template": "Территория явления: {text}."
+  },
+  {
+    "intent": "nature_location",
+    "question": "Место проявления: [данные].",
+    "answer": "Принято, категория: nature_location. Продолжайте.",
+    "original_template": "Место проявления: {text}."
+  },
+  {
+    "intent": "nature_location",
+    "question": "Локализация события: [данные].",
+    "answer": "Принято, категория: nature_location. Продолжайте.",
+    "original_template": "Локализация события: {text}."
+  },
+  {
+    "intent": "nature_location",
+    "question": "География инцидента: [данные].",
+    "answer": "Принято, категория: nature_location. Продолжайте.",
+    "original_template": "География инцидента: {text}."
+  },
+  {
+    "intent": "animal_subject",
+    "question": "Вид животного: [данные].",
+    "answer": "Принято, категория: animal_subject. Продолжайте.",
+    "original_template": "Вид животного: {text}."
+  },
+  {
+    "intent": "animal_subject",
+    "question": "Объект внимания: [данные].",
+    "answer": "Принято, категория: animal_subject. Продолжайте.",
+    "original_template": "Объект внимания: {text}."
+  },
+  {
+    "intent": "animal_subject",
+    "question": "Участник ситуации: [данные].",
+    "answer": "Принято, категория: animal_subject. Продолжайте.",
+    "original_template": "Участник ситуации: {text}."
+  },
+  {
+    "intent": "animal_subject",
+    "question": "Тип животного: [данные].",
+    "answer": "Принято, категория: animal_subject. Продолжайте.",
+    "original_template": "Тип животного: {text}."
+  },
+  {
+    "intent": "animal_subject",
+    "question": "Субъект инцидента: [данные].",
+    "answer": "Принято, категория: animal_subject. Продолжайте.",
+    "original_template": "Субъект инцидента: {text}."
+  },
+  {
+    "intent": "animal_condition",
+    "question": "Состояние животного: [данные].",
+    "answer": "Принято, категория: animal_condition. Продолжайте.",
+    "original_template": "Состояние животного: {text}."
+  },
+  {
+    "intent": "animal_condition",
+    "question": "Характер угрозы: [данные].",
+    "answer": "Принято, категория: animal_condition. Продолжайте.",
+    "original_template": "Характер угрозы: {text}."
+  },
+  {
+    "intent": "animal_condition",
+    "question": "Действия животного: [данные].",
+    "answer": "Принято, категория: animal_condition. Продолжайте.",
+    "original_template": "Действия животного: {text}."
+  },
+  {
+    "intent": "animal_condition",
+    "question": "Поведение объекта: [данные].",
+    "answer": "Принято, категория: animal_condition. Продолжайте.",
+    "original_template": "Поведение объекта: {text}."
+  },
+  {
+    "intent": "animal_condition",
+    "question": "Физическое состояние: [данные].",
+    "answer": "Принято, категория: animal_condition. Продолжайте.",
+    "original_template": "Физическое состояние: {text}."
+  },
+  {
+    "intent": "animal_location",
+    "question": "Местонахождение: [данные].",
+    "answer": "Принято, категория: animal_location. Продолжайте.",
+    "original_template": "Местонахождение: {text}."
+  },
+  {
+    "intent": "animal_location",
+    "question": "Зона обнаружения: [данные].",
+    "answer": "Принято, категория: animal_location. Продолжайте.",
+    "original_template": "Зона обнаружения: {text}."
+  },
+  {
+    "intent": "animal_location",
+    "question": "Точная локация: [данные].",
+    "answer": "Принято, категория: animal_location. Продолжайте.",
+    "original_template": "Точная локация: {text}."
+  },
+  {
+    "intent": "animal_location",
+    "question": "Место пребывания: [данные].",
+    "answer": "Принято, категория: animal_location. Продолжайте.",
+    "original_template": "Место пребывания: {text}."
+  },
+  {
+    "intent": "animal_location",
+    "question": "Территория нахождения: [данные].",
+    "answer": "Принято, категория: animal_location. Продолжайте.",
+    "original_template": "Территория нахождения: {text}."
+  }
+]

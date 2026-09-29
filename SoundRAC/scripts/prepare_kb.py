@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Подготовка FAISS индекса из базы знаний.
-Использует mock-данные для тестирования.
+Подготовка FAISS индекса из базы знаний (адаптировано под формат шаблонов 112).
 """
 import sys
 import os
+
+# Добавляем путь к rac_service для импорта
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'rac_service'))
 
 import json
@@ -13,74 +14,56 @@ from embedder import Embedder
 from faiss_store import FAISSStore
 
 
-def load_mock_knowledge_base() -> list[dict]:
-    """Загружает mock базу знаний для тестирования"""
-    mock_path = os.path.join(os.path.dirname(__file__), '..', 'rac_service', 'knowledge_base.json')
+def load_and_transform_knowledge_base() -> list[dict]:
+    """Загружает JSON с шаблонами и преобразует его в формат для FAISS"""
+    kb_path = os.path.join(os.path.dirname(__file__), '..', 'rac_service', 'knowledge_base.json')
     
-    if os.path.exists(mock_path):
-        with open(mock_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+    if not os.path.exists(kb_path):
+        raise FileNotFoundError(f"Файл не найден: {kb_path}")
     
-    # Если файла нет — создаём тестовые данные
-    mock_data = [
-        {
-            "question": "Здравствуйте",
-            "answer": "Здравствуйте! Чем могу помочь?"
-        },
-        {
-            "question": "Где мой заказ?",
-            "answer": "Чтобы узнать статус заказа, назовите, пожалуйста, номер заказа."
-        },
-        {
-            "question": "Как отследить посылку?",
-            "answer": "Введите номер заказа на сайте в разделе 'Статус заказа'."
-        },
-        {
-            "question": "Какие у вас часы работы?",
-            "answer": "Мы работаем с 9 утра до 6 вечера, без выходных."
-        },
-        {
-            "question": "Как вернуть товар?",
-            "answer": "Вы можете вернуть товар в течение 14 дней. Обратитесь в службу поддержки по номеру 8-800-555-35-35."
-        },
-        {
-            "question": "Сколько стоит доставка?",
-            "answer": "Доставка бесплатная при заказе от 3000 рублей. В остальных случаях — 300 рублей."
-        },
-        {
-            "question": "Хочу поговорить с оператором",
-            "answer": "Соединяю вас с оператором. Пожалуйста, оставайтесь на линии."
-        },
-        {
-            "question": "Какие способы оплаты вы принимаете?",
-            "answer": "Мы принимаем банковские карты, электронные кошельки и наличные при получении."
-        },
-        {
-            "question": "У вас есть скидки?",
-            "answer": "Да! При первом заказе — скидка 10%. Для постоянных клиентов действует накопительная система."
-        },
-        {
-            "question": "До свидания",
-            "answer": "Спасибо за звонок! Хорошего дня!"
-        }
-    ]
+    with open(kb_path, 'r', encoding='utf-8') as f:
+        raw_kb = json.load(f)
     
-    # Сохраняем для повторного использования
-    with open(mock_path, 'w', encoding='utf-8') as f:
-        json.dump(mock_data, f, ensure_ascii=False, indent=2)
+    if not isinstance(raw_kb, dict):
+        raise ValueError("Ожидался JSON-объект (словарь) с категориями интентов.")
     
-    return mock_data
+    transformed_kb = []
+    
+    for intent, templates in raw_kb.items():
+        # Убираем лишние пробелы в названиях категорий (например, "caller_name " -> "caller_name")
+        clean_intent = intent.strip()
+        
+        if not isinstance(templates, list):
+            continue
+            
+        for template in templates:
+            # Для качественной векторизации заменяем {text} на нейтральное слово, 
+            # чтобы предложение было семантически полным для эмбеддера.
+            question_for_embedding = template.replace("{text}", "[данные]").strip()
+            
+            # Формируем ответ. Пока сделаем универсальное подтверждение категории.
+            # В будущем здесь можно настроить логику: "Принято, ваше имя: [данные]. Что случилось?"
+            answer = f"Принято, категория: {clean_intent}. Продолжайте."
+            
+            transformed_kb.append({
+                "intent": clean_intent,
+                "question": question_for_embedding,
+                "answer": answer,
+                "original_template": template.strip()
+            })
+            
+    print(f"  Преобразовано {len(transformed_kb)} шаблонов из {len(raw_kb)} категорий.")
+    return transformed_kb
 
 
 def main():
     print("=" * 60)
-    print("Подготовка базы знаний для RAC-сервиса")
+    print("Подготовка базы знаний для RAC-сервиса (Формат 112)")
     print("=" * 60)
     
-    # 1. Загружаем базу знаний
-    print("\n[1/3] Загрузка базы знаний...")
-    kb = load_mock_knowledge_base()
-    print(f"  Загружено {len(kb)} записей")
+    # 1. Загружаем и преобразуем базу знаний
+    print("\n[1/3] Загрузка и преобразование базы знаний...")
+    kb = load_and_transform_knowledge_base()
     
     # 2. Векторизуем вопросы
     print("\n[2/3] Векторизация вопросов (это займёт время при первом запуске)...")
@@ -96,13 +79,15 @@ def main():
     
     # Сохраняем
     index_path = os.path.join(os.path.dirname(__file__), '..', 'rac_service', 'knowledge_base.index')
-    kb_path = os.path.join(os.path.dirname(__file__), '..', 'rac_service', 'knowledge_base.json')
-    store.save(index_path, kb_path)
+    
+    # ВАЖНО: Мы перезаписываем JSON преобразованным видом, чтобы RAC-сервис мог его читать
+    kb_output_path = os.path.join(os.path.dirname(__file__), '..', 'rac_service', 'knowledge_base_processed.json')
+    store.save(index_path, kb_output_path)
     
     print(f"\n✅ Готово!")
-    print(f"  Индекс: {index_path}")
-    print(f"  База знаний: {kb_path}")
-    print(f"  Векторов: {store.index.ntotal}")
+    print(f"  Индекс сохранен в: {index_path}")
+    print(f"  Обработанная база сохранена в: {kb_output_path}")
+    print(f"  Всего векторов: {store.index.ntotal}")
 
 
 if __name__ == '__main__':

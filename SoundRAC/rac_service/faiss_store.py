@@ -1,6 +1,7 @@
 import faiss
 import numpy as np
 import json
+import os
 from typing import Optional
 from dataclasses import dataclass
 
@@ -20,19 +21,31 @@ class FAISSStore:
         self.index = faiss.IndexFlatIP(dimension)  # Inner Product = Cosine Similarity (для нормализованных векторов)
         self.kb: list[dict] = []
     
-    def load(self, index_path: str, kb_path: str):
-        """Загружает индекс и базу знаний с диска"""
-        self.index = faiss.read_index(index_path)
-        with open(kb_path, 'r', encoding='utf-8') as f:
-            self.kb = json.load(f)
-        print(f"Loaded FAISS index: {self.index.ntotal} vectors, {len(self.kb)} KB entries")
-    
     def save(self, index_path: str, kb_path: str):
         """Сохраняет индекс и базу знаний на диск"""
+        # Превращаем пути в абсолютные и убираем '..'
+        index_path = os.path.abspath(index_path)
+        kb_path = os.path.abspath(kb_path)
+        
+        # Убеждаемся, что папки существуют
+        os.makedirs(os.path.dirname(index_path), exist_ok=True)
+        os.makedirs(os.path.dirname(kb_path), exist_ok=True)
+        
         faiss.write_index(self.index, index_path)
         with open(kb_path, 'w', encoding='utf-8') as f:
             json.dump(self.kb, f, ensure_ascii=False, indent=2)
-    
+
+    def load(self, index_path: str, kb_path: str):
+        """Загружает индекс и базу знаний с диска"""
+        index_path = os.path.abspath(index_path)
+        kb_path = os.path.abspath(kb_path)
+        
+        self.index = faiss.read_index(index_path)
+        with open(kb_path, 'r', encoding='utf-8') as f:
+            self.kb = json.load(f)
+        print(f"Loaded FAISS index: {self.index.ntotal} vectors, {len(self.kb)} KB entries")    
+
+
     def add(self, vectors: np.ndarray, entries: list[dict]):
         """Добавляет векторы и соответствующие записи в базу знаний"""
         assert vectors.shape[1] == self.dimension
