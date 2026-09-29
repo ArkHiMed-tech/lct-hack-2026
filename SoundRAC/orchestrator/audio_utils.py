@@ -46,7 +46,7 @@ class SimpleVAD:
         if len(audio) == 0:
             return False
         energy = np.sqrt(np.mean(audio ** 2))
-        return energy > self.threshold
+        return bool(energy > self.threshold)  # Явно конвертируем в Python bool
 
 
 def split_into_sentences(text: str) -> list[str]:

@@ -2,6 +2,7 @@ import faiss
 import numpy as np
 import json
 import os
+import io
 from typing import Optional
 from dataclasses import dataclass
 
@@ -18,12 +19,27 @@ class FAISSStore:
     """Хранилище векторов на базе FAISS"""
     def __init__(self, dimension: int):
         self.dimension = dimension
-        self.index = faiss.IndexFlatIP(dimension)  # Inner Product = Cosine Similarity (для нормализованных векторов)
+        self.index = faiss.IndexFlatIP(dimension)  # Inner Product = Cosine Similarity
         self.kb: list[dict] = []
+    
+    def load(self, index_path: str, kb_path: str):
+        """Загружает индекс и базу знаний с диска"""
+        index_path = os.path.abspath(index_path)
+        kb_path = os.path.abspath(kb_path)
+        
+        # Читаем файл в буфер через Python (поддерживает Unicode), 
+        # а затем передаём буфер в FAISS
+        with open(index_path, 'rb') as f:
+            buffer = io.BytesIO(f.read())
+        
+        self.index = faiss.read_index(faiss.PyCallbackIOReader(buffer.read))
+        
+        with open(kb_path, 'r', encoding='utf-8') as f:
+            self.kb = json.load(f)
+        print(f"Loaded FAISS index: {self.index.ntotal} vectors, {len(self.kb)} KB entries")
     
     def save(self, index_path: str, kb_path: str):
         """Сохраняет индекс и базу знаний на диск"""
-        # Превращаем пути в абсолютные и убираем '..'
         index_path = os.path.abspath(index_path)
         kb_path = os.path.abspath(kb_path)
         
@@ -31,21 +47,17 @@ class FAISSStore:
         os.makedirs(os.path.dirname(index_path), exist_ok=True)
         os.makedirs(os.path.dirname(kb_path), exist_ok=True)
         
-        faiss.write_index(self.index, index_path)
+        # FAISS на Windows не умеет писать в пути с кириллицей через C API.
+        # Поэтому пишем в буфер в памяти, а буфер сохраняем через Python.
+        buffer = io.BytesIO()
+        faiss.write_index(self.index, faiss.PyCallbackIOWriter(buffer.write))
+        
+        with open(index_path, 'wb') as f:
+            f.write(buffer.getvalue())
+        
         with open(kb_path, 'w', encoding='utf-8') as f:
             json.dump(self.kb, f, ensure_ascii=False, indent=2)
-
-    def load(self, index_path: str, kb_path: str):
-        """Загружает индекс и базу знаний с диска"""
-        index_path = os.path.abspath(index_path)
-        kb_path = os.path.abspath(kb_path)
-        
-        self.index = faiss.read_index(index_path)
-        with open(kb_path, 'r', encoding='utf-8') as f:
-            self.kb = json.load(f)
-        print(f"Loaded FAISS index: {self.index.ntotal} vectors, {len(self.kb)} KB entries")    
-
-
+    
     def add(self, vectors: np.ndarray, entries: list[dict]):
         """Добавляет векторы и соответствующие записи в базу знаний"""
         assert vectors.shape[1] == self.dimension
