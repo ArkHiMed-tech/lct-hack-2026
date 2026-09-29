@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 
 from database import get_connection
-from misc.crypto import dec_text, enc_text, login_index
+from misc.crypto import dec_text, enc_text, hash_password, normalize_login
 from models import User
 
 router = APIRouter(prefix="/api/users", tags=["users"])
@@ -17,8 +17,14 @@ async def list_users():
 
 @router.post("/create")
 async def create_user(user: User):
+    login = normalize_login(user.login)
+    if not login:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Логин не должен быть пустым",
+        )
     with get_connection() as connection:
-        user_id = user.login.lower().replace(" ", "-") or user.email
+        user_id = login.replace(" ", "-") or user.email
         cursor = connection.cursor()
         cursor.execute(
             """
@@ -28,8 +34,8 @@ async def create_user(user: User):
             """,
             (
                 user_id,
-                login_index(user.login),
-                enc_text(user.password),
+                login,
+                hash_password(user.password),
                 enc_text(user.email),
                 enc_text(user.name),
                 enc_text(user.last_name),
@@ -41,12 +47,13 @@ async def create_user(user: User):
         connection.commit()
         row = connection.execute(
             "SELECT * FROM users WHERE login = ?",
-            (login_index(user.login),),
+            (login,),
         ).fetchone()
         if row is None:
             return {"message": f"User {user.login} created", "info": None}
         info = dict(row)
-        for field in ("password", "email", "name", "last_name", "role", "group_name"):
+        info["password"] = "********" if info.get("password") else None
+        for field in ("email", "name", "last_name", "role", "group_name"):
             info[field] = dec_text(info.get(field))
         return {"message": f"User {user.login} created", "info": info}
 
@@ -55,6 +62,9 @@ async def create_user(user: User):
 async def update_user(user_id: str, payload: dict):
     allowed_fields = {"role", "group_name", "active", "name", "last_name", "email"}
     updates = {key: value for key, value in payload.items() if key in allowed_fields}
+
+    if "password" in payload and payload["password"]:
+        updates["password"] = hash_password(payload["password"])
 
     if not updates:
         raise HTTPException(
@@ -65,7 +75,9 @@ async def update_user(user_id: str, payload: dict):
     with get_connection() as connection:
         assignments = ", ".join(f"{field} = ?" for field in updates)
         values = [
-            value if field == "active" else enc_text(value)
+            value if field == "active" else (
+                value if field == "password" else enc_text(value)
+            )
             for field, value in updates.items()
         ]
         values.append(user_id)

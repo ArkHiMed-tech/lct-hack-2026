@@ -6,8 +6,13 @@
 - Контентные текстовые колонки и JSON-blob'ы: Fernet (AES-128-CBC + HMAC),
   envelope-префикс ``enc1:`` (сырые значения без префикса читаются как есть —
   обратная совместимость и идемпотентная миграция).
-- ``login``: необратимый HMAC-SHA256 индекс (``hmac1:``) отдельным ключом —
-  точный поиск ``WHERE login = ?`` и cookie-сессия работают, значение скрыто.
+- ``login``: ХРАНИТСЯ ОТКРЫТЫМ ТЕКСТОМ (нормализованный: strip + lower) —
+  точный поиск ``WHERE login = ?`` и cookie-сессия работают без ключей.
+  Старый HMAC-индекс ``hmac1:`` больше не создаётся; чтение таких строк
+  поддерживается только миграцией (см. ``is_login_index``).
+- ``password``: односторонний хэш PBKDF2-HMAC-SHA256 (``pbkdf2:``).
+  Проверка — ``password_matches`` (понимает и legacy ``enc1:``/plaintext
+  для плавной миграции со старых БД).
 - Структурные поля (int-PK, FK-id вида ``u-001``/``card-5``, timestamps,
   числовые скоринги, флаги) — открытый текст: это не ПДн, нужно для
   связей/сортировок.
@@ -22,6 +27,7 @@ import hashlib
 import hmac
 import json
 import os
+import secrets
 from pathlib import Path
 from typing import Any
 
@@ -122,7 +128,11 @@ def dec_blob(value: Any) -> Any:
 
 
 def login_index(login: str) -> str:
-    """Детерминированный необратимый индекс логина для точного поиска."""
+    """DEPRECATED: раньше логин хранился HMAC-индексом, теперь — plaintext.
+
+    Оставлена для чтения/миграции старых БД. Новый код должен использовать
+    :func:`normalize_login`.
+    """
     _, hmac_key = _keys()
     digest = hmac.new(hmac_key, str(login).encode("utf-8"), hashlib.sha256).hexdigest()
     return HMAC_PREFIX + digest
@@ -130,3 +140,64 @@ def login_index(login: str) -> str:
 
 def is_login_index(value: Any) -> bool:
     return isinstance(value, str) and value.startswith(HMAC_PREFIX)
+
+
+def normalize_login(login: Any) -> str:
+    """Канонический вид логина: plaintext, без пробелов, в нижнем регистре."""
+    return str(login or "").strip().lower()
+
+
+# --- Пароли: односторонний хэш (PBKDF2, только stdlib) ---
+
+PWD_PREFIX = "pbkdf2:"
+_PWD_ITERATIONS = 210_000
+
+
+def hash_password(password: str) -> str:
+    """Хэш пароля для хранения. Идемпотентен: хэш повторно не хэшируется."""
+    if is_password_hash(password):
+        return password
+    salt = secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256", str(password or "").encode("utf-8"), salt.encode("ascii"), _PWD_ITERATIONS
+    ).hex()
+    return f"{PWD_PREFIX}{_PWD_ITERATIONS}${salt}${digest}"
+
+
+def is_password_hash(value: Any) -> bool:
+    return isinstance(value, str) and value.startswith(PWD_PREFIX)
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    try:
+        _, rest = str(stored_hash).split(PWD_PREFIX, 1)
+        iterations_str, salt, digest = rest.split("$", 2)
+        expected = hashlib.pbkdf2_hmac(
+            "sha256",
+            str(password or "").encode("utf-8"),
+            salt.encode("ascii"),
+            int(iterations_str),
+        ).hex()
+        return hmac.compare_digest(expected, digest)
+    except (ValueError, AttributeError):
+        return False
+
+
+def password_matches(password: str, stored: Any) -> bool:
+    """Проверка пароля против любого legacy-формата.
+
+    - ``pbkdf2:...`` — штатная проверка хэша;
+    - ``enc1:...`` — расшифровка Fernet и сравнение (миграция со старых БД);
+    - иначе — прямое сравнение с plaintext (самые старые БД).
+    """
+    if stored is None:
+        return False
+    if is_password_hash(stored):
+        return verify_password(password, stored)
+    if isinstance(stored, str) and stored.startswith(ENC_PREFIX):
+        try:
+            return dec_text(stored) == password
+        except ValueError:
+            # Чужой ключ (БД с другой машины) — расшифровать нельзя.
+            return False
+    return stored == password

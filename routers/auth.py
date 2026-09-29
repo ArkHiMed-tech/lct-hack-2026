@@ -2,7 +2,13 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel
 
 from database import get_connection
-from misc.crypto import dec_text, login_index
+from misc.crypto import (
+    dec_text,
+    hash_password,
+    is_password_hash,
+    normalize_login,
+    password_matches,
+)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 SESSION_COOKIE_NAME = "sim112_session"
@@ -32,25 +38,41 @@ def serialize_user(row: dict) -> dict:
     }
 
 
+def _find_user(connection, login: str):
+    """Поиск по нормализованному plaintext-логину (регистр не важен)."""
+    return connection.execute(
+        "SELECT * FROM users WHERE login = ?",
+        (normalize_login(login),),
+    ).fetchone()
+
+
 @router.post("/login")
 async def login(payload: AuthRequest, response: Response):
     with get_connection() as connection:
-        row = connection.execute(
-            "SELECT * FROM users WHERE login = ?",
-            (login_index(payload.login),),
-        ).fetchone()
+        row = _find_user(connection, payload.login)
 
-    if row is None or dec_text(row["password"]) != payload.password:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Неверный логин или пароль",
-        )
+        if row is None or not password_matches(payload.password, row["password"]):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Неверный логин или пароль",
+            )
 
-    if row["active"] in (0, False):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Пользователь деактивирован",
-        )
+        if row["active"] in (0, False):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Пользователь деактивирован",
+            )
+
+        # Плавный апгрейд legacy enc/plaintext пароля до хэша при успешном входе.
+        if not is_password_hash(row["password"]):
+            connection.execute(
+                "UPDATE users SET password = ? WHERE id = ?",
+                (hash_password(payload.password), row["id"]),
+            )
+            connection.commit()
+            row = connection.execute(
+                "SELECT * FROM users WHERE id = ?", (row["id"],)
+            ).fetchone()
 
     user = serialize_user(dict(row))
     response.set_cookie(
@@ -74,10 +96,7 @@ async def me(request: Request):
         )
 
     with get_connection() as connection:
-        row = connection.execute(
-            "SELECT * FROM users WHERE login = ?",
-            (login,),
-        ).fetchone()
+        row = _find_user(connection, login)
 
     if row is None:
         raise HTTPException(

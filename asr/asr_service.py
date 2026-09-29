@@ -1,8 +1,26 @@
-from faster_whisper import WhisperModel
-import numpy as np
+from pathlib import Path
 from typing import Optional
 import asyncio
-from pathlib import Path
+
+try:
+    import numpy as np
+except ImportError:  # опциональная зависимость
+    np = None
+
+try:
+    from faster_whisper import WhisperModel
+except ImportError:  # опциональная зависимость: без неё работает stub
+    WhisperModel = None
+
+
+class StubASRService:
+    """Заглушка, когда faster-whisper не установлен: старт не падает."""
+
+    language = "ru"
+
+    async def transcribe_pcm(self, *args, **kwargs) -> dict:
+        return {"text": "", "segments": [], "language": "ru",
+                "language_probability": 0.0, "stub": True}
 
 class ASRService:
     """
@@ -11,21 +29,19 @@ class ASRService:
     """
     
     def __init__(
-        self, 
+        self,
         model_size: str = "medium",
         device: str = "cpu",
         compute_type: str = "int8",  # int8 для CPU (быстрее), float16 для GPU
         language: str = "ru"
     ):
-        """
-        Инициализация модели.
-        
-        Args:
-            model_size: Размер модели (tiny, base, small, medium, large-v2)
-            device: Устройство (cpu или cuda)
-            compute_type: Тип вычислений (int8 для CPU, float16 для GPU)
-            language: Язык распознавания (ru, en, и т.д.)
-        """
+        if WhisperModel is None:
+            raise RuntimeError(
+                "faster-whisper не установлен — поставьте requirements-stt.txt "
+                "или используйте StubASRService"
+            )
+        if np is None:
+            raise RuntimeError("numpy не установлен — нужен для ASR")
         print(f"Загрузка модели {model_size} на {device}...")
         self.model = WhisperModel(
             model_size, 
@@ -113,11 +129,29 @@ class ASRService:
 # Singleton для переиспользования модели (загружается один раз)
 _asr_instance: Optional[ASRService] = None
 
-async def get_asr_service() -> ASRService:
-    """Получить экземпляр ASR сервиса (singleton)."""
+async def get_asr_service():
+    """Получить экземпляр ASR сервиса (singleton).
+
+    Тяжёлую модель НЕ грузим на старте без необходимости: если faster-whisper
+    недоступен — возвращается stub, сервер продолжает работать (STT просто
+    отдаёт пустой текст). Через env ``ASR_DISABLED=1`` — всегда stub.
+    """
+    import os
+
     global _asr_instance
     if _asr_instance is None:
-        _asr_instance = ASRService()
+        if os.getenv("ASR_DISABLED", "").strip().lower() in ("1", "true", "yes"):
+            _asr_instance = StubASRService()
+        elif WhisperModel is None:
+            print("faster-whisper не установлен — ASR работает в stub-режиме.")
+            _asr_instance = StubASRService()
+        else:
+            try:
+                loop = asyncio.get_running_loop()
+                _asr_instance = await loop.run_in_executor(None, ASRService)
+            except Exception as exc:
+                print(f"Не удалось загрузить ASR-модель ({exc}) — stub-режим.")
+                _asr_instance = StubASRService()
     return _asr_instance
 
 async def transcribe_audio(pcm_data: bytes, **kwargs) -> dict:

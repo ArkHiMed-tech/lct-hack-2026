@@ -9,10 +9,18 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import urlopen
 
-from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+try:
+    from dotenv import load_dotenv
+except ImportError:  # опциональная зависимость — без неё читаем только os.environ
+    def load_dotenv(*args, **kwargs):
+        return False
 
 from database import DB_PATH, FRONTEND_DIST, initialize_database, initialize_dev_data
+from misc.env_bootstrap import ensure_env_file
 from misc.tts_service import TTSService
 from routers.auth import router as auth_router
 from routers.classifier import router as classifier_router
@@ -26,18 +34,29 @@ from routers.sessions import router as sessions_router
 from routers.users import router as users_router
 
 from asr.asr_service import get_asr_service
+
+ensure_env_file(Path(__file__).with_name(".env"))
 load_dotenv(Path(__file__).with_name(".env"))
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(app_instance: FastAPI):
     env = os.getenv("APP_ENV", "prod").lower()
     if env == "dev":
         initialize_dev_data()
     else:
         initialize_database()
-    app.state.asr_service = await get_asr_service()
-    app.state.asr_service = TTSService()
+    # Лениво и безопасно: ASR (тяжёлая модель) и TTS не должны ронять старт.
+    try:
+        app_instance.state.asr_service = await get_asr_service()
+    except Exception as exc:
+        print(f"ASR недоступен, работаем без него: {exc}")
+        app_instance.state.asr_service = None
+    try:
+        app_instance.state.tts_service = TTSService()
+    except Exception as exc:
+        print(f"TTS недоступен, работаем без него: {exc}")
+        app_instance.state.tts_service = None
     yield
 
 
@@ -49,7 +68,7 @@ async def health() -> dict:
     return {
         "status": "ok",
         "app_env": os.getenv("APP_ENV", "prod"),
-        "frontend_build_exists": FRONTEND_DIST.exists(),
+        "frontend_build_exists": (FRONTEND_DIST / "index.html").exists(),
         "database_exists": DB_PATH.exists(),
     }
 
@@ -209,4 +228,32 @@ async def valid_map(
     )
 
 
-app.frontend("/", directory=str(FRONTEND_DIST))
+# --- Отдача фронтенда (SPA) ---
+# Было: app.frontend(...) — такого метода у FastAPI нет, импорт падал.
+# Стало: статика + fallback на index.html для deep-link'ов (/login и т.д.).
+if (FRONTEND_DIST / "index.html").exists():
+    if (FRONTEND_DIST / "assets").exists():
+        app.mount(
+            "/assets",
+            StaticFiles(directory=str(FRONTEND_DIST / "assets")),
+            name="frontend-assets",
+        )
+
+    @app.get("/", include_in_schema=False)
+    async def serve_root():
+        return FileResponse(str(FRONTEND_DIST / "index.html"))
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        # API и assets обслуживаются своими роутерами/маунтами выше.
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not found")
+        candidate = FRONTEND_DIST / full_path
+        if full_path and candidate.is_file():
+            return FileResponse(str(candidate))
+        return FileResponse(str(FRONTEND_DIST / "index.html"))
+else:
+    print(
+        "frontend/dist не собран — API работает, "
+        "соберите фронт: cd frontend && npm install && npm run build"
+    )

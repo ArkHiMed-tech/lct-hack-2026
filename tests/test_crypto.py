@@ -1,4 +1,4 @@
-"""Шифрование БД: round-trip, HMAC-индекс, миграция, end-to-end через API."""
+"""Шифрование БД: round-trip, plaintext-логины, хэши паролей, end-to-end через API."""
 from fastapi.testclient import TestClient
 
 from database import get_connection, initialize_database
@@ -8,8 +8,12 @@ from misc.crypto import (
     dec_text,
     enc_blob,
     enc_text,
+    hash_password,
     is_encrypted,
+    is_password_hash,
     login_index,
+    normalize_login,
+    password_matches,
 )
 from misc.migrate_db_crypto import migrate_connection
 
@@ -35,9 +39,27 @@ def test_blob_roundtrip():
     assert dec_blob(token) == payload
 
 
-def test_login_index_deterministic():
+def test_logins_are_plaintext_and_normalized():
+    # Логины НЕ шифруются: хранятся открытым текстом, регистр не важен.
+    assert normalize_login("  Umc_OperDDS1 ") == "umc_operdds1"
+    assert normalize_login("umc_operdds1") == "umc_operdds1"
+
+
+def test_password_hash_and_legacy_matches():
+    hashed = hash_password("dds112-1")
+    assert is_password_hash(hashed)
+    assert hash_password(hashed) == hashed  # идемпотентность
+    assert password_matches("dds112-1", hashed)
+    assert not password_matches("wrong", hashed)
+    # Legacy-форматы тоже проходят (миграция со старых БД).
+    assert password_matches("dds112-1", "dds112-1")
+    assert password_matches("dds112-1", enc_text("dds112-1"))
+    assert not password_matches("dds112-1", enc_text("other"))
+
+
+def test_legacy_login_index_kept_for_migration_only():
+    # Старый HMAC-индекс оставлен только для чтения/миграции старых БД.
     assert login_index("umc_operdds1") == login_index("umc_operdds1")
-    assert login_index("umc_operdds1") != login_index("umc_operdds2")
     assert login_index("umc_operdds1").startswith("hmac1:")
 
 
@@ -55,12 +77,57 @@ def test_login_with_seed_user_end_to_end():
     )
     assert response.status_code == 200, response.text
     body = response.json()
+    assert body["login"] == "umc_operdds1"  # plaintext, не hmac1:...
+    assert "hmac" not in body["login"]
     assert body["name"] == "Иванова Мария Петровна"
     assert body["role"] == "student"
     assert "sim112_session" in response.cookies
     me = client.get("/api/auth/me")
     assert me.status_code == 200
     assert me.json()["name"] == "Иванова Мария Петровна"
+    assert me.json()["login"] == "umc_operdds1"
+
+
+def test_login_is_case_insensitive():
+    initialize_database()
+    response = client.post(
+        "/api/auth/login", json={"login": "UMC_OperDDS1", "password": "dds112-1"}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["login"] == "umc_operdds1"
+
+
+def test_wrong_password_rejected():
+    initialize_database()
+    response = client.post(
+        "/api/auth/login", json={"login": "umc_operdds1", "password": "wrong"}
+    )
+    assert response.status_code == 401
+
+
+def test_legacy_hmac_db_is_repaired_on_init():
+    # Старая БД с hmac-логинами чинится при initialize_database,
+    # вход по старому логину+паролю работает.
+    from database import _repair_legacy_logins  # noqa: F401
+    from misc.crypto import enc_text as _enc
+
+    initialize_database()
+    with get_connection() as connection:
+        connection.execute(
+            "UPDATE users SET login = ?, password = ? WHERE id = 'u-001'",
+            (login_index("umc_operdds1"), _enc("dds112-1")),
+        )
+        connection.commit()
+    initialize_database()  # должен починить hmac -> plaintext
+    with get_connection() as connection:
+        row = connection.execute(
+            "SELECT login FROM users WHERE id = 'u-001'"
+        ).fetchone()
+        assert row["login"] == "umc_operdds1"
+    response = client.post(
+        "/api/auth/login", json={"login": "umc_operdds1", "password": "dds112-1"}
+    )
+    assert response.status_code == 200, response.text
 
 
 def test_report_write_read_roundtrip_encrypted():

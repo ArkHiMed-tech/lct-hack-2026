@@ -12,13 +12,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from misc.crypto import enc_blob, enc_text, is_encrypted, is_login_index, login_index
+from misc.crypto import enc_blob, enc_text, is_encrypted, is_password_hash
 
-# таблица -> (текстовые колонки, login-колонки, blob-колонки)
+# таблица -> (текстовые колонки, login-колонки [НЕ ШИФРУЮТСЯ], blob-колонки)
+# ВАЖНО: логины хранятся открытым текстом (см. misc.crypto.normalize_login).
+# HMAC-строки вида ``hmac1:`` здесь не трогаем — их чинит
+# ``database._repair_legacy_logins`` (необратимо, по сид-карте).
 TABLE_FIELDS: dict[str, tuple[list[str], list[str], list[str]]] = {
     "users": (
         ["password", "email", "name", "last_name", "role", "group_name"],
-        ["login"],
+        [],
         [],
     ),
     "roles": (["title"], [], []),
@@ -71,10 +74,9 @@ def migrate_connection(connection: sqlite3.Connection) -> dict[str, int]:
             for name, value in zip(cols, row[1:]):
                 if value is None or value == "":
                     continue
-                if name in logins:
-                    if not is_login_index(value):
-                        patch[name] = login_index(str(value))
-                elif name in blobs:
+                if name == "password" and is_password_hash(value):
+                    continue  # хэш уже в финальном виде, Fernet не нужен
+                if name in blobs:
                     if not is_encrypted(value):
                         patch[name] = enc_blob(str(value))
                 else:
