@@ -1,8 +1,10 @@
 import json
+from urllib.error import URLError
 
 from fastapi.testclient import TestClient
 
 from database import get_connection, initialize_database
+import main
 from main import app
 
 client = TestClient(app)
@@ -42,6 +44,209 @@ def test_users_collection_route_exists():
 def test_scenarios_route_exists():
     response = client.get("/api/scenarios")
     assert response.status_code == 200
+
+
+def test_map_valid_returns_full_address(monkeypatch):
+    monkeypatch.setenv("YANDEX_MAPS_API_KEY", "test-key")
+    monkeypatch.setattr(
+        main,
+        "_fetch_yandex_geocoder",
+        lambda api_key, query, kind=None: {
+            "response": {
+                "GeoObjectCollection": {
+                    "featureMember": [
+                        {
+                            "GeoObject": {
+                                "metaDataProperty": {
+                                    "GeocoderMetaData": {
+                                        "kind": "house",
+                                        "Address": {
+                                            "formatted": "Россия, Москва, Тверская улица, 7",
+                                            "Components": [
+                                                {
+                                                    "kind": "district",
+                                                    "name": "Центральный административный округ",
+                                                }
+                                            ],
+                                        },
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+    )
+
+    response = client.get("/api/map_valid", params={"type": "house"})
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "type": "house",
+        "address": "Россия, Москва, Тверская улица, 7, Центральный административный округ",
+        "okrug": "Центральный административный округ",
+    }
+
+
+def test_map_valid_generates_location_and_requests_house_kind(monkeypatch):
+    monkeypatch.setenv("YANDEX_GEOCODER_API_KEY", "geocoder-key")
+
+    def fake_geocoder(api_key, query, kind=None):
+        assert api_key == "geocoder-key"
+        assert kind == "house"
+        longitude, latitude = map(float, query.split(","))
+        assert 36.8 <= longitude <= 37.97
+        assert 55.5 <= latitude <= 56.0
+        return {
+            "response": {
+                "GeoObjectCollection": {
+                    "featureMember": [
+                        {
+                            "GeoObject": {
+                                "metaDataProperty": {
+                                    "GeocoderMetaData": {
+                                        "kind": "house",
+                                        "Address": {
+                                            "formatted": "Россия, Москва, Тверская улица, 7"
+                                        },
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+
+    monkeypatch.setattr(main, "_fetch_yandex_geocoder", fake_geocoder)
+
+    response = client.get("/api/map_valid", params={"type": "house"})
+
+    assert response.status_code == 200
+
+
+def test_map_valid_returns_coordinates_for_water(monkeypatch):
+    monkeypatch.setenv("YANDEX_MAPS_API_KEY", "test-key")
+
+    def fake_geocoder(api_key, query, kind=None):
+        assert api_key == "test-key"
+        assert query in main.MAP_FEATURE_QUERIES["water"]
+        return {
+            "response": {
+                "GeoObjectCollection": {
+                    "featureMember": [{"GeoObject": {"Point": {"pos": "37.61 55.75"}}}]
+                }
+            }
+        }
+
+    monkeypatch.setattr(main, "_fetch_yandex_geocoder", fake_geocoder)
+
+    response = client.get("/api/map_valid", params={"type": "water"})
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "type": "water",
+        "coordinates": {"latitude": 55.75, "longitude": 37.61},
+    }
+
+
+def test_map_valid_returns_coordinates_for_forest(monkeypatch):
+    monkeypatch.setenv("YANDEX_MAPS_API_KEY", "test-key")
+
+    def fake_geocoder(api_key, query, kind=None):
+        assert api_key == "test-key"
+        assert query in main.MAP_FEATURE_QUERIES["forest"]
+        return {
+            "response": {
+                "GeoObjectCollection": {
+                    "featureMember": [{"GeoObject": {"Point": {"pos": "37.7 55.8"}}}]
+                }
+            }
+        }
+
+    monkeypatch.setattr(main, "_fetch_yandex_geocoder", fake_geocoder)
+
+    response = client.get("/api/map_valid", params={"type": "forest"})
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "type": "forest",
+        "coordinates": {"latitude": 55.8, "longitude": 37.7},
+    }
+
+
+def test_map_valid_supports_legacy_geocoder_key_for_all_types(monkeypatch):
+    monkeypatch.delenv("YANDEX_GEOCODER_API_KEY", raising=False)
+    monkeypatch.setenv("YANDEX_MAPS_API_KEY", "legacy-key")
+
+    def fake_geocoder(api_key, query, kind=None):
+        assert api_key == "legacy-key"
+        return {
+            "response": {
+                "GeoObjectCollection": {
+                    "featureMember": [{"GeoObject": {"Point": {"pos": "37.61 55.75"}}}]
+                }
+            }
+        }
+
+    monkeypatch.setattr(main, "_fetch_yandex_geocoder", fake_geocoder)
+
+    response = client.get("/api/map_valid", params={"type": "water"})
+
+    assert response.status_code == 200
+
+
+def test_map_valid_requires_yandex_key(monkeypatch):
+    monkeypatch.delenv("YANDEX_GEOCODER_API_KEY", raising=False)
+    monkeypatch.delenv("YANDEX_MAPS_API_KEY", raising=False)
+
+    response = client.get("/api/map_valid", params={"type": "water"})
+
+    assert response.status_code == 503
+    assert "YANDEX_GEOCODER_API_KEY" in response.json()["detail"]
+
+
+def test_map_valid_rejects_result_of_wrong_type(monkeypatch):
+    monkeypatch.setenv("YANDEX_MAPS_API_KEY", "test-key")
+    monkeypatch.setattr(
+        main,
+        "_fetch_yandex_geocoder",
+        lambda api_key, query, kind=None: {
+            "response": {
+                "GeoObjectCollection": {
+                    "featureMember": [
+                        {
+                            "GeoObject": {
+                                "metaDataProperty": {
+                                    "GeocoderMetaData": {"kind": "street"}
+                                },
+                                "Point": {"pos": "37.61 55.75"},
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+    )
+
+    response = client.get("/api/map_valid", params={"type": "street"})
+
+    assert response.status_code == 404
+
+
+def test_map_valid_reports_yandex_timeout_as_gateway_timeout(monkeypatch):
+    monkeypatch.setenv("YANDEX_MAPS_API_KEY", "test-key")
+
+    def timeout(url, timeout):
+        raise URLError(TimeoutError("timed out"))
+
+    monkeypatch.setattr(main, "urlopen", timeout)
+
+    response = client.get("/api/map_valid", params={"type": "house"})
+
+    assert response.status_code == 504
+    assert response.json()["detail"] == "Таймаут соединения с Яндекс.Картами"
 
 
 def test_frontend_deep_link_serves_index_html():
