@@ -1,7 +1,31 @@
+import importlib.util
 import os
 import shutil
 import subprocess
 import sys
+
+# Автодоставка зависимостей при запуске (до импорта uvicorn,
+# чтобы скрипт не падал на чистой машине).
+REQUIRED_PACKAGES = {
+    "fastapi": "fastapi",
+    "uvicorn": "uvicorn",
+    "cryptography": "cryptography",
+}
+
+
+def ensure_dependencies() -> None:
+    missing = [
+        pkg for pkg, module in REQUIRED_PACKAGES.items()
+        if importlib.util.find_spec(module) is None
+    ]
+    if missing:
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", *missing],
+            check=True,
+        )
+
+
+ensure_dependencies()
 
 import uvicorn
 

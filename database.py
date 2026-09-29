@@ -3,6 +3,9 @@ import sqlite3
 import sys
 from pathlib import Path
 
+from misc.crypto import enc_blob, enc_text, login_index
+from misc.migrate_db_crypto import migrate_connection
+
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = BASE_DIR / "frontend"
 FRONTEND_DIST = FRONTEND_DIR / "dist"
@@ -158,52 +161,54 @@ def _ensure_table_schema() -> None:
             [
                 (
                     "u-001",
-                    "umc_operdds1",
-                    "dds112-1",
-                    "umc_operdds1@example.com",
-                    "Иванова Мария Петровна",
-                    "Иванова",
-                    "student",
-                    "Группа 1",
+                    login_index("umc_operdds1"),
+                    enc_text("dds112-1"),
+                    enc_text("umc_operdds1@example.com"),
+                    enc_text("Иванова Мария Петровна"),
+                    enc_text("Иванова"),
+                    enc_text("student"),
+                    enc_text("Группа 1"),
                     1,
                 ),
                 (
                     "u-002",
-                    "umc_operdds2",
-                    "dds112-2",
-                    "umc_operdds2@example.com",
-                    "Смирнов Алексей Сергеевич",
-                    "Смирнов",
-                    "student",
-                    "Группа 1",
+                    login_index("umc_operdds2"),
+                    enc_text("dds112-2"),
+                    enc_text("umc_operdds2@example.com"),
+                    enc_text("Смирнов Алексей Сергеевич"),
+                    enc_text("Смирнов"),
+                    enc_text("student"),
+                    enc_text("Группа 1"),
                     1,
                 ),
                 (
                     "u-003",
-                    "umc_teacher",
-                    "teach112",
-                    "umc_teacher@example.com",
-                    "Кузнецов Никита Андреевич",
-                    "Кузнецов",
-                    "teacher",
-                    "Преподаватели",
+                    login_index("umc_teacher"),
+                    enc_text("teach112"),
+                    enc_text("umc_teacher@example.com"),
+                    enc_text("Кузнецов Никита Андреевич"),
+                    enc_text("Кузнецов"),
+                    enc_text("teacher"),
+                    enc_text("Преподаватели"),
                     1,
                 ),
                 (
                     "u-004",
-                    "umc_admin",
-                    "admin112",
-                    "umc_admin@example.com",
-                    "Соколова Дарья Викторовна",
-                    "Соколова",
-                    "admin",
-                    "Администраторы",
+                    login_index("umc_admin"),
+                    enc_text("admin112"),
+                    enc_text("umc_admin@example.com"),
+                    enc_text("Соколова Дарья Викторовна"),
+                    enc_text("Соколова"),
+                    enc_text("admin"),
+                    enc_text("Администраторы"),
                     1,
                 ),
             ],
         )
 
         connection.commit()
+        # Шифрование at rest: добить plaintext предыдущих версий (идемпотентно).
+        migrate_connection(connection)
 
 
 def seed_scenarios_from_json() -> None:
@@ -228,13 +233,13 @@ def seed_scenarios_from_json() -> None:
                 """,
                 (
                     payload["id"],
-                    payload["title"],
-                    payload["category"],
-                    payload["difficulty"],
-                    payload["severity"],
-                    payload.get("rubric_id"),
+                    enc_text(payload["title"]),
+                    enc_text(payload["category"]),
+                    enc_text(payload["difficulty"]),
+                    enc_text(payload["severity"]),
+                    enc_text(payload.get("rubric_id")),
                     payload.get("sla_answer_sec"),
-                    json.dumps(payload, ensure_ascii=False),
+                    enc_blob(payload),
                 ),
             )
             connection.commit()
@@ -255,8 +260,8 @@ def seed_rubrics_from_json() -> None:
                 """,
                 (
                     payload["id"],
-                    payload["title"],
-                    json.dumps(payload, ensure_ascii=False),
+                    enc_text(payload["title"]),
+                    enc_blob(payload),
                 ),
             )
             connection.commit()

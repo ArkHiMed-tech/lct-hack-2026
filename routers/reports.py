@@ -4,9 +4,30 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, status
 
 from database import get_connection
+from misc.crypto import dec_blob, dec_text, enc_blob, enc_text
+from misc.incident_tree_api import flag_guaranteed_services, load_incident_graph
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 BASE_DIR = Path(__file__).resolve().parents[1]
+
+REPORT_TEXT_FIELDS = (
+    "what", "incident_category", "address", "time", "caller_name",
+    "victims", "conditions", "threat", "factors", "actions", "landmarks",
+)
+
+
+def _decrypt_report_row(row: dict) -> dict:
+    """Расшифровка строк incident_reports на границе БД -> клиент."""
+    record = dict(row)
+    for field in REPORT_TEXT_FIELDS:
+        record[field] = dec_text(record.get(field))
+    if "payload" in record:
+        try:
+            blob = dec_blob(record.get("payload"))
+            record["payload"] = blob
+        except (json.JSONDecodeError, TypeError, ValueError):
+            record["payload"] = {}
+    return record
 
 
 @router.post("/create")
@@ -23,20 +44,22 @@ async def create_report(report: dict):
             (
                 report.get("user_id"),
                 report.get("scenario_id"),
-                report.get("what", ""),
-                report.get("incident_category", ""),
-                report.get("address", "")
-                if isinstance(report.get("address", ""), str)
-                else json.dumps(report.get("address", ""), ensure_ascii=False),
-                report.get("time", ""),
-                report.get("caller_name", ""),
-                report.get("victims", ""),
-                report.get("conditions", ""),
-                report.get("threat", ""),
-                ";".join(report.get("factors", [])),
-                report.get("actions", ""),
-                report.get("landmarks"),
-                json.dumps(report, ensure_ascii=False),
+                enc_text(report.get("what", "")),
+                enc_text(report.get("incident_category", "")),
+                enc_text(
+                    report.get("address", "")
+                    if isinstance(report.get("address", ""), str)
+                    else json.dumps(report.get("address", ""), ensure_ascii=False)
+                ),
+                enc_text(report.get("time", "")),
+                enc_text(report.get("caller_name", "")),
+                enc_text(report.get("victims", "")),
+                enc_text(report.get("conditions", "")),
+                enc_text(report.get("threat", "")),
+                enc_text(";".join(report.get("factors", []))),
+                enc_text(report.get("actions", "")),
+                enc_text(report.get("landmarks")),
+                enc_blob(report),
             ),
         )
         report_id = cursor.lastrowid
@@ -44,7 +67,7 @@ async def create_report(report: dict):
         for service in report.get("services", []):
             cursor.execute(
                 "INSERT INTO dispatched_services (report_id, service_id) VALUES (?, ?)",
-                (report_id, service),
+                (report_id, enc_text(service)),
             )
 
         connection.commit()
@@ -54,18 +77,78 @@ async def create_report(report: dict):
 
 CATEGORY_TO_SCENARIO = {"101": "fire", "102": "police", "103": "ambulance", "104": "gas"}
 
+# Главная служба классификатора -> категория тренажёра.
+# Коммунальные службы -> utility, транспортные -> dth (решение зафиксировано;
+# рубрика знает только fire/medical/gas/dth — остальные категории нейтральны
+# для скоринга, как раньше police/ambulance).
+MAIN_TO_CATEGORY = {
+    "MCHS": "fire", "Police": "police",
+    "AMBULANCE": "ambulance", "MOSGAZ": "gas",
+    "MOSLIFT": "utility", "MOEK": "utility", "OEK": "utility",
+    "MOESK": "utility", "MOSVODOCANAL": "utility", "MOSVODOSTOK": "utility",
+    "MOSCOLLECTOR": "utility", "GORMOST": "utility", "GKH": "utility",
+    "METRO": "dth", "MZD": "dth", "MOSGORTRANS": "dth", "AUTOROADS": "dth",
+    "MGTS": "utility",
+}
+# Раздел классификатора -> категория тренажёра (для main=None).
+SECTION_TO_CATEGORY = {1: "fire", 2: "dth", 3: "fire", 4: "fire", 5: "fire",
+                       6: "fire", 7: "fire", 8: "fire", 9: "fire",
+                       10: "fire", 11: "fire", 12: "dth", 13: "gas",
+                       14: "utility", 15: "police", 16: "dth", 17: "police",
+                       18: "police", 19: "police", 20: "utility",
+                       21: "utility", 22: "ambulance", 23: "fire", 24: "police"}
+
+
+def _main_category(main: str | None) -> str:
+    """Категория по Главной службе; составные ('METRO, MZD') — по первому
+    известному токену."""
+    for token in str(main or "").replace(",", " ").split():
+        if token in MAIN_TO_CATEGORY:
+            return MAIN_TO_CATEGORY[token]
+    return ""
+
+
+def _scenario_category(payload: dict, row: dict) -> tuple[str, str]:
+    """(category, group_label): категория тренажёра + группа карточки.
+
+    Новые карточки: Главная служба / раздел классификатора.
+    Старые карточки: incident_category вида '101' (legacy-маппинг).
+    """
+    category = _main_category(payload.get("main_service"))
+    if not category:
+        section = payload.get("classifier_section") or {}
+        category = SECTION_TO_CATEGORY.get(section.get("g"), "")
+    group = str(payload.get("incident_category") or row.get("incident_category") or "")
+    if not category:
+        category = CATEGORY_TO_SCENARIO.get(
+            group, group if group in ("fire", "police", "ambulance", "gas", "dth", "utility") else "fire"
+        )
+    section = payload.get("classifier_section") or {}
+    group_label = group or section.get("title") or category
+    return category, group_label
+
 
 def _build_scenario_from_report(report_id: int, row: dict, payload: dict) -> dict:
     scenario_id = f"card-{report_id}"
-    group = str(payload.get("incident_category") or row.get("incident_category") or "101")
-    category = CATEGORY_TO_SCENARIO.get(group, group if group in ("fire", "police", "ambulance", "gas") else "fire")
+    category, group_label = _scenario_category(payload, row)
     what = payload.get("what") or row.get("what") or "Происшествие"
     address_obj = payload.get("address_obj") or {}
     address_str = payload.get("address") or row.get("address") or ""
     factors = payload.get("factors") or []
     if isinstance(factors, str):
         factors = [factors]
-    services = payload.get("services") or []
+    services = list(payload.get("services") or [])
+    # Жёсткий контроль: службы активных флагов обязаны быть в сценарии,
+    # даже если фронт их не прислал. Явно исключённые (×) уважаем.
+    tags = payload.get("tags") or {}
+    excluded = set(payload.get("services_excluded") or [])
+    try:
+        guaranteed = flag_guaranteed_services(load_incident_graph(), tags)
+        for name in guaranteed.values():
+            if name not in services and name not in excluded:
+                services.append(name)
+    except Exception:
+        pass
     description = (payload.get("description") or "").strip() or what
     caller = payload.get("caller_name") or row.get("caller_name") or ""
     created = row.get("created_at") or ""
@@ -83,9 +166,15 @@ def _build_scenario_from_report(report_id: int, row: dict, payload: dict) -> dic
         "call": {"phone": "", "caller_name_known": bool(caller), "address_auto": {"known": False}},
         "expected": {
             "incident_category": category,
-            "incident_group": group,
-            "incident_kind": payload.get("incident_kind"),
+            "incident_group": group_label,
+            "classifier_code": payload.get("classifier_code"),
+            "classifier_path": payload.get("classifier_path") or [],
+            "main_service": payload.get("main_service"),
+            "vis_class": payload.get("vis_class"),
+            "vis_class_fallback": payload.get("vis_class_fallback", False),
             "expected_services": services,
+            "expected_services_informed": payload.get("services_informed") or [],
+            "services_excluded": payload.get("services_excluded") or [],
             "address": address_obj if isinstance(address_obj, dict) and address_obj else {"raw": address_str},
             "address_str": address_str,
             "factors": factors,
@@ -117,10 +206,12 @@ async def publish_report(report_id: int):
         ).fetchone()
         if row is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
-        record = dict(row)
+        record = _decrypt_report_row(row)
     try:
-        payload = json.loads(record.get("payload") or "{}")
-    except (json.JSONDecodeError, TypeError):
+        payload = record.get("payload") or {}
+        if not isinstance(payload, dict):
+            payload = {}
+    except (TypeError, ValueError):
         payload = {}
     scenario = _build_scenario_from_report(report_id, record, payload)
     with get_connection() as connection:
@@ -132,9 +223,10 @@ async def publish_report(report_id: int):
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             """,
             (
-                scenario["id"], scenario["title"], scenario["category"],
-                scenario["difficulty"], scenario["severity"], scenario["rubric_id"],
-                scenario["sla_answer_sec"], json.dumps(scenario, ensure_ascii=False),
+                scenario["id"], enc_text(scenario["title"]), enc_text(scenario["category"]),
+                enc_text(scenario["difficulty"]), enc_text(scenario["severity"]),
+                enc_text(scenario["rubric_id"]),
+                scenario["sla_answer_sec"], enc_blob(scenario),
             ),
         )
         connection.commit()
@@ -153,7 +245,7 @@ async def list_reports(user_id: str | None = None):
             rows = connection.execute(
                 "SELECT * FROM incident_reports ORDER BY created_at DESC"
             ).fetchall()
-    return [dict(row) for row in rows]
+    return [_decrypt_report_row(row) for row in rows]
 
 
 @router.get("/{report_id}")
@@ -174,9 +266,16 @@ async def get_report(report_id: int):
             (report_id,),
         ).fetchall()
 
-    payload = dict(report)
-    payload["messages"] = [dict(item) for item in messages]
-    payload["services"] = [row["service_id"] for row in services]
+    payload = _decrypt_report_row(report)
+    payload["messages"] = [
+        {
+            "sender": dec_text(item["sender"]),
+            "text": dec_text(item["text"]),
+            "created_at": item["created_at"],
+        }
+        for item in messages
+    ]
+    payload["services"] = [dec_text(row["service_id"]) for row in services]
     return payload
 
 
@@ -185,7 +284,7 @@ async def add_message(report_id: int, payload: dict):
     with get_connection() as connection:
         connection.execute(
             "INSERT INTO app_messages (report_id, sender, text) VALUES (?, ?, ?)",
-            (report_id, payload.get("sender", "user"), payload.get("text", "")),
+            (report_id, enc_text(payload.get("sender", "user")), enc_text(payload.get("text", ""))),
         )
         connection.commit()
     return {"message": "Message saved", "report_id": report_id}

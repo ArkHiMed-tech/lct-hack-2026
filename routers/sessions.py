@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, status
 
 from database import get_connection, initialize_database
+from misc.crypto import enc_text
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -100,7 +101,7 @@ async def finish_session(payload: dict):
             INSERT INTO results (user_id, scenario_id, report_id, total_score, verdict)
             VALUES (?, ?, ?, ?, ?)
             """,
-            (user_id, scenario_id, None, total_score, verdict),
+            (user_id, scenario_id, None, total_score, enc_text(verdict)),
         )
         connection.commit()
         session_id = cursor.lastrowid

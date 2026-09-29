@@ -13,6 +13,7 @@ import ChatInput from '../components/ChatInput';
 import QuickReplyPanel from '../components/QuickReplyPanel';
 import DispatchPanel from '../components/DispatchPanel';
 import ActionBar from '../components/ActionBar';
+import TopStrip from '../components/TopStrip';
 import { categoryLabel } from '../lib/meta';
 import { SERVICE_DOCK_ID, LEGACY_SERVICE_DOCK_ID } from '../lib/serviceCatalog';
 
@@ -71,6 +72,10 @@ export default function Simulator() {
   const [toast, setToast] = useState(null);
   // Части адреса из сетки (как на Рисунке1: округ/район/улица/дом/...).
   const [addrParts, setAddrParts] = useState({ okrug: '', rayon: '', street: '', house: '', corpus: '', flat: '' });
+  // Пост-карточка (мок по инструкции): записи + отработки + напоминание/важное.
+  const [otrab, setOtrab] = useState([]);
+  const [otrabDraft, setOtrabDraft] = useState('');
+  const [postNote, setPostNote] = useState(null);
 
   const startedAtRef = useRef(null);
   const answeredAtRef = useRef(null);
@@ -89,6 +94,23 @@ export default function Simulator() {
 
   useEffect(() => () => voice.disconnect(), []);
 
+  // Смена сценария без размонтирования (тот же роут, другой :id):
+  // сбрасываем состояние тренировки, иначе серая полоса служб, диалог
+  // и таймеры показывают предыдущий сценарий.
+  useEffect(() => {
+    servicesSeeded.current = false;
+    setServices([]); setMessages([]); setSentSeq(0); setForm({});
+    setDispatchedAtMs(null); setEndedAtMs(null);
+    setInput(''); setToast(null);
+    setAddrParts({ okrug: '', rayon: '', street: '', house: '', corpus: '', flat: '' });
+    setOtrab([]); setOtrabDraft(''); setPostNote(null);
+    setStatus('ringing');
+    // startedAtRef — сразу сейчас: mount-эффект таймера при смене id не перезапускается.
+    startedAtRef.current = Date.now(); answeredAtRef.current = null; endingRef.current = false;
+    voice.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
   useEffect(() => {
     startedAtRef.current = Date.now();
     const t = setInterval(() => setNow(Date.now()), 200);
@@ -98,7 +120,7 @@ export default function Simulator() {
   const timeline = scenario.data?.timeline ?? [];
 
   // Предвыбор служб из карточки 112 (имена справочника → id дока ДДС).
-  const DOCK_IDS = ['fire', 'gas', 'police', 'utility', 'ambulance', 'codd', 'mosbez', 'moslift'];
+  const DOCK_IDS = ['fire', 'gas', 'police', 'utility', 'ambulance', 'smp103', 'codd', 'mosbez', 'moslift'];
   // Карточный сценарий: id card-* или флаг from_card из publish.
   const isCardData = (d) => !!d && (!!d.from_card || String(d.id || '').startsWith('card-'));
   const servicesSeeded = useRef(false);
@@ -254,52 +276,33 @@ export default function Simulator() {
 
   return (
     <div className="app-shell">
-      <AppHeader title={`Происшествие ${incidentNum}`} />
-
-      <div className="dds-back dark">
-        <Link to="/">← К списку происшествий</Link>
-        <Link to="/card">Создать карточку</Link>
-      </div>
+      <AppHeader
+        title={`Происшествие ${incidentNum}`}
+        showCreateButton={false}
+        actions={(
+          <>
+            <Link to="/" className="arm-topbtn">← К списку происшествий</Link>
+            <Link to="/card" className="arm-topbtn accent">Создать карточку</Link>
+          </>
+        )}
+      />
 
       <div className="arm-wrap">
-        {/* Верхний ряд как на Рисунке1: телефоны + инфо-блок + просмотр/дополнение */}
-        <div className="arm-toprow">
-          <div className="arm-phones arm-phones-sim">
-            <div className="arm-phone arm-off">
-              <span className="arm-tel-ico">📞</span>
-              <div><b>Отключение</b><div className="arm-minibtns"><span>записи звонков</span><span>список SMS</span></div></div>
-            </div>
-            <div className="arm-phone">
-              <span className="arm-tel-ico">📞</span>
-              <div><small>АОН</small><div className="arm-telnum">{sc.call?.phone ?? '+7 (__) __-__'}</div></div>
-              <span className="arm-chat">💬</span>
-            </div>
-            <div className="arm-phone">
-              <span className="arm-tel-ico">📞</span>
-              <div><small>предоставленный</small><div className="arm-telnum">+7 (__) __-__</div></div>
-              <span className="arm-aohtag">AOH</span>
-              <span className="arm-chat">💬</span>
-            </div>
-            <div className="arm-phone">
-              <span className="arm-tel-ico">📞</span>
-              <div><small>телефон на место</small><div className="arm-telnum">+7 (__) __-__</div></div>
-              <span className="arm-aohtag">AOH</span>
-              <span className="arm-chat">💬</span>
-            </div>
-          </div>
-          <div className="arm-incident">
-            <div className="arm-incident-info">
-              <b>Происшествие {incidentNum}</b>
-              <br />Сохр. 17.09.2026 в 11:12:43
-              <br />Опер. , АРМ 4, УМЦ О п
-            </div>
-            <div className="arm-sidebtns">
-              <button type="button" className="view">просмотр</button>
-              <button type="button" className="add">дополнение</button>
-            </div>
-            <CallTimer startedAtMs={startedAtRef.current} answeredAtMs={answeredAtRef.current} />
-          </div>
-        </div>
+        {/* Верхняя плашка по эталону (верхняя плашка.png / Пример.png) */}
+        <TopStrip
+          mode="view"
+          incidentNo={incidentNum}
+          savedAt="Сохр. 17.09.2026 в 11:12:43"
+          operInfo="Опер., АРМ 4, УМЦ О п"
+          phones={{ aon: sc.call?.phone ?? '', provided: '', onsite: '' }}
+          onCall={() => setToast('Исходящий вызов (мок).')}
+          onSms={() => setToast('СМС заявителю (мок).')}
+          onRecords={() => setToast('Записей не найдено · плеер мм:сс · скачать (мок).')}
+          onSmsList={() => setToast('История сообщений (мок).')}
+          timer={<CallTimer startedAtMs={startedAtRef.current} answeredAtMs={answeredAtRef.current} />}
+          onView={() => setToast('Режим «Просмотр» (мок).')}
+          onAdd={() => setToast('Режим «Дополнение» (мок).')}
+        />
 
         {/* Заявитель как на Рисунке1 */}
         <div className="arm-appline">
@@ -346,6 +349,26 @@ export default function Simulator() {
                 <QuickReplyPanel quickReplies={sc.quick_replies} onInsert={handleInsertQuick} disabled={status !== 'connected'} />
               </div>
             </div>
+            <div className="arm-card">
+              <div className="arm-cardhead">Записи разговоров (мм:сс, скачать — мок) · Отработки · Дополнить / Отработана</div>
+              <div className="arm-hint">Записей пока нет — окно перемещается, плеер во всю ширину (мок).</div>
+              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                <input value={otrabDraft} onChange={(e) => setOtrabDraft(e.target.value)} placeholder="Служба / Куда / Телефон / Кто принял / Суть" disabled={!!endedAtMs} style={{ flex: 1 }} />
+                <button type="button" className="arm-minibtn" disabled={!otrabDraft.trim() || !!endedAtMs}
+                  onClick={() => { setOtrab((p) => [...p, otrabDraft.trim()]); setOtrabDraft(''); setPostNote('Отработка сохранена (мок).'); }}>
+                  ✓ (Enter)
+                </button>
+              </div>
+              {otrab.map((o, i) => <div key={i} className="arm-hint">• {o}</div>)}
+              <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                <button type="button" className="arm-minibtn" onClick={() => setPostNote('Режим «Дополнить»: доступны пустые поля + описание (мок).')}>дополнить</button>
+                <button type="button" className="arm-minibtn" onClick={() => setPostNote('Карточка «Отработана» (мок).')}>Отработана</button>
+                <button type="button" className="arm-minibtn" onClick={() => setPostNote('Будильник сохранен; при закрытой карточке — каждые 20 сек (мок).')}>🔔 напоминание</button>
+                <button type="button" className="arm-minibtn" onClick={() => setPostNote('Сигнал главному специалисту отправлен (мок).')}>✋ важное</button>
+                <button type="button" className="arm-minibtn" onClick={() => setPostNote('Сообщение в техподдержку отправлено (мок).')}>💬 ошибка</button>
+              </div>
+              {postNote && <div className="arm-hint">{postNote}</div>}
+            </div>
           </section>
 
           {/* СПРАВА: заполненная карточка */}
@@ -354,7 +377,7 @@ export default function Simulator() {
               <div className="arm-blackhead">Происшествие {groupCode}</div>
               <div className="arm-sumrow">{tagSummary}</div>
               <div className="arm-sumrow">Класс.: {categoryLabel(sc.category)}{form.what ? `: ${form.what}` : ''} ;</div>
-              <div className="arm-sumrow">[ВИС] Класс.:</div>
+              <div className="arm-sumrow">[ВИС] Класс.: {sc.expected?.vis_class ?? sc.vis_class ?? ''}</div>
             </div>
             <CallInfoPanel scenario={sc} status={status} callerKnown={false} />
           </section>

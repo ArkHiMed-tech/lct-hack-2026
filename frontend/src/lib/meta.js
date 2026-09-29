@@ -39,7 +39,8 @@ export function formatScore(score) {
 
 export const SERVICES = {
   fire: 'Пожарно-спасательная',
-  ambulance: 'Скорая медицинская',
+  ambulance: 'ЦЭМП',
+  smp103: 'Служба 103 (скорая медицинская помощь)',
   police: 'Полиция',
   gas: 'Аварийная газовая',
   utility: 'Аварийная городская',

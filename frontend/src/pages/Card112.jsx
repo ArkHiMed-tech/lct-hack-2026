@@ -3,105 +3,197 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import AppHeader from '../components/AppHeader';
 import SideNav from '../components/SideNav';
+import TopStrip from '../components/TopStrip';
 import {
-  INCIDENT_TYPES as BUNDLED_TYPES,
-  TAG_SETS as BUNDLED_TAGS,
-  QUICK_TYPES,
-  detailOptionsFor,
-  autoServicesFor,
+  CHANNELS,
+  FLAG_DEFS,
+  FLAG_SERVICE,
+  EMPTY_FLAGS,
+  MAIN_SVC_GROUP,
+  CASCADE_LEVELS,
+  CASCADE_LABELS,
+  searchLeaves,
+  leafFactors,
+  walkCascadeTree,
+  cascadePathForLeaf,
 } from '../lib/incidentClassifier';
-import { INFO_TYPES, SMELL_SIGN, visibleTagRows, pruneHiddenTags } from '../lib/tagVisibility';
-import { SERVICE_CATALOG, SVC_102, SVC_103, SVC_104, serviceShortName } from '../lib/serviceCatalog';
+import { INFO_TYPES } from '../lib/tagVisibility';
+import { SERVICE_CATALOG, serviceShortName, isMainService } from '../lib/serviceCatalog';
 
-// Норматив набора карточки (сек). При превышении таймер краснеет (по ТЗ).
+// Таймер: отсчет с открытия до «Сохранить» для отчетов (норматив — только для скоринга тренажера).
 const CARD_SLA_SEC = 75;
 const INCIDENT_NO = 36812195;
-
-const EMPTY_TAGS = {
-  where: '', sign: '', access: '', detail: '',
-  place: '', threat: '', violation: '', medical: '', evac: '', gas: '', tagDesc: '',
-};
-// Умный каскад fire101: из всех уровней от соседних зависит только
-// детализация (её список определяется «Где»), у остальных опции статичные.
-// Поэтому выбор нижних параметров никогда не сбрасывает верхние,
-// а смена «Где» чистит детализацию, только если значение стало невалидным.
-
-// Каталог служб — полный справочник из тз/СЛУЖБЫ 112.docx (lib/serviceCatalog).
-// BACKEND-READY: позже заменить на справочник с бэкенда.
-
-// Типы без выезда служб: автоподбор отключён полностью (вручную через «+» добавить можно).
-// Список живёт в lib/tagVisibility (там же используется для видимости ТЭГов).
-const isNoAutoType = (t) => !!t && INFO_TYPES.includes(t.title);
-
+const APPLICANT_STATUSES = ['очевидец', 'пострадавший', 'родственник', 'знакомый', 'ребенок', 'участник'];
+const EXTERNAL_SYSTEM = 'Интеграция ВИС (мок)';
 const OKRUGA = ['ЦАО', 'САО', 'СВАО', 'ВАО', 'ЮВАО', 'ЮАО', 'ЮЗАО', 'ЗАО', 'СЗАО', 'ЗелАО', 'ТАО', 'НАО'];
-const APPLICANT_STATUS = ['Пострадавшие', 'Нет на месте/\nОтказ от скорой', 'Нет доступа/\nЗаблокированные', 'нет контакта', 'срыв звонка'];
-
-function TagRow({ label, options, value, onPick }) {
-  return (
-    <div className="arm-tagrow">
-      <div className="arm-taglabel">{label}</div>
-      <div className="arm-tagopts">
-        {options.map((o) => (
-          <button key={o} type="button" className={`arm-tag ${value === o ? 'sel' : ''}`} onClick={() => onPick(value === o ? '' : o)}>
-            {o}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
+// Мок адресного поиска: источник влияет на поведение (ФИАС — службы вручную).
+const ADDR_SUGGEST = [
+  { label: 'Москва, Новая Басманная улица, 10с1', src: 'Яндекс.Карты', okrug: 'ЦАО', rayon: 'Басманный район', street: 'Новая Басманная улица', house: '10', corpus: '', stroenie: '1' },
+  { label: 'Москва, Манежная площадь, 1, стр. 2', src: 'Яндекс.Организации', warn: 'организации иногда теряют дом — проверьте', okrug: 'ЦАО', rayon: 'Тверской район', street: 'Манежная площадь', house: '1', corpus: '', stroenie: '2' },
+  { label: 'Москва, Тверская улица, 7 (ФИАС)', src: 'ФИАС', fias: true, okrug: 'ЦАО', rayon: 'Тверской район', street: 'Тверская улица', house: '7', corpus: '', stroenie: '' },
+];
+// Страна и город фиксированы: все происшествия — Россия, Москва.
+const FIXED_ADDR = { country: 'Россия', subject: 'Москва', settlement: 'Москва' };
+const SOCIAL_OBJECTS = [
+  { name: 'Школа № 91', dist: 35 },
+  { name: 'Станция метро "Александровский сад"', dist: 120 },
+  { name: 'Больница № 1', dist: 400 },
+];
+const isInfoTitle = (t) => !!t && INFO_TYPES.includes(t);
+// Автокапитализация ФИО побуквенно.
+const capitalizeName = (s) => String(s ?? '').split(/(\s+|-)/).map((p) => (/^\s+$|^-$/.test(p) || !p ? p : p[0].toUpperCase() + p.slice(1))).join('');
+// Автоопределение канала по префиксу (мок): 901/902→Теле2, 910-919→МТС, 920-929→Мегафон, 960-969→Билайн.
+const autoChannel = (phone) => {
+  const d = String(phone ?? '').replace(/\D/g, '');
+  const p = d.startsWith('8') ? d.slice(1, 4) : d.startsWith('7') ? d.slice(1, 4) : d.slice(0, 3);
+  const n = Number(p);
+  if (n >= 901 && n <= 902) return 'Теле2';
+  if (n >= 910 && n <= 919) return 'МТС';
+  if (n >= 920 && n <= 929) return 'Мегафон';
+  if (n >= 960 && n <= 969) return 'Билайн';
+  return '';
+};
 
 export default function Card112() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [listOpen, setListOpen] = useState(false);
-  // Классификатор: пробуем бэкенд /api/incident-types, иначе бандл из ТЗ.
-  const [types, setTypes] = useState(BUNDLED_TYPES);
-  const [tagSets, setTagSets] = useState(BUNDLED_TAGS);
-  const [selectedType, setSelectedType] = useState(null); // {title, groups, kind}
-  const [tags, setTags] = useState({ ...EMPTY_TAGS });
+  const [leaves, setLeaves] = useState([]); // индекс классификатора (/api/classifier/leaves)
+  const [tree, setTree] = useState(null); // дерево каскада (/api/classifier/tree)
+  const [cascadePath, setCascadePath] = useState([]); // [{level,value,g?}] ручное ветвление
+  const [selectedLeaf, setSelectedLeaf] = useState(null); // {code,result,path,group,section,main}
+  const [infoType, setInfoType] = useState(''); // инфо-тип без выезда (вне классификатора)
+  const [flags, setFlags] = useState({ ...EMPTY_FLAGS }); // флаги ТЭГов классификатора
+  const [flagAdded, setFlagAdded] = useState({}); // provenance: {флаг: служба}, добавленная именно флагом
+  const flagSnapshots = useRef({}); // {флаг: службы на момент включения} — для уборки диспетчеризованных при выключении
+  const userAddedRef = useRef(new Set()); // службы, явно добавленные вручную (меню/+ВИС) — флагами не убираются
+  const [tagDesc, setTagDesc] = useState(''); // уточнение ТЭГа
+  const [autoServices, setAutoServices] = useState([]); // диспетчеризация листа
+  const [autoInformed, setAutoInformed] = useState([]); // уведомляемые (синие плашки)
+  const [visClass, setVisClass] = useState(null); // ВИС класс: {value, is_fallback, gid}
   const [formError, setFormError] = useState('');
-  // Службы: авто-подбор считается заново от типа+ТЭГов при каждом рендере,
-  // ручные добавления — в manualServices, снятые крестиком — в excludedServices
-  // (авто их больше не возвращает). Итог уходит в БД одним списком.
   const [manualServices, setManualServices] = useState([]);
   const [excludedServices, setExcludedServices] = useState([]);
+  const [visServices, setVisServices] = useState([]); // добавлены внешней системой (пометка ВИС)
   const [svcMenuOpen, setSvcMenuOpen] = useState(false);
-  const [addr, setAddr] = useState({ country: '', subject: 'Москва', settlement: '', object: '', okrug: '', rayon: '', street: '', house: '', corpus: '', stroenie: '', flat: '', entrance: '', floor: '', code: '', descr: '' });
+  const [svcSearch, setSvcSearch] = useState('');
+  // Адрес
+  const [addrQuery, setAddrQuery] = useState('');
+  const [addrSuggestOpen, setAddrSuggestOpen] = useState(false);
+  const [addrSrc, setAddrSrc] = useState('');
+  const [fiasWarn, setFiasWarn] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [coords, setCoords] = useState({ lat: '', lng: '' });
+  const [mapRadius, setMapRadius] = useState(200);
+  const [addr, setAddr] = useState({ ...FIXED_ADDR, object: '', okrug: '', rayon: '', street: '', house: '', corpus: '', stroenie: '', flat: '', entrance: '', floor: '', code: '', descr: '' });
+  // Телефоны
+  const [phones, setPhones] = useState({ aon: '', provided: '', onsite: '' });
+  const [channel, setChannel] = useState('');
+  const [subscriberOpen, setSubscriberOpen] = useState(false);
+  const [smsOpen, setSmsOpen] = useState(false);
+  const [smsText, setSmsText] = useState('');
+  const [recordsOpen, setRecordsOpen] = useState(false);
+  // Заявитель
   const [applicant, setApplicant] = useState('');
-  const [appStatuses, setAppStatuses] = useState([]);
+  const [appStatus, setAppStatus] = useState('');
+  // Нет контакта / срыв + пострадавшие
+  const [emptyModal, setEmptyModal] = useState(null); // 'nocontact' | 'break'
+  const [victims, setVictims] = useState('Нет');
+  const [victimsCount, setVictimsCount] = useState('');
+  const [victimsModal, setVictimsModal] = useState(false);
   const [desc, setDesc] = useState('');
   const [toast, setToast] = useState(null);
   const [savedScenarioId, setSavedScenarioId] = useState(null);
+  const [saved, setSaved] = useState(false); // после сохранения: lock ФИО/статуса
   const [saving, setSaving] = useState(false);
+  const [saveConfirm, setSaveConfirm] = useState(false);
+  // Связи
+  const [linksOpen, setLinksOpen] = useState(false);
+  const [links, setLinks] = useState([]); // [{id, role}]
+  const [linkCandidates] = useState([{ id: '36812180', by: 'тот же АОН' }, { id: '36812177', by: 'тот же адрес' }]);
+  const [matchBy] = useState('АОН +7(9__) ___-__-__'); // мок кнопки «Совпадение»
+  // Пост-карточка
+  const [otrab, setOtrab] = useState([]);
+  const [otrabDraft, setOtrabDraft] = useState({ service: '', where: '', phone: '', who: '', msg: '' });
+  const [supplement, setSupplement] = useState(false);
+  const [done, setDone] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [reminder, setReminder] = useState({ text: '', time: '' });
+  // Телефония (мок): статус + входящий звонок
+  const [telStatus, setTelStatus] = useState('доступен');
+  const [incomingOpen, setIncomingOpen] = useState(false);
+  // Генератор карточек (бэкенд /api/scenarios/generate): seed + загрузка
+  const [genSeed, setGenSeed] = useState('');
+  const [genLoading, setGenLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/incident-types')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((data) => {
-        if (cancelled || !data) return;
-        if (Array.isArray(data.items) && data.items.length >= 51) setTypes(data.items);
-      })
-      .catch(() => { /* offline fallback: бандл */ });
-    fetch('/api/incident-tree?path=' + encodeURIComponent('101'))
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((data) => {
-        if (!cancelled && data && data.tag_sets && Object.keys(data.tag_sets).length) setTagSets(data.tag_sets);
-      })
-      .catch(() => {});
+    // Индекс классификатора для выбора типа (Итоговый тип + путь признаков).
+    fetch('/api/classifier/leaves?limit=2000').then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))).then((data) => {
+      if (!cancelled && Array.isArray(data.items) && data.items.length) setLeaves(data.items);
+    }).catch(() => {});
+    // Дерево каскада «Что случилось?»: раздел -> Место -> Что -> Проявление.
+    fetch('/api/classifier/tree').then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))).then((data) => {
+      if (!cancelled && data && Array.isArray(data.roots) && data.roots.length) setTree(data);
+    }).catch(() => {});
     return () => { cancelled = true; };
   }, []);
+
+  // Диспетчеризация выбранного листа по флагам (бэкенд считает по xlsx).
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedLeaf || fiasWarn) { setAutoServices([]); setAutoInformed([]); return () => { cancelled = true; }; }
+    const params = new URLSearchParams({ code: selectedLeaf.code });
+    if (flags.no_access) params.set('nd', 'true');
+    if (flags.threat) { params.set('threat', 'true'); params.set('ul', 'true'); }
+    if (flags.violation) params.set('violation', 'true');
+    if (flags.medical) params.set('medical', 'true');
+    if (flags.evac) params.set('evac', 'true');
+    if (flags.gas) params.set('gas', 'true');
+    if (victims !== 'Нет') { params.set('victims', 'true'); params.set('pp', 'true'); }
+    fetch(`/api/classifier/dispatch?${params}`).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))).then((data) => {
+      if (cancelled) return;
+      if (Array.isArray(data.services)) {
+        setAutoServices(data.services);
+        // Накопление: уже добавленные службы не сбрасываются при прокликивании флагов.
+        setManualServices((prev) => [...new Set([...prev, ...data.services])]);
+      }
+      if (Array.isArray(data.informed)) setAutoInformed(data.informed);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [selectedLeaf, flags, victims, fiasWarn]);
+
+  // ВИС класс выбранного листа по Главной службе (бэкенд считает по графу,
+  // fallback — Итоговый тип). Пересчет при смене листа/флагов/пострадавших.
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedLeaf) { setVisClass(null); return () => { cancelled = true; }; }
+    const params = new URLSearchParams({ code: selectedLeaf.code });
+    if (flags.no_access) params.set('nd', 'true');
+    if (flags.threat) { params.set('threat', 'true'); params.set('ul', 'true'); }
+    if (flags.violation) params.set('violation', 'true');
+    if (flags.medical) params.set('medical', 'true');
+    if (flags.evac) params.set('evac', 'true');
+    if (flags.gas) params.set('gas', 'true');
+    if (victims !== 'Нет') { params.set('victims', 'true'); params.set('pp', 'true'); }
+    fetch(`/api/classifier/vis-class?${params}`).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))).then((data) => {
+      if (cancelled) return;
+      if (data && typeof data.vis_class === 'string') setVisClass({ value: data.vis_class, is_fallback: !!data.is_fallback, gid: data.gid ?? null });
+    }).catch(() => { if (!cancelled) setVisClass({ value: selectedLeaf.result, is_fallback: true, gid: null }); });
+    return () => { cancelled = true; };
+  }, [selectedLeaf, flags, victims]);
 
   const startedAtRef = useRef(Date.now());
   const typeListRef = useRef(null);
   const svcMenuRef = useRef(null);
-  // Клик вне всплывающих списков — скрыть их.
+  const addrRef = useRef(null);
+  const refs = { f1: useRef(null), f2: useRef(null), f3: useRef(null), ch: useRef(null), q: useRef(null), a: useRef(null), t: useRef(null), o: useRef(null), s: useRef(null) };
   useEffect(() => {
     const onDown = (e) => {
       if (typeListRef.current && !typeListRef.current.contains(e.target)) setListOpen(false);
       if (svcMenuRef.current && !svcMenuRef.current.contains(e.target)) setSvcMenuOpen(false);
+      if (addrRef.current && !addrRef.current.contains(e.target)) setAddrSuggestOpen(false);
     };
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
@@ -112,226 +204,503 @@ export default function Card112() {
     const t = setInterval(() => setNow(Date.now()), 500);
     return () => clearInterval(t);
   }, []);
+  // Горячие клавиши по инструкции: Alt+F1/F2/F3 — телефоны, Alt+K — канал, Alt+Q — заявитель,
+  // Alt+A — адрес, Alt+T — что случилось, Alt+O — описание, Alt+S — сохранить, Insert — новая, Esc — закрыть.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!e.altKey) {
+        if (e.key === 'Insert') { e.preventDefault(); resetAll(); }
+        if (e.key === 'Escape') { setListOpen(false); setSvcMenuOpen(false); setMapOpen(false); setSaveConfirm(false); setEmptyModal(null); }
+        return;
+      }
+      const k = e.key.toLowerCase();
+      const go = (r) => { e.preventDefault(); r?.current?.focus(); };
+      if (e.key === 'F1') go(refs.f1);
+      else if (e.key === 'F2') go(refs.f2);
+      else if (e.key === 'F3') go(refs.f3);
+      else if (k === 'к' || k === 'k') go(refs.ch);
+      else if (k === 'й' || k === 'q') go(refs.q);
+      else if (k === 'ф' || k === 'a') go(refs.a);
+      else if (k === 'е' || k === 't') go(refs.t);
+      else if (k === 'щ' || k === 'o') go(refs.o);
+      else if (k === 'ы' || k === 's') { e.preventDefault(); setSaveConfirm(true); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
   const elapsedSec = Math.floor((now - startedAtRef.current) / 1000);
   const overtime = elapsedSec > CARD_SLA_SEC;
   const mm = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
   const ss = String(elapsedSec % 60).padStart(2, '0');
 
-  const group = selectedType ? selectedType.groups[0] : null;
-  const isFire = selectedType ? selectedType.kind === 'fire101' : false;
+  const svcGroup = selectedLeaf ? (MAIN_SVC_GROUP[selectedLeaf.main] ?? '') : '';
 
-  // Авто-службы: пересчёт от актуальных типа+ТЭГов (без залипания старых).
-  // При «Запахе гари» 102 и 104 не подбираются (ни за нарушение, ни за газ).
-  const autoServices = useMemo(() => {
-    if (!selectedType || isNoAutoType(selectedType)) return [];
-    const flat = Object.values(tags).filter(Boolean);
-    let auto = autoServicesFor(selectedType.groups[0], flat);
-    const hasViolation = tags.violation === 'Да' || tags.violation === 'Есть' || tags.violation === 'Есть правонарушение';
-    if (hasViolation && !auto.includes(SVC_102)) auto = [...auto, SVC_102];
-    if (tags.medical === 'Да' && !auto.includes(SVC_103)) auto = [...auto, SVC_103];
-    if (tags.sign === SMELL_SIGN) auto = auto.filter((s) => s !== SVC_102 && s !== SVC_104);
-    return [...new Set(auto)];
-  }, [selectedType, tags]);
-
-  const services = useMemo(
-    () => [...new Set([
-      ...autoServices.filter((s) => !excludedServices.includes(s)),
-      ...manualServices.filter((s) => !excludedServices.includes(s)),
-    ])],
-    [autoServices, manualServices, excludedServices],
-  );
-
-  // Видимые ряды ТЭГов по матрице lib/tagVisibility (скрытые значения чистятся в setTag).
-  const vis = useMemo(
-    () => visibleTagRows({ kind: selectedType?.kind, title: selectedType?.title, tags }),
-    [selectedType, tags],
-  );
-
-  const filteredTypes = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return types;
-    return types.filter((t) => t.title.toLowerCase().includes(q));
-  }, [query, types]);
-
-  // Выбор типа: ПОЛНЫЙ сброс всех ТЭГов (решение пользователя), пересчет служб.
-  const pickType = (t) => {
-    setSelectedType(t);
-    setQuery('');
-    setListOpen(false);
-    setTags({ ...EMPTY_TAGS });
-    setFormError('');
-    setSavedScenarioId(null);
-    setManualServices([]);
-    setExcludedServices([]);
-  };
-
-  const clearType = () => {
-    setSelectedType(null);
-    setTags({ ...EMPTY_TAGS });
-    setFormError('');
-    setSavedScenarioId(null);
-    setManualServices([]);
-    setExcludedServices([]);
-    setQuery('');
-  };
-
-  const setTag = (key, v) => {
-    let next = { ...tags, [key]: v };
-    if (key === 'where' && next.detail && !detailOptionsFor(v, tagSets).includes(next.detail)) {
-      next.detail = '';
+  // Стабильный порядок плашек: first-seen order, новички — в конец.
+  // Пересборка auto+manual при смене флагов порядок показанных не меняет.
+  const svcOrderRef = useRef([]);
+  const services = useMemo(() => {
+    const present = new Set(
+      [...autoServices, ...manualServices].filter((s) => !excludedServices.includes(s)),
+    );
+    const order = svcOrderRef.current.filter((s) => present.has(s));
+    for (const s of [...autoServices, ...manualServices]) {
+      if (present.has(s) && !order.includes(s)) order.push(s);
     }
-    // Скрытые матрицей видимости ряды — очистить (не уйдут в БД и службы).
-    next = pruneHiddenTags(next, visibleTagRows({ kind: selectedType?.kind, title: selectedType?.title, tags: next }));
-    setTags(next);
-    setFormError('');
-    // Службы пересчитаются сами через autoServices (мемоизация от tags).
+    svcOrderRef.current = order;
+    return [...order];
+  }, [autoServices, manualServices, excludedServices]);
+
+  // Уведомляемые службы — синие плашки (голубой = уведомлены, не выезд).
+  const informed = useMemo(
+    () => [...new Set(autoInformed.filter((s) => !excludedServices.includes(s) && !services.includes(s)))],
+    [autoInformed, excludedServices, services],
+  );
+
+  const filteredLeaves = useMemo(() => searchLeaves(leaves, query), [query, leaves]);
+  // Инфо-типы без выезда в поиске (ряды плашек удалены).
+  const filteredInfo = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return INFO_TYPES.filter((t) => t.toLowerCase().includes(q));
+  }, [query]);
+
+  // Текущий шаг каскада: все кнопки узла разом + выбираемые листья.
+  const cascade = useMemo(() => walkCascadeTree(tree, cascadePath), [tree, cascadePath]);
+  // Отвеченные уровни с реальным выбором (одиночные безвариантные — скрыты).
+  const cascadeAnswered = useMemo(() => cascade.breadcrumb.map((b, i) => ({ b, i })).filter(({ i }) => {
+    if (i >= cascadePath.length - 1) return false;
+    const parent = walkCascadeTree(tree, cascadePath.slice(0, i));
+    return parent.buttons.length !== 1 || parent.selectable.length > 0;
+  }), [tree, cascade, cascadePath]);
+  // Хвост автопройденных уровней (без развилки) — показать контекстом в активной плашке.
+  const cascadeSkipped = useMemo(() => {
+    const vals = [];
+    for (let j = cascadePath.length - 1; j >= 0; j--) {
+      const parent = walkCascadeTree(tree, cascadePath.slice(0, j));
+      if (parent.buttons.length === 1 && !parent.selectable.length) vals.unshift(cascadePath[j].value);
+      else break;
+    }
+    return vals;
+  }, [tree, cascadePath]);
+  // Вопрос активной плашки — следующий уровень (не последний отвеченный).
+  const cascadeQuestion = CASCADE_LABELS[CASCADE_LEVELS[cascade.breadcrumb.length]] ?? 'Что случилось';
+  const leafTitle = (code) => leaves.find((l) => String(l.code) === String(code))?.result || `№${code}`;
+  const pickLeafByCode = (code) => {
+    const found = leaves.find((l) => String(l.code) === String(code));
+    if (found) pickLeaf(found);
+  };
+  const pushCascade = (b) => {
+    let nextPath;
+    if (b.g != null) {
+      // Кнопка раздела — начать ветвление заново: раздел в поле, список скрыть.
+      const root = (tree?.roots ?? []).find((r) => r.g === b.g);
+      if (!root) return;
+      nextPath = [{ level: 'section', value: root.title, g: root.g }];
+      setQuery(root.title);
+      setListOpen(false);
+    } else if (!cascadePath.length) {
+      return;
+    } else {
+      const next = CASCADE_LEVELS[cascadePath.length];
+      if (!next) return;
+      nextPath = [...cascadePath, { level: next, value: b.value }];
+    }
+    // Лист без разветвления — отобразить/выбрать сразу, иначе — до разветвления.
+    // Линейный участок (единственная кнопка, без вариантов) — проскочить
+    // автоматически до развилки.
+    let path = nextPath;
+    for (;;) {
+      const step = walkCascadeTree(tree, path);
+      if (step.buttons.length === 1 && !step.selectable.length) {
+        const next = CASCADE_LEVELS[path.length];
+        if (!next) break;
+        path = [...path, { level: next, value: step.buttons[0].value }];
+        continue;
+      }
+      break;
+    }
+    const final = walkCascadeTree(tree, path);
+    if (!final.buttons.length && final.selectable.length === 1) {
+      pickLeafByCode(final.selectable[0]);
+    } else {
+      setCascadePath(path);
+    }
+  };
+
+  const pickLeaf = (leaf) => {
+    setSelectedLeaf(leaf); setInfoType('');
+    setCascadePath(cascadePathForLeaf(leaf));
+    setQuery(leaf.section?.title || ''); setListOpen(false); setFormError(''); setSavedScenarioId(null);
+    setFlags({ ...EMPTY_FLAGS }); setManualServices([]); setExcludedServices([]); setFlagAdded({}); flagSnapshots.current = {}; userAddedRef.current = new Set();
+  };
+  const pickInfo = (title) => {
+    setInfoType(title); setSelectedLeaf(null); setAutoServices([]); setAutoInformed([]); setFlagAdded({}); flagSnapshots.current = {}; userAddedRef.current = new Set();
+    setQuery(''); setListOpen(false); setFormError(''); setSavedScenarioId(null);
+    setFlags({ ...EMPTY_FLAGS }); setManualServices([]); setExcludedServices([]);
+  };
+  const clearIncident = () => {
+    setSelectedLeaf(null); setInfoType(''); setCascadePath([]); setQuery(''); setVisClass(null); setFlagAdded({}); flagSnapshots.current = {}; userAddedRef.current = new Set();
+    setFlags({ ...EMPTY_FLAGS }); setTagDesc(''); setManualServices([]); setExcludedServices([]); setAutoServices([]); setAutoInformed([]);
+  };
+  const resetAll = () => {
+    clearIncident();
+    setQuery(''); setVictims('Нет'); setVictimsCount(''); setDesc(''); setSaved(false); setOtrab([]);
+    setApplicant(''); setAppStatus(''); setPhones({ aon: '', provided: '', onsite: '' }); setAddrQuery('');
+    setAddr((a) => ({ ...a, okrug: '', rayon: '', street: '', house: '', corpus: '', stroenie: '', flat: '', entrance: '', floor: '', code: '', descr: '' }));
+    setFiasWarn(false); setAddrSrc('');
+  };
+
+  // Разом заполнить карточку из генератора: GET /api/scenarios/generate
+  // возвращает payload формата reports/create — раскладываем по состоянию формы.
+  const applyGenerated = (item) => {
+    const p = item.payload;
+    resetAll();
+    if (p.classifier_code && leaves.length) {
+      const found = leaves.find((l) => String(l.code) === String(p.classifier_code));
+      if (found) { setSelectedLeaf(found); setCascadePath(cascadePathForLeaf(found)); setQuery(found.section?.title || ''); }
+      else { setQuery(p.what || ''); setManualServices(p.services || []); }
+    } else if (p.what && isInfoTitle(p.what)) {
+      setInfoType(p.what);
+    } else {
+      setQuery(p.what || '');
+    }
+    const pt = p.tags || {};
+    const genFlags = {
+      no_access: !!pt.no_access, threat: !!pt.threat, violation: !!pt.violation,
+      medical: !!pt.medical, evac: !!pt.evac, gas: !!pt.gas,
+    };
+    setFlags(genFlags);
+    // Снапшоты = службы генератора (были до флагов): снятие флага уберёт
+    // только накопленное диспетчеризацией, базовое вернёт свежий autoServices.
+    const snaps = {};
+    for (const k of Object.keys(genFlags)) if (genFlags[k]) snaps[k] = [...(p.services || [])];
+    flagSnapshots.current = snaps;
+    setTagDesc(pt.tagDesc || '');
+    // Службы генератора — как ручные: диспетчеризация листа их и так подтянет.
+    setManualServices([]);
+    setExcludedServices([]);
+    // Гарантии флагов как при ручном нажатии: службы FLAG_SERVICE активных
+    // флагов, которых нет в службах генератора (пустые ячейки xlsx иначе
+    // ничего не добавят). Первый флаг забирает общий сервис в provenance.
+    {
+      const seen = new Set(p.services || []);
+      const add = [];
+      const fa = {};
+      for (const k of Object.keys(genFlags)) {
+        const gs = genFlags[k] && FLAG_SERVICE[k];
+        if (!gs || seen.has(gs)) continue;
+        seen.add(gs); add.push(gs); fa[k] = gs;
+      }
+      if (add.length) setManualServices((prev) => [...new Set([...prev, ...add])]);
+      setFlagAdded(fa);
+    }
+    if (p.address_obj) setAddr((a) => ({ ...a, ...p.address_obj, ...FIXED_ADDR }));
+    setAddrQuery(p.address || '');
+    setAddrSrc(p.address_src || '');
+    setFiasWarn(p.address_src === 'ФИАС');
+    setPhones({ aon: p.phones?.aon || '', provided: '', onsite: '' });
+    if (p.channel) setChannel(p.channel);
+    else if (p.phones?.aon) { const ch = autoChannel(p.phones.aon); if (ch) setChannel(ch); }
+    setApplicant(p.caller_name || '');
+    setAppStatus(p.caller_status || '');
+    if (p.victims && p.victims !== 'нет') { setVictims('Есть'); setVictimsCount(String(p.victims)); }
+    setDesc(p.description || '');
+    setSaved(false); setSavedScenarioId(null); setFormError('');
+  };
+
+  const fillFromGenerator = async () => {
+    setGenLoading(true);
+    try {
+      const seed = genSeed.trim() === '' ? Math.floor(Math.random() * 2147483647) : Number(genSeed);
+      const res = await fetch(`/api/scenarios/generate?seed=${seed}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const item = data.cards?.[0];
+      if (!item) throw new Error('пустой ответ');
+      applyGenerated(item);
+      setGenSeed(String(data.seed));
+      setToast(`Сгенерирована карточка (seed ${data.seed}): ${item.payload.what}. Проверьте и сохраните.`);
+    } catch (e) {
+      setToast(`Генератор недоступен: ${e.message}`);
+    } finally {
+      setGenLoading(false);
+    }
+  };
+
+  const setFlag = (key, v) => {
+    setFlags((f) => ({ ...f, [key]: v })); setFormError('');
+    const svc = FLAG_SERVICE[key];
+    if (v) {
+      // Снапшот служб до включения: всё, что появится из диспетчеризации
+      // после (ОДС ПСЦ и т.п.), снимется при выключении флага.
+      flagSnapshots.current = { ...flagSnapshots.current, [key]: [...services] };
+      if (!svc) return;
+      // Включение: гарантированно добавляем службу флага, если её ещё нет.
+      // Была до флага — не записываем в provenance, снятие её не уберёт.
+      if (!services.includes(svc)) {
+        addService(svc, false, true);
+        setFlagAdded((p) => ({ ...p, [key]: svc }));
+      }
+      return;
+    }
+    // Выключение гарантированной службы флага.
+    if (svc && flagAdded[key]) {
+      // Убираем только добавленную флагом; исключения не трогаем,
+      // чтобы не блокировать бэкенд-диспетчеризацию. Если тот же сервис держит
+      // другой включённый флаг — передаём ему provenance вместо удаления.
+      const added = flagAdded[key];
+      const keeper = Object.keys(FLAG_SERVICE).find((k) => k !== key && flags[k] && FLAG_SERVICE[k] === added);
+      if (keeper) {
+        setFlagAdded((p) => { const n = { ...p }; delete n[key]; n[keeper] = added; return n; });
+      } else {
+        setManualServices((p) => p.filter((x) => x !== added));
+        setFlagAdded((p) => { const n = { ...p }; delete n[key]; return n; });
+      }
+    }
+    // Выключение: убираем из ручных всё, чего не было на момент включения
+    // (накопления диспетчеризации), кроме защищённого: ручные добавления,
+    // гарантии других включённых флагов и их снапшоты. Свежий autoServices
+    // (без флага) сам вернёт обоснованное классификатором.
+    const snap = flagSnapshots.current[key];
+    if (snap) {
+      const keep = new Set(snap);
+      for (const x of userAddedRef.current) keep.add(x);
+      for (const [k, gs] of Object.entries(FLAG_SERVICE)) {
+        if (k !== key && flags[k]) keep.add(gs);
+      }
+      for (const [k, s] of Object.entries(flagSnapshots.current)) {
+        if (k !== key && flags[k]) for (const x of s) keep.add(x);
+      }
+      setManualServices((p) => p.filter((x) => keep.has(x)));
+      const n = { ...flagSnapshots.current }; delete n[key]; flagSnapshots.current = n;
+    }
   };
 
   const validate = () => {
-    if (!selectedType) return 'Выберите «Что случилось?» — поле обязательно.';
-    if (isFire && !tags.where) return 'Укажите «Где» для происшествия 101.';
-    if (isFire && !tags.sign) return 'Укажите признак: «Открытое пламя / Дым» или «Запах гари».';
+    if (!selectedLeaf && !infoType) return 'Выберите «Что случилось?» — поле обязательно.';
+    if (!applicant.trim()) return 'Заполните «ФИО заявителя».';
+    if (!appStatus) return 'Выберите «Статус заявителя».';
     return '';
   };
 
-  const toggleAppStatus = (s) => setAppStatuses((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]));
-  // Ручное добавление: запоминаем ВСЕГДА (даже если служба сейчас есть в авто —
-  // иначе при смене ТЭГов авто её роняет и ручной выбор теряется).
-  // Снимает службу из исключённых.
-  const addService = (s) => {
+  const addService = (s, viaVis = false, byFlag = false) => {
     setExcludedServices((p) => p.filter((x) => x !== s));
     setManualServices((p) => (p.includes(s) ? p : [...p, s]));
-    setSvcMenuOpen(false);
+    if (!byFlag) userAddedRef.current.add(s);
+    if (viaVis) setVisServices((p) => (p.includes(s) ? p : [...p, s]));
+    setSvcMenuOpen(false); setSvcSearch('');
   };
-  // Крестик: убирает службу из показа; авто-подбор её больше не вернёт
-  // (повторно добавить можно через «+»). Сбрасывается при смене типа.
   const removeService = (s) => {
     setManualServices((p) => p.filter((x) => x !== s));
     setExcludedServices((p) => (p.includes(s) ? p : [...p, s]));
   };
 
-  const clearAddress = () => setAddr({ country: '', subject: 'Москва', settlement: '', object: '', okrug: '', rayon: '', street: '', house: '', corpus: '', stroenie: '', flat: '', entrance: '', floor: '', code: '', descr: '' });
+  const pickAddr = (s) => {
+    setAddr((a) => ({ ...a, okrug: s.okrug, rayon: s.rayon, street: s.street, house: s.house, corpus: s.corpus, stroenie: s.stroenie }));
+    setAddrQuery(s.label); setAddrSrc(s.src); setAddrSuggestOpen(false);
+    setFiasWarn(!!s.fias); // ФИАС — службы вручную
+  };
+  const clearAddress = (onlyQuery) => {
+    if (onlyQuery) { setAddrQuery(''); return; }
+    setAddr((a) => ({ ...a, okrug: '', rayon: '', street: '', house: '', corpus: '', stroenie: '', flat: '', entrance: '', floor: '', code: '', descr: '' }));
+    setAddrQuery(''); setAddrSrc(''); setFiasWarn(false);
+  };
+  const applyCoords = () => {
+    // Мок «Указать на карте»: координаты заполняют адрес.
+    if (coords.lat && coords.lng) {
+      setAddr((a) => ({ ...a, descr: `${a.descr ? a.descr + ' ' : ''}[${coords.lat}, ${coords.lng}]`.trim() }));
+      const near = SOCIAL_OBJECTS[0];
+      if (near.dist <= 50) setAddr((a) => ({ ...a, descr: `${a.descr} ${near.name}`.trim() }));
+    }
+    setMapOpen(false);
+  };
 
-  const handleSave = async () => {
-    const err = validate();
+  const doSave = async (asEmpty) => {
+    const err = asEmpty ? '' : validate();
     if (err) { setFormError(err); return; }
-    setSaving(true);
-    setSavedScenarioId(null);
-    const addrStr = [addr.subject, addr.okrug && `округ ${addr.okrug}`, addr.street && `ул. ${addr.street}`, addr.house && `д. ${addr.house}`]
-      .filter(Boolean).join(', ');
-    // Итог в БД: авто (минус снятые крестиком) + ВСЕ ручные. Ручные не теряются,
-    // даже если совпадают с авто или ТЭГи менялись после добавления.
-    const finalServices = [...services];
-    const manualCount = manualServices.filter((s) => !excludedServices.includes(s)).length;
+    setSaving(true); setSavedScenarioId(null);
+    const addrStr = [addr.subject, addr.okrug && `округ ${addr.okrug}`, addr.street && `ул. ${addr.street}`, addr.house && `д. ${addr.house}`].filter(Boolean).join(', ');
+    // Финальная сверка гарантий: службы активных флагов обязаны сохраниться,
+    // даже если какой-то путь UI их не добавил. Явно исключённые (×) уважаем.
+    const activeGuaranteed = asEmpty ? [] : [...new Set(
+      Object.keys(flags).filter((k) => flags[k]).map((k) => FLAG_SERVICE[k]).filter(Boolean),
+    )];
+    const missingGuaranteed = activeGuaranteed.filter((s) => !excludedServices.includes(s) && !services.includes(s));
+    const manualForSave = manualServices.filter((s) => !excludedServices.includes(s));
+    const finalServices = asEmpty ? [] : [...services, ...missingGuaranteed];
+    const finalInformed = asEmpty ? [] : [...informed];
+    const leafPath = selectedLeaf ? (selectedLeaf.path || []) : [];
+    const tags = {
+      attr1: leafPath[0] || '', attr2: leafPath[1] || '', attr3: leafPath[2] || '',
+      ...flags, tagDesc,
+    };
     const payload = {
       user_id: user?.id ?? null,
-      what: selectedType.title,
-      incident_category: group,
-      incident_kind: selectedType.kind,
-      address: addrStr,
-      address_obj: addr,
-      caller_name: applicant,
-      caller_statuses: appStatuses,
-      factors: Object.entries(tags).filter(([, v]) => v).map(([k, v]) => `${k}:${v}`),
-      tags,
-      services: finalServices,
-      services_manual: manualServices.filter((s) => !excludedServices.includes(s)),
-      description: desc,
-      elapsed_sec: elapsedSec,
-      overtime,
+      what: (selectedLeaf ? selectedLeaf.result : infoType) || (asEmpty ? (emptyModal === 'break' ? '<Срыв связи>' : '<Нет контакта>') : ''),
+      classifier_code: selectedLeaf ? selectedLeaf.code : null,
+      classifier_path: leafPath,
+      classifier_section: selectedLeaf ? selectedLeaf.section : null,
+      incident_category: selectedLeaf ? (selectedLeaf.group || '') : '',
+      main_service: selectedLeaf ? (selectedLeaf.main || null) : null,
+      vis_class: selectedLeaf ? (visClass?.value ?? selectedLeaf.result) : null,
+      vis_class_fallback: selectedLeaf ? !!visClass?.is_fallback : false,
+      address: addrStr, address_obj: addr,
+      address_src: addrSrc, phones, channel, caller_name: applicant,
+      caller_status: appStatus, external_system: EXTERNAL_SYSTEM,
+      victims: victims === 'Есть' ? victimsCount || '1' : 'нет',
+      factors: selectedLeaf ? leafFactors(selectedLeaf, flags, tagDesc) : (tagDesc ? [tagDesc] : []),
+      tags, services: finalServices, services_informed: finalInformed, services_manual: [...new Set([...manualForSave, ...missingGuaranteed])],
+      services_excluded: [...excludedServices],
+      services_vis: visServices, description: desc, elapsed_sec: elapsedSec, overtime, empty: asEmpty ? emptyModal : null, links,
     };
     try {
-      const res = await fetch('/api/reports/create', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
-      });
+      const res = await fetch('/api/reports/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       let scenarioId = null;
       try {
         const pub = await fetch(`/api/reports/${data.report_id}/publish`, { method: 'POST' });
         if (pub.ok) scenarioId = (await pub.json()).scenario_id ?? null;
-      } catch { /* карточка уже в БД, происшествие создадим позже */ }
+      } catch { /* карточка уже в БД */ }
       if (scenarioId) setSavedScenarioId(scenarioId);
-      setToast(`Сохранено в БД: «${selectedType.title}», карточка №${data.report_id}${scenarioId ? `, происшествие ${scenarioId}` : ''}, служб: ${finalServices.length} (авто: ${finalServices.length - manualCount}, вручную: ${manualCount}).`);
+      setSaved(true);
+      setToast(`Сохранено в БД: карточка №${data.report_id}${scenarioId ? `, происшествие ${scenarioId}` : ''}, служб: ${finalServices.length}. Статус: ${asEmpty ? 'Завершена + Проверено' : 'зарегистрирована'}.`);
     } catch {
       console.log('[card112 save fallback]', payload);
-      setToast(`Бэкенд недоступен — мок-сохранение: «${selectedType.title}», служб: ${services.length}.`);
+      setSaved(true);
+      setToast(`Бэкенд недоступен — локальное сохранение (мок): служб: ${finalServices.length}. При восстановлении сети карточка попадет в систему.`);
     } finally {
-      setSaving(false);
+      setSaving(false); setSaveConfirm(false); setEmptyModal(null);
     }
   };
 
   const setA = (k) => (e) => setAddr({ ...addr, [k]: e.target.value });
+  const setP = (k) => (e) => {
+    const v = e.target.value;
+    setPhones((p) => ({ ...p, [k]: v }));
+    if (k === 'aon') { const ch = autoChannel(v); if (ch) setChannel(ch); }
+  };
   const today = new Date().toLocaleDateString('ru-RU');
-  const detailOptions = detailOptionsFor(tags.where, tagSets);
-  const detailLabel = !tags.where || tags.where === 'Улица' ? 'Улица (пламя, дым)'
-    : tags.where === 'Транспорт' ? 'Транспорт (пламя, дым)'
-    : `${tags.where} (детализация)`;
-  const signLabel = tags.where === 'Транспорт' ? 'Признак пожара (транспорт)' : 'Признак пожара (улица)';
+  const addrFiltered = ADDR_SUGGEST.filter((s) => !addrQuery.trim() || s.label.toLowerCase().includes(addrQuery.trim().toLowerCase()));
+  const svcFiltered = SERVICE_CATALOG.filter((s) => !services.includes(s) && (!svcSearch.trim() || s.toLowerCase().includes(svcSearch.trim().toLowerCase())));
+  const descOver03 = desc.length > 100;
 
   return (
     <div className="app-shell">
-      <AppHeader title="Карточка происшествия 112" showCreateButton={false} />
+      <AppHeader
+        title="Карточка происшествия 112"
+        showCreateButton={false}
+        telStatus={telStatus}
+        onTelStatusChange={setTelStatus}
+        actions={(
+          <>
+            <Link to="/" className="arm-topbtn">← К списку происшествий</Link>
+            <button type="button" className="arm-topbtn" onClick={resetAll} title="Insert — новая карточка">Новая карточка (Insert)</button>
+            <button type="button" className="arm-topbtn" onClick={() => setIncomingOpen(true)} title="Мок входящего звонка">Входящий звонок</button>
+            <button type="button" className="arm-topbtn primary" onClick={fillFromGenerator} disabled={genLoading} title="Заполнить карточку из генератора (случайный обход графа, seed можно задать вручную)">🎲 {genLoading ? 'генерация…' : 'Сгенерировать'}</button>
+            <input className="arm-topseed" value={genSeed} onChange={(e) => setGenSeed(e.target.value)} placeholder="seed" title="Seed генератора (пусто — случайно)" />
+          </>
+        )}
+      />
       <div className="layout">
         <SideNav role={user.role} />
         <main className="content">
-          <div className="dds-back">
-            <Link to="/">← К списку происшествий</Link>
-            <Link to="/card">Новая карточка</Link>
-          </div>
-
           <div className="arm-wrap">
-            {/* Шапка карточки: заголовок + таймер */}
-            <div className="arm-titlebar">
-              <span>Происшествие {INCIDENT_NO}</span>
-              <span className="arm-titleinfo">Сохр. {today} · Опер., АРМ 2, УМЦ О п</span>
-              <span className={`arm-timer ${overtime ? 'over' : ''}`}>{mm}:{ss}<small>минут секунд</small></span>
+            {links.length > 0 && (
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span className="arm-typechip" title="Связанные карточки">🔗 {links.length}: {links.map((l) => `${l.id} (${l.role})`).join(', ')}</span>
+            </div>
+            )}
+            {/* Верхняя плашка по эталону: Отключение | АОН | предоставленный | на место | Происшествие | таймер */}
+            <TopStrip
+              mode="edit"
+              incidentNo={INCIDENT_NO}
+              savedAt={today}
+              operInfo={`Опер., АРМ 2, УМЦ О п · ${EXTERNAL_SYSTEM}`}
+              phones={phones}
+              onPhoneChange={(k, v) => {
+                setPhones((p) => ({ ...p, [k]: v }));
+                if (k === 'aon') { const ch = autoChannel(v); if (ch) setChannel(ch); }
+              }}
+              phoneRefs={{ aon: refs.f1, provided: refs.f2, onsite: refs.f3 }}
+              phoneHints={{ aon: 'Alt+F1', provided: 'Alt+F2', onsite: 'Alt+F3' }}
+              onCall={(k) => setToast(`Исходящий вызов на ${phones[k] || k} (мок).`)}
+              onCopyAon={(k) => setPhones((p) => ({ ...p, [k]: p.aon }))}
+              onSms={() => setSmsOpen(true)}
+              onRecords={() => setRecordsOpen((v) => !v)}
+              onSmsList={() => setSmsOpen((v) => !v)}
+              timerOver={overtime}
+              timer={<><span>{mm}:{ss}</span><small>минут секунд</small></>}
+              onView={() => setToast('Режим «Просмотр»: карточка только для чтения (мок).')}
+              onAdd={() => { setSupplement(true); setToast('Режим «Дополнение»: доступны пустые поля + описание (мок).'); }}
+            />
+            {!phones.aon && <div className="arm-hint">АОН пуст — вариант «Без SIM карты» по инструкции.</div>}
+            <div className="arm-appline" style={{ gap: 16 }}>
+              <label>Канал связи (Alt+K)
+                <input ref={refs.ch} list="channels" value={channel} onChange={(e) => setChannel(e.target.value)} placeholder="поиск по списку" style={{ minWidth: 140 }} />
+                <datalist id="channels">{CHANNELS.map((c) => <option key={c} value={c} />)}</datalist>
+              </label>
+              {channel && <span className="arm-typechip">канал: {channel} {autoChannel(phones.aon) === channel ? '(авто)' : ''}</span>}
+              <button type="button" className="arm-minibtn" title="Данные абонента (нов. 2.1)" onClick={() => setSubscriberOpen((v) => !v)}>👤 абонент</button>
+              {subscriberOpen && <span className="arm-typechip">Данные абонента: ФИО/ДР/адрес от оператора связи (мок)</span>}
+              {recordsOpen && <span className="arm-typechip">Записей не найдено · плеер мм:сс · скачать (мок)</span>}
+              {smsOpen && (
+                <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <input value={smsText} onChange={(e) => setSmsText(e.target.value)} placeholder="текст СМС заявителю" style={{ minWidth: 220 }} />
+                  <button type="button" className="arm-minibtn" onClick={() => { setToast(smsText ? `СМС отправлено (мок): ${smsText}` : 'Введите текст СМС'); setSmsText(''); }}>Отправить</button>
+                  <button type="button" className="arm-minibtn" onClick={() => setSmsOpen(false)}>История сообщений</button>
+                </span>
+              )}
             </div>
 
-            {/* Телефоны */}
-            <div className="arm-phones">
-              <div className="arm-phone arm-off">
-                <span className="arm-tel-ico">📞</span>
-                <div><b>Отключение</b><div className="arm-minibtns"><span>записи звонков</span><span>список SMS</span></div></div>
-              </div>
-              {[['АОН', 0], ['предоставленный', 1], ['телефон на место', 2]].map(([label]) => (
-                <div className="arm-phone" key={label}>
-                  <span className="arm-tel-ico">📞</span>
-                  <div><small>{label}</small><div className="arm-telnum">+7 (__) __-__</div></div>
-                </div>
-              ))}
-            </div>
-
-            {/* Заявитель + статусы */}
+            {/* Заявитель + статусы + пострадавшие + нет контакта/срыв */}
             <div className="arm-appline">
-              <label>Фамилия и имя заявителя <input value={applicant} onChange={(e) => setApplicant(e.target.value)} placeholder="" /></label>
+              <label>Фамилия и имя заявителя (Alt+Q)
+                <input ref={refs.q} value={applicant} disabled={saved && !supplement} onChange={(e) => setApplicant(capitalizeName(e.target.value))} placeholder="" />
+              </label>
               <label>выберите статус
-                <select value={appStatuses[0] ?? ''} onChange={(e) => e.target.value && toggleAppStatus(e.target.value)}>
+                <select value={appStatus} disabled={saved && !supplement} onChange={(e) => setAppStatus(e.target.value)}>
                   <option value="">—</option>
-                  {APPLICANT_STATUS.map((s) => <option key={s} value={s}>{s.replace('\n', ' ')}</option>)}
+                  {APPLICANT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </label>
-              <div className="arm-appchips">
-                {APPLICANT_STATUS.map((s) => (
-                  <button key={s} type="button" className={`arm-appchip ${appStatuses.includes(s) ? 'sel' : ''} ${s === 'нет контакта' || s === 'срыв звонка' ? 'red' : ''}`} onClick={() => toggleAppStatus(s)}>
-                    {s.split('\n').map((p, i) => <span key={i}>{p}<br /></span>)}
-                  </button>
-                ))}
-              </div>
+              <span className="arm-typechip" title="Источник карточки">{EXTERNAL_SYSTEM}</span>
+              <span style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
+                <span>Пострадавшие:</span>
+                <button type="button" className={`arm-appchip ${victims === 'Нет' ? 'sel' : ''}`} onClick={() => { setVictims('Нет'); setVictimsCount(''); }}>Нет</button>
+                <button type="button" className={`arm-appchip ${victims === 'Есть' ? 'sel' : ''}`} onClick={() => setVictimsModal(true)}>Есть</button>
+                {victims === 'Есть' && <b>{victimsCount || '1'}</b>}
+                <button type="button" className="arm-appchip red" onClick={() => setEmptyModal('nocontact')}>нет контакта</button>
+                <button type="button" className="arm-appchip red" onClick={() => setEmptyModal('break')}>срыв звонка</button>
+              </span>
             </div>
 
             <div className="arm-cols">
-              {/* СЛЕВА: адрес */}
+              {/* СЛЕВА: адрес + описание */}
               <section className="arm-card">
-                <div className="arm-cardhead">Адрес: <b>Москва</b></div>
+                <div className="arm-cardhead">Адрес: <b>Москва</b> <span style={{ opacity: 0.6 }}>(Alt+A)</span></div>
+                <div className="arm-searchwrap" ref={addrRef} style={{ marginBottom: 8 }}>
+                  <input ref={refs.a} value={addrQuery} placeholder="единая адресная строка: введите адрес с домом" onChange={(e) => { setAddrQuery(e.target.value); setAddrSuggestOpen(true); }} onFocus={() => setAddrSuggestOpen(true)} style={{ fontSize: 14 }} />
+                  {addrSuggestOpen && (
+                    <div className="arm-typelist">
+                      {addrFiltered.map((s) => (
+                        <button key={s.label} type="button" onClick={() => pickAddr(s)}>
+                          {s.label} <small>· {s.src}</small>{s.warn && <small style={{ color: '#a00' }}> · {s.warn}</small>}
+                        </button>
+                      ))}
+                      {!addrFiltered.length && <span className="arm-empty">Ничего не найдено (попробуйте синоним или часть слова)</span>}
+                    </div>
+                  )}
+                </div>
+                {addrSrc && <div className="arm-hint">Источник: {addrSrc}{fiasWarn ? ' — службы добавьте вручную' : ''}</div>}
                 <div className="arm-grid3">
-                  <label>Страна:<input value={addr.country} onChange={setA('country')} /></label>
-                  <label>Субъект:<input value={addr.subject} onChange={setA('subject')} /></label>
-                  <label>Населенный пункт:<input value={addr.settlement} onChange={setA('settlement')} /></label>
+                  <label>Страна:<input value={FIXED_ADDR.country} readOnly disabled title="Всегда Россия" /></label>
+                  <label>Субъект:<input value={FIXED_ADDR.subject} readOnly disabled title="Всегда Москва" /></label>
+                  <label>Населенный пункт:<input value={FIXED_ADDR.settlement} readOnly disabled title="Всегда Москва" /></label>
                 </div>
                 <div className="arm-grid3">
                   <label>Объект:<input value={addr.object} onChange={setA('object')} /></label>
-                  <label>Округ:<select value={addr.okrug} onChange={setA('okrug')}><option value="">—</option>{OKRUGA.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>
+                  <label>Округ (поиск):<input list="okruga" value={addr.okrug} onChange={setA('okrug')} placeholder="начните ввод" /><datalist id="okruga">{OKRUGA.map((o) => <option key={o} value={o} />)}</datalist></label>
                   <label>Район:<input value={addr.rayon} onChange={setA('rayon')} /></label>
                 </div>
                 <div className="arm-grid3">
@@ -346,136 +715,326 @@ export default function Card112() {
                   <label>Этаж:<input value={addr.floor} onChange={setA('floor')} /></label>
                   <label>Код:<input value={addr.code} onChange={setA('code')} /></label>
                 </div>
-                <label className="arm-block">Описательный адрес:<textarea rows={2} value={addr.descr} onChange={setA('descr')} /></label>
-                <div className="arm-rowend"><button type="button" className="arm-minibtn" onClick={clearAddress}>очистить адрес</button></div>
+                <label className="arm-block">Описательный адрес:<textarea rows={2} value={addr.descr} onChange={setA('descr')} placeholder="заполняется в т.ч. соцобъектом в 50 м" /></label>
+                <div className="arm-rowend" style={{ gap: 6 }}>
+                  <button type="button" className="arm-minibtn" onClick={() => setMapOpen(true)}>📍 карта / указать на карте</button>
+                  <button type="button" className="arm-minibtn" onClick={() => clearAddress(true)} title="Удаляет только поисковый запрос">очистить запрос</button>
+                  <button type="button" className="arm-minibtn" onClick={() => clearAddress(false)}>очистить адрес</button>
+                </div>
 
                 <div className="arm-desc">
-                  <div className="arm-deschead">Описание со слов заявителя</div>
-                  <textarea rows={6} maxLength={1999} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="введите" />
-                  <div className="arm-counter">{desc.length} / 1999</div>
+                  <div className="arm-deschead">Описание со слов заявителя (Alt+O){descOver03 && <span style={{ color: '#a00' }}> · в службу 03 уйдут первые 100 символов</span>}</div>
+                  <textarea ref={refs.o} rows={6} maxLength={1999} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="введите" />
+                  <div className="arm-counter">{desc.length} / 1999{descOver03 ? ` · 03: ${desc.slice(0, 100)}…` : ''}</div>
                 </div>
               </section>
 
-              {/* СПРАВА: происшествие — переписано под КАРТОЧКА 112.docx */}
+              {/* СПРАВА: что случилось */}
               <section className="arm-right">
-                {!selectedType ? (
-                  <div className="arm-card">
-                    <div className="arm-linkhead">Введите тип происшествия <span className="arm-count">{types.length}</span></div>
-                    <div className="arm-searchwrap" ref={typeListRef}>
-                      <input
-                        className="arm-what" value={query} placeholder="что случилось? (поиск по 51 типу)"
-                        onChange={(e) => { setQuery(e.target.value); setListOpen(true); }}
-                        onFocus={() => setListOpen(true)}
-                      />
-                      {listOpen && (
-                        <div className="arm-typelist">
-                          {filteredTypes.map((t) => (
-                            <button key={t.title} type="button" onClick={() => pickType(t)}>
-                              {t.title} <small>· {t.groups.join(',')}</small>
+                <div className="arm-card">
+                  <div className="arm-linkhead">Введите тип происшествия <span className="arm-count">{leaves.length}</span> <span style={{ opacity: 0.6 }}>(Alt+T, классификатор)</span></div>
+                  <div className="arm-searchwrap" ref={typeListRef}>
+                    <input ref={refs.t} className="arm-what" value={query} placeholder="что случилось? (поиск по классификатору: мусор, дтп, взрыв…)" onChange={(e) => { setQuery(e.target.value); setListOpen(true); }} onFocus={() => setListOpen(true)} />
+                    {listOpen && (
+                      <div className="arm-typelist">
+                        {query.trim() ? (
+                          <>
+                            {filteredInfo.map((t) => (
+                              <button key={`info-${t}`} type="button" onClick={() => pickInfo(t)}>{t} <small>· без выезда</small></button>
+                            ))}
+                            {filteredLeaves.map((l) => (
+                              <button key={l.code} type="button" onClick={() => pickLeaf(l)}>{l.result} <small>· {(l.path || []).join(' → ')} · №{l.code}</small></button>
+                            ))}
+                            {!filteredLeaves.length && !filteredInfo.length && <span className="arm-empty">Ничего не найдено в классификаторе — попробуйте синоним («пожар», «дтп», «взрыв»)</span>}
+                          </>
+                        ) : (
+                          <>
+                            {[...(tree?.roots ?? [])].sort((a, b) => String(a.title).localeCompare(String(b.title), 'ru')).map((r) => (
+                              <button key={r.g} type="button" onClick={() => pushCascade({ g: r.g, value: r.title })}>
+                                {r.title}
+                              </button>
+                            ))}
+                            {!tree && <span className="arm-empty">Дерево загружается…</span>}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {/* Плашки ветвления: отвеченные шаги «Вопрос: ответ» (клик — назад),
+                      активная плашка «Вопрос:» + кнопки (клик спавнит следующую). */}
+                  {cascadePath.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+                      {cascadeAnswered.map(({ b, i }) => (
+                        <div key={`${b.level}-${i}`} className="arm-card" style={{ padding: '6px 10px', cursor: 'pointer' }} title="Вернуться на этот шаг" onClick={() => setCascadePath(cascadePath.slice(0, i + 1))}>
+                          <div className="arm-taglabel">{b.label}: {b.value}</div>
+                        </div>
+                      ))}
+                      <div className="arm-card" style={{ padding: '6px 10px' }}>
+                        <div className="arm-taglabel">{cascadeQuestion}:</div>
+                        {cascadeSkipped.length > 0 && <div className="arm-hint">{cascadeSkipped.join(' → ')}</div>}
+                        {(cascade.buttons.length > 0 || cascade.selectable.length > 0) && (
+                        <div className="arm-quick" style={{ marginTop: 6 }}>
+                          {cascade.buttons.map((b) => (
+                            <button key={b.value} type="button" className="arm-tag" onClick={() => pushCascade(b)}>
+                              {b.value}{b.leaf_count ? ` · ${b.leaf_count}` : ''}
                             </button>
                           ))}
-                          {!filteredTypes.length && <span className="arm-empty">Ничего не найдено</span>}
+                          {cascade.selectable.map((code) => (
+                            <button key={code} type="button" className="arm-tag sel" title="Выбрать этот тип" onClick={() => pickLeafByCode(code)}>
+                              ✓ {leafTitle(code)}
+                            </button>
+                          ))}
                         </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {(selectedLeaf || infoType) && (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                      <button type="button" className="arm-tag sel" title="Нажмите, чтобы отменить выбор" onClick={clearIncident}>
+                        {selectedLeaf ? `${selectedLeaf.result} (№${selectedLeaf.code})` : infoType} ×
+                      </button>
+                    </div>
+                  )}
+                  {/* Плашки каскада выше; здесь результат выбора и флаги. */}
+                  <div className="arm-hint">Тип выбирается из классификатора (Итоговый тип + путь признаков). Совпадение кнопки «Совпадение»: {matchBy}.</div>
+                  {selectedLeaf && (
+                    <>
+                      <div className="arm-typechip">{selectedLeaf.group} · раздел {selectedLeaf.section?.g} «{selectedLeaf.section?.title}»{selectedLeaf.main ? ` · главная: ${selectedLeaf.main}` : ''}</div>
+                      <div className="arm-blackhead" title="Итоговый тип происшествия по классификатору">№{selectedLeaf.code} <span onClick={clearIncident}>×</span></div>
+                      <div className="arm-selectedwhat">{selectedLeaf.result}</div>
+                      <div className="arm-hint">Путь: {(selectedLeaf.path || []).join(' → ') || '—'}</div>
+                      <div className="arm-hint" title={visClass?.gid ? `ВИС-класс группы ${visClass.gid} по Главной службе ${selectedLeaf.main}` : 'Нет маппинга Главной службы — показан Итоговый тип'}>ВИС класс: {visClass ? (<><b>{visClass.value}</b>{visClass.is_fallback && <span style={{ opacity: 0.6 }}> (Итоговый тип)</span>}</>) : '…'}</div>
+                      <div className="arm-tagpanel">
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2px 12px' }}>
+                        {FLAG_DEFS.map(({ key, label }) => (
+                          <label key={key} className="arm-checkrow" style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '4px 0' }}>
+                            <input type="checkbox" checked={!!flags[key]} onChange={(e) => setFlag(key, e.target.checked)} /> {label}
+                          </label>
+                        ))}
+                        </div>
+                        <div className="arm-tagrow">
+                          <div className="arm-taglabel">Описание</div>
+                          <input className="arm-tagdesc" value={tagDesc} onChange={(e) => setTagDesc(e.target.value)} placeholder="уточнение ТЭГа" />
+                        </div>
+                      </div>
+                      {informed.length > 0 && (
+                        <div className="arm-hint" style={{ overflowWrap: 'anywhere' }}>Уведомляемые: {informed.join('; ')}</div>
                       )}
-                    </div>
-                    <div className="arm-quick">
-                      {QUICK_TYPES.map((q) => {
-                        const found = types.find((t) => t.title.toLowerCase().startsWith(q.toLowerCase().replace('справка-', 'справка ')));
-                        return <button key={q} type="button" className="arm-tag" onClick={() => found && pickType(found)}>{q}</button>;
-                      })}
-                    </div>
-                    <div className="arm-signif">Значимые типы происшествий:</div>
-                    {formError && <div className="arm-err">{formError}</div>}
-                  </div>
-                ) : (
-                  <div className="arm-card">
-                    <button type="button" className="arm-linkhead" onClick={clearType}>добавить тип происшествия</button>
-                    <div className="arm-typechip">Происшествие {group} · {selectedType.kind === 'fire101' ? 'ветка 101' : 'общая ветка'}</div>
-                    <div className="arm-blackhead">Происшествие {group} <span onClick={clearType}>×</span></div>
-                    <div className="arm-selectedwhat">{selectedType.title}</div>
-                    <div className="arm-tagpanel">
-                      {isFire ? (
-                        <>
-                          {vis.includes('where') && <TagRow label="Где" options={tagSets.where} value={tags.where} onPick={(v) => setTag('where', v)} />}
-                          {vis.includes('sign') && <TagRow label={signLabel} options={tagSets.sign} value={tags.sign} onPick={(v) => setTag('sign', v)} />}
-                          {vis.includes('access') && <TagRow label="Доступ к людям" options={tagSets.access} value={tags.access} onPick={(v) => setTag('access', v)} />}
-                          {vis.includes('detail') && <TagRow label={detailLabel} options={detailOptions} value={tags.detail} onPick={(v) => setTag('detail', v)} />}
-                          {vis.includes('place') && <TagRow label="Место происшествия" options={tagSets.place} value={tags.place} onPick={(v) => setTag('place', v)} />}
-                          {vis.includes('threat') && <TagRow label="Угроза людям" options={tagSets.threat} value={tags.threat} onPick={(v) => setTag('threat', v)} />}
-                          {vis.includes('violation') && <TagRow label="Правонарушение" options={['Да', 'Нет']} value={tags.violation} onPick={(v) => setTag('violation', v)} />}
-                          {vis.includes('medical') && <TagRow label="Медицинская помощь" options={tagSets.medical} value={tags.medical} onPick={(v) => setTag('medical', v)} />}
-                          {vis.includes('evac') && <TagRow label="Требуется эвакуация" options={tagSets.evac} value={tags.evac} onPick={(v) => setTag('evac', v)} />}
-                          {vis.includes('gas') && <TagRow label="Проведена ли газификация" options={tagSets.gas} value={tags.gas} onPick={(v) => setTag('gas', v)} />}
-                          <div className="arm-tagrow">
-                            <div className="arm-taglabel">Описание</div>
-                            <input className="arm-tagdesc" value={tags.tagDesc} onChange={(e) => setTag('tagDesc', e.target.value)} placeholder="уточнение ТЭГа" />
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          {vis.includes('threat') && <TagRow label="Угроза людям" options={['Да', 'Нет']} value={tags.threat} onPick={(v) => setTag('threat', v)} />}
-                          {vis.includes('violation') && <TagRow label="Правонарушение" options={['Есть правонарушение']} value={tags.violation} onPick={(v) => setTag('violation', v)} />}
-                          {vis.includes('medical') && <TagRow label="Медицинская помощь" options={['Да', 'Нет']} value={tags.medical} onPick={(v) => setTag('medical', v)} />}
-                          {vis.includes('evac') && <TagRow label="Требуется эвакуация" options={['Да', 'Нет']} value={tags.evac} onPick={(v) => setTag('evac', v)} />}
-                          {vis.includes('gas') && <TagRow label="Проведена ли газификация" options={['Да', 'Нет', 'Нет данных']} value={tags.gas} onPick={(v) => setTag('gas', v)} />}
-                          <div className="arm-tagrow">
-                            <div className="arm-taglabel">Описание</div>
-                            <input className="arm-tagdesc" value={tags.tagDesc} onChange={(e) => setTag('tagDesc', e.target.value)} placeholder="уточнение" />
-                          </div>
-                          {vis.length > 0 && <div className="arm-hint">Общая ветка ({group}): полный каскад 101 не применяется.</div>}
-                        </>
-                      )}
-                    </div>
-                    {formError && <div className="arm-err">{formError}</div>}
-                  </div>
-                )}
+                    </>
+                  )}
+                  {infoType && !selectedLeaf && (
+                    <div className="arm-hint">Информационный тип без выезда: только описание, службы подбираются вручную.</div>
+                  )}
+                  {formError && <div className="arm-err">{formError}</div>}
+                </div>
               </section>
             </div>
 
-            {/* ВНИЗУ: оранжевая полоса служб */}
+            {/* ВНИЗУ: полоса служб */}
             <div className="arm-services">
-              <span className="arm-svclabel">Службы:</span>
+              <span className="arm-svclabel">Службы:{fiasWarn ? ' (ФИАС — вручную)' : ''}</span>
               <div className="arm-svcchips">
                 {services.map((s) => (
-                  <span key={s} className="arm-svc" title={s}><span className="arm-svctel">📞</span> <span className="arm-svcname">{serviceShortName(s)}</span> <button type="button" onClick={() => removeService(s)} title="убрать">×</button></span>
+                  <span key={s} className={`arm-svc ${isMainService(svcGroup, s) ? 'main' : ''}`} title={`${s}${isMainService(svcGroup, s) ? ' — основная (двойное подчеркивание)' : ''}${visServices.includes(s) ? ' · добавлена ВИС' : ''}`}>
+                    <span className="arm-svctel">📞</span>
+                    <span className="arm-svcname">{serviceShortName(s)}{visServices.includes(s) ? ' [ВИС]' : ''}</span>
+                    <button type="button" onClick={() => removeService(s)} title="убрать">×</button>
+                  </span>
                 ))}
                 <div className="arm-svcadd" ref={svcMenuRef}>
-                  <button type="button" className="arm-plus" onClick={() => setSvcMenuOpen((v) => !v)}>+</button>
+                  <button type="button" className="arm-plus" onClick={() => setSvcMenuOpen((v) => !v)} title="Добавить службу">+</button>
                   {svcMenuOpen && (
-                    <div className="arm-svcmenu">
-                      {SERVICE_CATALOG.filter((s) => !services.includes(s)).map((s) => (
-                        <button key={s} type="button" onClick={() => addService(s)}>{s}</button>
+                    <div className="arm-svcmenu" style={{ minWidth: 300 }}>
+                      <div style={{ padding: 8, position: 'sticky', top: 0, background: '#fff' }}>
+                        <input value={svcSearch} onChange={(e) => setSvcSearch(e.target.value)} placeholder="Поиск ..." style={{ width: '100%' }} />
+                      </div>
+                      {svcFiltered.slice(0, 60).map((s) => (
+                        <button key={s} type="button" onClick={() => addService(s)} title={autoServices.includes(s) ? 'авто (синяя)' : 'вручную (серая)'}
+                          style={autoServices.includes(s) ? { background: '#1c7fb8', color: '#fff' } : {}}>
+                          {s}
+                        </button>
                       ))}
+                      {!svcFiltered.length && <span className="arm-empty">Ничего не найдено</span>}
+                      <div style={{ display: 'flex', gap: 8, padding: 8 }}>
+                        <button type="button" className="arm-minibtn" onClick={() => setSvcMenuOpen(false)}>Сохранить и закрыть</button>
+                        <button type="button" className="arm-minibtn" onClick={() => { const s = SERVICE_CATALOG.find((x) => !services.includes(x)); if (s) addService(s, true); }} title="Мок: служба от внешней системы">+ ВИС</button>
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
               <div className="arm-actions">
-                <button type="button" className="arm-save" onClick={handleSave} disabled={saving}>{saving ? 'сохранение…' : 'сохранить'}</button>
-                <button type="button" className="arm-icobtn" title="связи">🔗</button>
-                <button type="button" className="arm-icobtn" title="таймер">⏱</button>
-                <button type="button" className="arm-icobtn" title="привлечь внимание">✋</button>
-                <button type="button" className="arm-icobtn" title="напоминание">🔔</button>
-                <button type="button" className="arm-icobtn" title="сообщение">💬</button>
-                <button type="button" className="arm-icobtn" title="закрыть">×</button>
+                <button ref={refs.s} type="button" className="arm-save" onClick={() => setSaveConfirm(true)} disabled={saving} title="Alt+S">{saving ? 'сохранение…' : 'сохранить'}</button>
+                <button type="button" className="arm-icobtn" title="Связи / Совпадение" onClick={() => setLinksOpen(true)}>🔗</button>
+                <button type="button" className="arm-icobtn" title="Напоминание-будильник" onClick={() => setReminderOpen(true)}>🔔</button>
+                <button type="button" className="arm-icobtn" title="Важное происшествие" onClick={() => setToast('Главному специалисту отправлен сигнал: АРМ 2, требуется консультация (мок).')}>✋</button>
+                <button type="button" className="arm-icobtn" title="Сообщить о проблеме" onClick={() => setToast('Сообщение в техподдержку отправлено (мок, можно приложить скриншот).')}>💬</button>
+                <button type="button" className="arm-icobtn" title="Закрыть (Esc)">×</button>
               </div>
             </div>
-            {overtime && <div className="arm-overhint">Время набора карточки превышено (норматив {CARD_SLA_SEC} сек) — поле подсвечено красным.</div>}
+            {overtime && <div className="arm-overhint">Время набора карточки превышено (ориентир тренажера {CARD_SLA_SEC} сек) — учитывается в скоринге.</div>}
+
+            {/* Пост-карточка: отработки, записи, дополнить/отработана */}
+            {saved && (
+              <div className="arm-card" style={{ marginTop: 6 }}>
+                <div className="arm-cardhead">Отработки происшествия · Записи разговоров (мм:сс, скачать — мок) · {done ? 'Отработана' : 'в работе'}</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                  <button type="button" className="arm-minibtn" onClick={() => setSupplement((v) => !v)}>{supplement ? 'закрыть дополнение' : 'дополнить (пустые поля + описание)'} · просмотр</button>
+                  <button type="button" className="arm-minibtn" onClick={() => { setDone(true); setToast('Карточка отмечена «Отработана».'); }}>Отработана</button>
+                  <button type="button" className="arm-minibtn" onClick={() => setToast('Окно «Напоминание» появится при закрытой карточке каждые 20 сек (мок).')}>проверить напоминание</button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 8 }}>
+                  {[
+                    ['Служба', 'service', 'выбор из списка'],
+                    ['Куда звонили', 'where', 'если службы нет в списке'],
+                    ['Телефон', 'phone', 'авто или вручную'],
+                    ['Кто принял', 'who', 'фамилия/номер диспетчера'],
+                    ['Суть сообщения', 'msg', 'итог дозвона'],
+                  ].map(([label, key, ph]) => (
+                    <label key={key} style={{ display: 'flex', flexDirection: 'column', fontSize: 11, color: '#555' }}>{label}:
+                      <input value={otrabDraft[key]} onChange={(e) => setOtrabDraft({ ...otrabDraft, [key]: e.target.value })} placeholder={ph} />
+                    </label>
+                  ))}
+                </div>
+                <button type="button" className="arm-minibtn" disabled={!Object.values(otrabDraft).some((v) => v.trim())}
+                  onClick={() => { setOtrab((p) => [...p, { ...otrabDraft, id: Date.now() }]); setOtrabDraft({ service: '', where: '', phone: '', who: '', msg: '' }); }}>
+                  ✓ сохранить отработку (Enter)
+                </button>
+                {otrab.map((o) => (
+                  <div key={o.id} className="arm-hint">{o.service || o.where} · {o.phone} · {o.who} · {o.msg} · <button type="button" className="arm-minibtn" onClick={() => setToast(`Исходящий вызов в службу ${o.phone || ''} (мок).`)}>📞</button></div>
+                ))}
+              </div>
+            )}
           </div>
 
           {toast && (
-            <div className="toast" role="status">
-              {toast}{' '}
-              {savedScenarioId && (
-                <button type="button" className="btn btn-primary btn-sm" onClick={() => navigate(`/scenario/${savedScenarioId}`)}>
-                  Открыть в тренажёре →
-                </button>
-              )}
+            <div className="toast" role="status">{toast}{' '}
+              {savedScenarioId && <button type="button" className="btn btn-primary btn-sm" onClick={() => navigate(`/scenario/${savedScenarioId}`)}>Открыть в тренажёре →</button>}
               <button type="button" className="toast-close" onClick={() => setToast(null)}>×</button>
             </div>
           )}
         </main>
       </div>
+
+      {/* Модалка карты (мок) */}
+      {mapOpen && (
+        <div className="arm-modal" role="dialog" aria-label="Карта">
+          <div className="arm-modal-box" style={{ maxWidth: 560 }}>
+            <b>Карта места происшествия (мок, масштаб 1:50)</b>
+            <div style={{ display: 'flex', gap: 8, margin: '8px 0' }}>
+              <input value={coords.lat} onChange={(e) => setCoords({ ...coords, lat: e.target.value })} placeholder="Широта" />
+              <input value={coords.lng} onChange={(e) => setCoords({ ...coords, lng: e.target.value })} placeholder="Долгота" />
+              <button type="button" className="arm-minibtn" onClick={() => setCoords({ lat: '55,752445', lng: '37,598124' })}>Указать на карте (мок)</button>
+              <label>Радиус: <select value={mapRadius} onChange={(e) => setMapRadius(Number(e.target.value))}><option value={50}>50 м</option><option value={200}>200 м</option><option value={1000}>1000 м</option></select></label>
+            </div>
+            <div className="arm-hint">Слои: Камеры / Техника / Объекты. Соцобъекты в радиусе {mapRadius} м:</div>
+            {SOCIAL_OBJECTS.filter((o) => o.dist <= mapRadius).map((o) => (
+              <div key={o.name} className="arm-hint">{o.name} — {o.dist} м{o.dist <= 50 ? ' → попадет в Описательный адрес' : ''}</div>
+            ))}
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button type="button" className="arm-minibtn" onClick={applyCoords}>ОК</button>
+              <button type="button" className="arm-minibtn" onClick={() => setMapOpen(false)}>Закрыть</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Нет контакта / срыв */}
+      {emptyModal && (
+        <div className="arm-modal" role="dialog">
+          <div className="arm-modal-box">
+            <b>{emptyModal === 'break' ? 'Срыв звонка' : 'Нет контакта'} — карточка станет «Завершена + Проверено»</b>
+            <div className="arm-hint">Сохранить как пустую или вернуться к заполнению (если кнопка нажата по ошибке).</div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button type="button" className="arm-minibtn" onClick={() => doSave(true)}>Сохранить пустую</button>
+              <button type="button" className="arm-minibtn" onClick={() => setEmptyModal(null)}>Вернуться к заполнению</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Пострадавшие */}
+      {victimsModal && (
+        <div className="arm-modal" role="dialog">
+          <div className="arm-modal-box">
+            <b>Количество пострадавших</b>
+            <input value={victimsCount} onChange={(e) => setVictimsCount(e.target.value.replace(/\D/g, ''))} placeholder="введите число" style={{ width: '100%', marginTop: 8 }} />
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button type="button" className="arm-minibtn" onClick={() => { setVictims('Есть'); if (!victimsCount) setVictimsCount('1'); setVictimsModal(false); }}>ОК</button>
+              <button type="button" className="arm-minibtn" onClick={() => setVictimsModal(false)}>Отмена</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Сохранение */}
+      {saveConfirm && (
+        <div className="arm-modal" role="dialog">
+          <div className="arm-modal-box">
+            <b>Сохранение карточки и оповещение служб</b>
+            <div className="arm-hint">Проверьте список служб внизу. Основные подчеркнуты двойной линией, добавленные ВИС — с пометкой.</div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button type="button" className="arm-save" style={{ borderColor: '#1c7fb8', color: '#1c7fb8' }} onClick={() => doSave(false)} disabled={saving}>Оповестить и сохранить карточку</button>
+              <button type="button" className="arm-minibtn" onClick={() => setSaveConfirm(false)}>Вернуться к заполнению</button>
+            </div>
+            {formError && <div className="arm-err">{formError}</div>}
+          </div>
+        </div>
+      )}
+
+      {/* Связи */}
+      {linksOpen && (
+        <div className="arm-modal" role="dialog">
+          <div className="arm-modal-box" style={{ maxWidth: 520 }}>
+            <b>Совпадение и связи (мок)</b>
+            <div className="arm-hint">Кнопка «Совпадение» показана по: {matchBy}. Связь считается установленной после сохранения.</div>
+            {linkCandidates.map((c) => (
+              <div key={c.id} style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}>
+                <span>Карточка {c.id} ({c.by})</span>
+                <button type="button" className="arm-minibtn" onClick={() => setLinks((p) => (p.some((l) => l.id === c.id) ? p : [...p, { id: c.id, role: p.length ? 'подчиненная' : 'главная' }]))}>Привязать</button>
+              </div>
+            ))}
+            {links.map((l) => (
+              <div key={l.id} style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}>
+                <span>{l.id} — {l.role}</span>
+                <button type="button" className="arm-minibtn" onClick={() => setLinks((p) => p.map((x) => x.id === l.id ? { ...x, role: x.role === 'главная' ? 'подчиненная' : 'главная' } : x))}>сделать {l.role === 'главная' ? 'подчиненной' : 'главной'}</button>
+                <button type="button" className="arm-minibtn" onClick={() => setLinks((p) => p.filter((x) => x.id !== l.id))}>отвязать</button>
+              </div>
+            ))}
+            <div style={{ marginTop: 8 }}><button type="button" className="arm-minibtn" onClick={() => setLinksOpen(false)}>Закрыть</button></div>
+          </div>
+        </div>
+      )}
+
+      {/* Напоминание */}
+      {reminderOpen && (
+        <div className="arm-modal" role="dialog">
+          <div className="arm-modal-box">
+            <b>Установить напоминание (будильник)</b>
+            <input value={reminder.text} onChange={(e) => setReminder({ ...reminder, text: e.target.value })} placeholder="текст" style={{ width: '100%', marginTop: 8 }} />
+            <input value={reminder.time} onChange={(e) => setReminder({ ...reminder, time: e.target.value })} placeholder="время" style={{ width: '100%', marginTop: 8 }} />
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button type="button" className="arm-minibtn" onClick={() => { setReminderOpen(false); setToast('Напоминание сохранено (мок). При закрытой карточке будет появляться каждые 20 сек.'); }}>Сохранить</button>
+              <button type="button" className="arm-minibtn" onClick={() => setReminderOpen(false)}>Закрыть</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Входящий звонок (мок телефонии Avaya) */}
+      {incomingOpen && (
+        <div className="arm-modal" role="dialog">
+          <div className="arm-modal-box">
+            <b>Входящий вызов (мок)</b>
+            <div className="arm-hint">Окно с информацией о вызове и единственной кнопкой «Принять». После принятия откроется новая карточка.</div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button type="button" className="arm-save" style={{ borderColor: '#27ae60', color: '#27ae60' }} onClick={() => { setIncomingOpen(false); setTelStatus('недоступен'); resetAll(); setToast('Вызов принят. Открыта новая карточка, статус — «недоступен» (мок).'); }}>Принять</button>
+              <button type="button" className="arm-minibtn" onClick={() => setIncomingOpen(false)}>Закрыть</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
