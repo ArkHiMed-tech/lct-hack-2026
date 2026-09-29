@@ -18,7 +18,7 @@ const MONTHS = [
   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
 ];
 
-export default function AppHeader({ title = 'ГБУ Система 112', showCreateButton = true }) {
+export default function AppHeader({ title = 'ГБУ Система 112', showCreateButton = true, actions = null }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const now = useClock();
@@ -32,6 +32,7 @@ export default function AppHeader({ title = 'ГБУ Система 112', showCre
           <strong>{title}</strong>
         </div>
       </div>
+      {actions && <div className="header-actions">{actions}</div>}
       <div className="header-right">
         {showCreateButton && user && (
           <button type="button" className="header-create-btn" onClick={() => navigate('/card')}>

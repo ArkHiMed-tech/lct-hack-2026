@@ -311,36 +311,67 @@ def match_leaf(
     return best
 
 
-def dispatch_for_leaf(
+def _dispatch_core(
     graph: dict[str, Any] | None,
     leaf: dict[str, Any],
-    flags: dict[str, bool] | None = None,
+    flags: dict[str, bool] | None,
+    auto: bool | None,
 ) -> dict[str, str]:
-    """Диспетчеризация листа: выбор вариантов колонок по флагам карточки.
-
-    flags: nd/ul/pp/violation/victims/victims_absent/gas/threat/medical/evac/
-    crowd/block/tunnel/pesh/av/sites/stroyka/pozhar/moscow. Вариант с флагом
-    приоритетнее базы; значение-маркер «нет реагирования» означает
-    отсутствие выезда. Возвращает {service_group_id: значение}.
-    """
+    """Ядро диспетчеризации. auto=True/False — только выезжающие/уведомляемые,
+    None — все группы. Строгий режим: стоят свои флаги -> ответ только
+    из вариантных ячеек (пустой вариант = нет выезда, без fallback на базу);
+    своих флагов нет -> база."""
     g = graph or load_incident_graph()
     flags = flags or {}
     services = {s["id"]: s for s in get_classifier(g).get("services", [])}
     dispatch = leaf.get("dispatch", {}) or {}
     out: dict[str, str] = {}
     for gid, meta in services.items():
+        if auto is not None and bool(meta.get("auto", True)) is not auto:
+            continue
         base_sid = gid  # вариант без флага носит id группы
+        own_flags = [
+            col for col in meta.get("columns", [])
+            if col.get("flag") and flags.get(col["flag"])
+        ]
         chosen: str | None = None
-        for col in meta.get("columns", []):
-            flag = col.get("flag")
-            if flag and flags.get(flag) and col["variant"] in dispatch:
-                chosen = dispatch[col["variant"]]
-                break
-        if chosen is None and base_sid in dispatch:
+        if own_flags:
+            for col in own_flags:
+                if col["variant"] in dispatch:
+                    chosen = dispatch[col["variant"]]
+                    break
+            if chosen is None:
+                continue  # строгий режим: пустое окошко варианта = нет выезда
+        elif base_sid in dispatch:
             chosen = dispatch[base_sid]
         if chosen and normalize_token(chosen) != NO_RESPONSE_MARKER:
             out[gid] = chosen
     return out
+
+
+def dispatch_for_leaf(
+    graph: dict[str, Any] | None,
+    leaf: dict[str, Any],
+    flags: dict[str, bool] | None = None,
+) -> dict[str, str]:
+    """Диспетчеризация листа: ВЫЕЗЖАЮЩИЕ службы (auto-группы).
+
+    flags: nd/ul/pp/violation/victims/victims_absent/gas/threat/medical/evac/
+    crowd/block/tunnel/pesh/av/sites/stroyka/pozhar/moscow. Свои флаги стоят ->
+    ответ только из вариантных ячеек; значение-маркер «нет реагирования»
+    означает отсутствие выезда. Возвращает {service_group_id: значение}.
+    """
+    return _dispatch_core(graph, leaf, flags, auto=True)
+
+
+def informed_for_leaf(
+    graph: dict[str, Any] | None,
+    leaf: dict[str, Any],
+    flags: dict[str, bool] | None = None,
+) -> dict[str, str]:
+    """УВЕДОМЛЯЕМЫЕ службы листа (маркерные группы, синие плашки).
+    Та же строгая логика вариантов, что в dispatch_for_leaf."""
+    return _dispatch_core(graph, leaf, flags, auto=False)
 
 
 def service_display_name(

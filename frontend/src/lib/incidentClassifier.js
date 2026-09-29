@@ -27,7 +27,7 @@ export const FLAG_DEFS = [
 export const EMPTY_FLAGS = { no_access: false, threat: false, violation: false, medical: false, evac: false, gas: false };
 
 // Главная служба классификатора -> группа для подсветки основной службы.
-export const MAIN_SVC_GROUP = { MCHS: '101', Police: '102' };
+export const MAIN_SVC_GROUP = { MCHS: '101', Police: '102', AMBULANCE: '103', MOSGAZ: '104' };
 export const MAIN_SVC_NAME = { MCHS: SVC_101, Police: SVC_102, '': '' };
 
 // Нормализация для поиска: нижний регистр, без пунктуации, ё→е.

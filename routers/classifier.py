@@ -13,6 +13,7 @@ from misc.incident_tree_api import (
     get_classifier,
     get_leaf_by_code,
     get_tree_children,
+    informed_for_leaf,
     load_incident_graph,
     search_leaves,
     service_display_name,
@@ -124,15 +125,23 @@ async def dispatch(
         "sites": sites, "stroyka": stroyka,
     }
     disp = dispatch_for_leaf(graph, leaf, flags)
+    inform = informed_for_leaf(graph, leaf, flags)
     # Главные службы (101/102/103/104/ЦЭМП) — первыми.
     priority = {"mchs101": 0, "mvd": 1, "smp": 2, "mosgaz": 3, "cemp": 4}
     ordered = sorted(disp, key=lambda gid: (priority.get(gid, 99), gid))
+    ordered_inform = sorted(inform, key=lambda gid: (priority.get(gid, 99), gid))
     return {
         "code": leaf["code"],
         "services": [service_display_name(graph, gid) for gid in ordered],
+        "informed": [service_display_name(graph, gid) for gid in ordered_inform],
         "detail": {
-            gid: {"value": value, "display": service_display_name(graph, gid)}
+            gid: {"value": value, "display": service_display_name(graph, gid),
+                  "mode": "respond"}
             for gid, value in disp.items()
+        } | {
+            gid: {"value": value, "display": service_display_name(graph, gid),
+                  "mode": "informed"}
+            for gid, value in inform.items()
         },
     }
 

@@ -55,10 +55,34 @@ async def create_report(report: dict):
 CATEGORY_TO_SCENARIO = {"101": "fire", "102": "police", "103": "ambulance", "104": "gas"}
 
 # Главная служба классификатора -> категория тренажёра.
-MAIN_TO_CATEGORY = {"MCHS": "fire", "Police": "police"}
+# Коммунальные службы -> utility, транспортные -> dth (решение зафиксировано;
+# рубрика знает только fire/medical/gas/dth — остальные категории нейтральны
+# для скоринга, как раньше police/ambulance).
+MAIN_TO_CATEGORY = {
+    "MCHS": "fire", "Police": "police",
+    "AMBULANCE": "ambulance", "MOSGAZ": "gas",
+    "MOSLIFT": "utility", "MOEK": "utility", "OEK": "utility",
+    "MOESK": "utility", "MOSVODOCANAL": "utility", "MOSVODOSTOK": "utility",
+    "MOSCOLLECTOR": "utility", "GORMOST": "utility", "GKH": "utility",
+    "METRO": "dth", "MZD": "dth", "MOSGORTRANS": "dth", "AUTOROADS": "dth",
+    "MGTS": "utility",
+}
 # Раздел классификатора -> категория тренажёра (для main=None).
 SECTION_TO_CATEGORY = {1: "fire", 2: "dth", 3: "fire", 4: "fire", 5: "fire",
-                       6: "fire", 7: "fire", 8: "fire", 9: "fire"}
+                       6: "fire", 7: "fire", 8: "fire", 9: "fire",
+                       10: "fire", 11: "fire", 12: "dth", 13: "gas",
+                       14: "utility", 15: "police", 16: "dth", 17: "police",
+                       18: "police", 19: "police", 20: "utility",
+                       21: "utility", 22: "ambulance", 23: "fire", 24: "police"}
+
+
+def _main_category(main: str | None) -> str:
+    """Категория по Главной службе; составные ('METRO, MZD') — по первому
+    известному токену."""
+    for token in str(main or "").replace(",", " ").split():
+        if token in MAIN_TO_CATEGORY:
+            return MAIN_TO_CATEGORY[token]
+    return ""
 
 
 def _scenario_category(payload: dict, row: dict) -> tuple[str, str]:
@@ -67,16 +91,14 @@ def _scenario_category(payload: dict, row: dict) -> tuple[str, str]:
     Новые карточки: Главная служба / раздел классификатора.
     Старые карточки: incident_category вида '101' (legacy-маппинг).
     """
-    main = payload.get("main_service")
-    if main in MAIN_TO_CATEGORY:
-        category = MAIN_TO_CATEGORY[main]
-    else:
+    category = _main_category(payload.get("main_service"))
+    if not category:
         section = payload.get("classifier_section") or {}
         category = SECTION_TO_CATEGORY.get(section.get("g"), "")
     group = str(payload.get("incident_category") or row.get("incident_category") or "")
     if not category:
         category = CATEGORY_TO_SCENARIO.get(
-            group, group if group in ("fire", "police", "ambulance", "gas", "dth") else "fire"
+            group, group if group in ("fire", "police", "ambulance", "gas", "dth", "utility") else "fire"
         )
     section = payload.get("classifier_section") or {}
     group_label = group or section.get("title") or category

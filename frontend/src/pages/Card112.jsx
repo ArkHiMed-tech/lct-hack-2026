@@ -9,6 +9,7 @@ import {
   EMPTY_FLAGS,
   MAIN_SVC_GROUP,
   CASCADE_LEVELS,
+  CASCADE_LABELS,
   searchLeaves,
   leafFactors,
   walkCascadeTree,
@@ -48,19 +49,6 @@ const autoChannel = (phone) => {
   if (n >= 960 && n <= 969) return 'Билайн';
   return '';
 };
-
-function TagRow({ label, options, value, onPick }) {
-  return (
-    <div className="arm-tagrow">
-      <div className="arm-taglabel">{label}</div>
-      <div className="arm-tagopts">
-        {options.map((o) => (
-          <button key={o} type="button" className={`arm-tag ${value === o ? 'sel' : ''}`} onClick={() => onPick(value === o ? '' : o)}>{o}</button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export default function Card112() {
   const { user } = useAuth();
@@ -137,7 +125,7 @@ export default function Card112() {
   useEffect(() => {
     let cancelled = false;
     // Индекс классификатора для выбора типа (Итоговый тип + путь признаков).
-    fetch('/api/classifier/leaves?limit=1000').then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))).then((data) => {
+    fetch('/api/classifier/leaves?limit=2000').then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))).then((data) => {
       if (!cancelled && Array.isArray(data.items) && data.items.length) setLeaves(data.items);
     }).catch(() => {});
     // Дерево каскада «Что случилось?»: раздел -> Место -> Что -> Проявление.
@@ -160,7 +148,12 @@ export default function Card112() {
     if (flags.gas) params.set('gas', 'true');
     if (victims !== 'Нет') { params.set('victims', 'true'); params.set('pp', 'true'); }
     fetch(`/api/classifier/dispatch?${params}`).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))).then((data) => {
-      if (!cancelled && Array.isArray(data.services)) setAutoServices(data.services);
+      if (cancelled) return;
+      if (Array.isArray(data.services)) {
+        setAutoServices(data.services);
+        // Накопление: уже добавленные службы не сбрасываются при прокликивании флагов.
+        setManualServices((prev) => [...new Set([...prev, ...data.services])]);
+      }
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [selectedLeaf, flags, victims, fiasWarn]);
@@ -231,6 +224,24 @@ export default function Card112() {
 
   // Текущий шаг каскада: все кнопки узла разом + выбираемые листья.
   const cascade = useMemo(() => walkCascadeTree(tree, cascadePath), [tree, cascadePath]);
+  // Отвеченные уровни с реальным выбором (одиночные безвариантные — скрыты).
+  const cascadeAnswered = useMemo(() => cascade.breadcrumb.map((b, i) => ({ b, i })).filter(({ i }) => {
+    if (i >= cascadePath.length - 1) return false;
+    const parent = walkCascadeTree(tree, cascadePath.slice(0, i));
+    return parent.buttons.length !== 1 || parent.selectable.length > 0;
+  }), [tree, cascade, cascadePath]);
+  // Хвост автопройденных уровней (без развилки) — показать контекстом в активной плашке.
+  const cascadeSkipped = useMemo(() => {
+    const vals = [];
+    for (let j = cascadePath.length - 1; j >= 0; j--) {
+      const parent = walkCascadeTree(tree, cascadePath.slice(0, j));
+      if (parent.buttons.length === 1 && !parent.selectable.length) vals.unshift(cascadePath[j].value);
+      else break;
+    }
+    return vals;
+  }, [tree, cascadePath]);
+  // Вопрос активной плашки — следующий уровень (не последний отвеченный).
+  const cascadeQuestion = CASCADE_LABELS[CASCADE_LEVELS[cascade.breadcrumb.length]] ?? 'Что случилось';
   const leafTitle = (code) => leaves.find((l) => String(l.code) === String(code))?.result || `№${code}`;
   const pickLeafByCode = (code) => {
     const found = leaves.find((l) => String(l.code) === String(code));
@@ -253,11 +264,24 @@ export default function Card112() {
       nextPath = [...cascadePath, { level: next, value: b.value }];
     }
     // Лист без разветвления — отобразить/выбрать сразу, иначе — до разветвления.
-    const step = walkCascadeTree(tree, nextPath);
-    if (!step.buttons.length && step.selectable.length === 1) {
-      pickLeafByCode(step.selectable[0]);
+    // Линейный участок (единственная кнопка, без вариантов) — проскочить
+    // автоматически до развилки.
+    let path = nextPath;
+    for (;;) {
+      const step = walkCascadeTree(tree, path);
+      if (step.buttons.length === 1 && !step.selectable.length) {
+        const next = CASCADE_LEVELS[path.length];
+        if (!next) break;
+        path = [...path, { level: next, value: step.buttons[0].value }];
+        continue;
+      }
+      break;
+    }
+    const final = walkCascadeTree(tree, path);
+    if (!final.buttons.length && final.selectable.length === 1) {
+      pickLeafByCode(final.selectable[0]);
     } else {
-      setCascadePath(nextPath);
+      setCascadePath(path);
     }
   };
 
@@ -445,17 +469,27 @@ export default function Card112() {
 
   return (
     <div className="app-shell">
-      <AppHeader title="Карточка происшествия 112" showCreateButton={false} />
+      <AppHeader
+        title="Карточка происшествия 112"
+        showCreateButton={false}
+        actions={(
+          <>
+            <Link to="/" className="arm-topbtn">← К списку происшествий</Link>
+            <button type="button" className="arm-topbtn" onClick={resetAll} title="Insert — новая карточка">Новая карточка (Insert)</button>
+            <button type="button" className="arm-topbtn" onClick={() => setIncomingOpen(true)} title="Мок входящего звонка">Входящий звонок</button>
+            <button type="button" className="arm-topbtn primary" onClick={fillFromGenerator} disabled={genLoading} title="Заполнить карточку из генератора (случайный обход графа, seed можно задать вручную)">🎲 {genLoading ? 'генерация…' : 'Сгенерировать'}</button>
+            <input className="arm-topseed" value={genSeed} onChange={(e) => setGenSeed(e.target.value)} placeholder="seed" title="Seed генератора (пусто — случайно)" />
+          </>
+        )}
+      />
       <div className="layout">
         <SideNav role={user.role} />
         <main className="content">
-          <div className="dds-back">
-            <Link to="/">← К списку происшествий</Link>
-            <button type="button" className="btn-reset" onClick={resetAll} title="Insert — новая карточка">Новая карточка (Insert)</button>
-            <button type="button" className="btn-reset" onClick={() => setIncomingOpen(true)} title="Мок входящего звонка">Входящий звонок</button>
-            <button type="button" className="btn-reset" onClick={fillFromGenerator} disabled={genLoading} title="Заполнить карточку из генератора (случайный обход графа, seed можно задать вручную)">🎲 {genLoading ? 'генерация…' : 'Сгенерировать'}</button>
-            <input value={genSeed} onChange={(e) => setGenSeed(e.target.value)} placeholder="seed" title="Seed генератора (пусто — случайно)" style={{ width: 90, padding: '4px 8px' }} />
-            <span style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="arm-topbar">
+            <span className="arm-topmeta">Происшествие {INCIDENT_NO} · {today} · Опер., АРМ 2, УМЦ О п · {EXTERNAL_SYSTEM}</span>
+            {manualCreated && <span className="arm-typechip" title="Признак из инструкции 2.0">Создана вручную</span>}
+            {links.length > 0 && <span className="arm-typechip" title="Связанные карточки">🔗 {links.length}: {links.map((l) => `${l.id} (${l.role})`).join(', ')}</span>}
+            <span className="arm-topright">
               <span title="Статус телефонии (мок). Недоступен проставляется при открытой карточке">☎ {telStatus}</span>
               <select value={telStatus} onChange={(e) => setTelStatus(e.target.value)} title="Переключить вручную">
                 <option value="доступен">доступен</option>
@@ -463,18 +497,11 @@ export default function Card112() {
                 <option value="не подключен">не подключен</option>
                 <option value="ошибка">ошибка</option>
               </select>
+              <span className={`arm-timer ${overtime ? 'over' : ''}`}>{mm}:{ss}<small>минут секунд</small></span>
             </span>
           </div>
 
           <div className="arm-wrap">
-            <div className="arm-titlebar">
-              <span>Происшествие {INCIDENT_NO}</span>
-              <span className="arm-titleinfo">Сохр. {today} · Опер., АРМ 2, УМЦ О п · {EXTERNAL_SYSTEM}</span>
-              {manualCreated && <span className="arm-typechip" title="Признак из инструкции 2.0">Создана вручную</span>}
-              {links.length > 0 && <span className="arm-typechip" title="Связанные карточки">🔗 {links.length}: {links.map((l) => `${l.id} (${l.role})`).join(', ')}</span>}
-              <span className={`arm-timer ${overtime ? 'over' : ''}`}>{mm}:{ss}<small>минут секунд</small></span>
-            </div>
-
             {/* Телефоны: АОН / предоставленный / на место + канал */}
             <div className="arm-phones">
               <div className="arm-phone arm-off">
@@ -641,13 +668,15 @@ export default function Card112() {
                       активная плашка «Вопрос:» + кнопки (клик спавнит следующую). */}
                   {cascadePath.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-                      {cascade.breadcrumb.slice(0, -1).map((b, i) => (
+                      {cascadeAnswered.map(({ b, i }) => (
                         <div key={`${b.level}-${i}`} className="arm-card" style={{ padding: '6px 10px', cursor: 'pointer' }} title="Вернуться на этот шаг" onClick={() => setCascadePath(cascadePath.slice(0, i + 1))}>
                           <div className="arm-taglabel">{b.label}: {b.value}</div>
                         </div>
                       ))}
                       <div className="arm-card" style={{ padding: '6px 10px' }}>
-                        <div className="arm-taglabel">{(cascade.breadcrumb[cascade.breadcrumb.length - 1]?.label ?? 'Что случилось')}:</div>
+                        <div className="arm-taglabel">{cascadeQuestion}:</div>
+                        {cascadeSkipped.length > 0 && <div className="arm-hint">{cascadeSkipped.join(' → ')}</div>}
+                        {(cascade.buttons.length > 0 || cascade.selectable.length > 0) && (
                         <div className="arm-quick" style={{ marginTop: 6 }}>
                           {cascade.buttons.map((b) => (
                             <button key={b.value} type="button" className="arm-tag" onClick={() => pushCascade(b)}>
@@ -660,6 +689,7 @@ export default function Card112() {
                             </button>
                           ))}
                         </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -670,7 +700,7 @@ export default function Card112() {
                       </button>
                     </div>
                   )}
-                  {/* Каскад живёт в выпадающем списке выше; здесь только результат. */}
+                  {/* Плашки каскада выше; здесь результат выбора и флаги. */}
                   <div className="arm-hint">Тип выбирается из классификатора (Итоговый тип + путь признаков). Совпадение кнопки «Совпадение»: {matchBy}.</div>
                   {services.includes(SVC_103) && (
                     <label style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 8 }}>
@@ -684,9 +714,13 @@ export default function Card112() {
                       <div className="arm-selectedwhat">{selectedLeaf.result}</div>
                       <div className="arm-hint">Путь: {(selectedLeaf.path || []).join(' → ') || '—'}</div>
                       <div className="arm-tagpanel">
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2px 12px' }}>
                         {FLAG_DEFS.map(({ key, label }) => (
-                          <TagRow key={key} label={label} options={['Да', 'Нет']} value={flags[key] ? 'Да' : ''} onPick={(v) => setFlag(key, v === 'Да')} />
+                          <label key={key} className="arm-checkrow" style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '4px 0' }}>
+                            <input type="checkbox" checked={!!flags[key]} onChange={(e) => setFlag(key, e.target.checked)} /> {label}
+                          </label>
                         ))}
+                        </div>
                         <div className="arm-tagrow">
                           <div className="arm-taglabel">Описание</div>
                           <input className="arm-tagdesc" value={tagDesc} onChange={(e) => setTagDesc(e.target.value)} placeholder="уточнение ТЭГа" />

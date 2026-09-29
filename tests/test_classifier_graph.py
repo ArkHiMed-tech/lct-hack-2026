@@ -19,30 +19,30 @@ GRAPH_PATH = Path("misc/incident_graph.json")
 
 def test_parser_yields_509_unique_leaves():
     sections, leaves = parse_xlsx(find_xlsx())
-    assert len(sections) == 23
-    assert len(leaves) == 509
+    assert len(sections) == 23  # сепараторы 1-23; Г=24 без сепаратора
+    assert len(leaves) == 1283  # 7- и 8-значные Номера, разделы 1-24
     codes = [leaf["code"] for leaf in leaves]
     assert len(set(codes)) == len(codes)
     assert all(leaf["path"] for leaf in leaves)
     filled = {leaf["g"] for leaf in leaves}
-    assert filled == {1, 2, 3, 4, 5, 6, 7, 8, 9}
+    assert filled == set(range(1, 25))
 
 
 def test_graph_v3_shape_no_legacy_keys():
     current = json.loads(GRAPH_PATH.read_text(encoding="utf-8"))
-    assert current["version"] == 3
+    assert current["version"] == 5
     for key in ("root", "root_children", "type_meta", "tag_sets", "children", "flow"):
         assert key not in current, f"legacy key remains: {key}"
     classifier = current["classifier"]
-    assert classifier["leaf_count"] == 509
-    assert len(classifier["tree"]) == 9  # только заполненные разделы
+    assert classifier["leaf_count"] == 1283
+    assert len(classifier["tree"]) == 24  # все разделы заполнены
 
 
 def test_classifier_section_shape():
     graph = load_incident_graph()
     classifier = graph["classifier"]
-    assert classifier["leaf_count"] == 509
-    assert len(classifier["sections"]) == 23
+    assert classifier["leaf_count"] == 1283
+    assert len(classifier["sections"]) == 24  # 23 сепаратора + БПЛА
     assert len(classifier["services"]) == 62
     by_id = {s["id"]: s for s in classifier["services"]}
     assert by_id["mchs101"]["catalog"].startswith("Служба 101")
@@ -136,6 +136,28 @@ def test_generated_classifier_codes_valid():
                 assert service in names, service
 
 
+def test_new_sections_reachable_and_valid():
+    from misc.card_generator import generate_card as gen
+
+    graph = load_incident_graph()
+    by_code = {leaf["code"]: leaf for leaf in classifier_leaves(graph)}
+    for code in ("24010000", "13010100", "17010100", "22010000", "15010100"):
+        leaf = by_code[code]
+        assert leaf["path"], code
+    seen_sections = set()
+    seen_mains = set()
+    for seed in range(400):
+        payload = gen(seed=seed)["payload"]
+        assert validate_card_payload(payload) == ""
+        sec = payload.get("classifier_section")
+        if sec:
+            seen_sections.add(sec["g"])
+            seen_mains.add(payload.get("main_service"))
+    assert len(seen_sections) >= 20, sorted(seen_sections)
+    assert 24 in seen_sections
+    assert {"AMBULANCE", "MOSGAZ"} <= seen_mains
+
+
 def _walk_all_leaves(tree):
     """Все коды листьев, достижимые из дерева (g, путь)."""
     found = []
@@ -154,12 +176,20 @@ def _walk_all_leaves(tree):
 def test_tree_covers_all_visible_leaves_exactly_once():
     graph = load_incident_graph()
     tree = graph["classifier"]["tree"]
-    assert [r["g"] for r in tree] == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert [r["g"] for r in tree] == list(range(1, 25))
     reached = _walk_all_leaves(tree)
     codes = [c for c, _ in reached]
     visible = {leaf["code"] for leaf in classifier_leaves(graph, visible_only=True)}
     assert set(codes) == visible
-    assert len(set(codes)) == len(codes)
+    # Каждый лист ровно один раз; единственный дубль пути (БПЛА/БВС Регион)
+    # хранит оба кода в одном узле.
+    assert len(codes) == len(visible)
+    dup = get_tree_children(
+        graph, g=24,
+        p1="летит, готовят к запуску,упал/ столкнулся, нет взрыва возгорания",
+        p2="Регион",
+    )
+    assert {s["code"] for s in dup["selectable"]} == {"24120100", "24120200"}
     by_code = {leaf["code"]: leaf for leaf in classifier_leaves(graph)}
     for code, prefix in reached:
         assert by_code[code]["path"] == prefix, code
@@ -181,7 +211,7 @@ def test_tree_has_no_hidden_branches():
 def test_cascade_fire_path():
     graph = load_incident_graph()
     step0 = get_tree_children(graph)
-    assert [b["g"] for b in step0["buttons"]] == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert [b["g"] for b in step0["buttons"]] == list(range(1, 25))
     assert step0["selectable"] == []
     step1 = get_tree_children(graph, g=1)
     assert [b["value"] for b in step1["buttons"]] == [
@@ -209,3 +239,82 @@ def test_cascade_leaf_with_children_and_sections_separated():
         "level": "p3", "label": "Проявление", "value": "открытое пламя",
     }
     assert tree_path_for_code(graph, "нет-кода") == []
+
+
+def test_auto_flag_matrix():
+    from misc.incident_tree_api import get_classifier
+
+    graph = load_incident_graph()
+    by_id = {s["id"]: s for s in get_classifier(graph)["services"]}
+    responders = {
+        "mchs101", "odps", "mgpss", "mvd", "smp", "mosgaz", "cemp",
+        "codd", "mosbez", "mkp", "dgp", "gupmsr", "vodokanal", "moblgaz",
+    }
+    assert {gid for gid, m in by_id.items() if m.get("auto")} == responders
+    for gid in ("apperat", "ntu", "terr_oiv", "terr_oiv_tinao", "fso",
+                "depkult", "gorhoz", "cukb", "oati", "rosgvard"):
+        assert by_id[gid].get("auto") is False, gid
+
+
+def test_strict_no_fallback_on_empty_variant():
+    from misc.incident_tree_api import dispatch_for_leaf, get_leaf_by_code
+
+    graph = load_incident_graph()
+    leaf = get_leaf_by_code(graph, "1010101")
+    assert "mchs101_nd" not in (leaf.get("dispatch") or {})
+    assert "mchs101" in (leaf.get("dispatch") or {})
+    out = dispatch_for_leaf(graph, leaf, {"nd": True})
+    assert "mchs101" not in out  # пустое окошко НД = нет выезда, без fallback
+
+
+def test_informed_split():
+    from misc.incident_tree_api import (
+        dispatch_for_leaf, get_leaf_by_code, informed_for_leaf,
+        service_display_name,
+    )
+
+    graph = load_incident_graph()
+    leaf = get_leaf_by_code(graph, "1010101")
+    resp = dispatch_for_leaf(graph, leaf, {})
+    info = informed_for_leaf(graph, leaf, {})
+    assert set(resp) & set(info) == set()
+    assert "mchs101" in resp and "apperat" not in resp
+    assert "apperat" in info and "mchs101" not in info
+    names = [service_display_name(graph, gid) for gid in info]
+    assert "Аппарат МЭРА" in names
+
+
+def test_cascade_bpla_section():
+    graph = load_incident_graph()
+    step0 = get_tree_children(graph)
+    assert len(step0["buttons"]) == 24
+    bpla = next(b for b in step0["buttons"] if b["g"] == 24)
+    assert bpla["value"] == "БПЛА"
+    step1 = get_tree_children(graph, g=24)
+    assert "готовят к запуску, летит" in [b["value"] for b in step1["buttons"]]
+    leaf = get_tree_children(graph, g=24, p1="готовят к запуску, летит")
+    assert leaf["buttons"] == []
+    assert leaf["selectable"] == [{"code": "24010000", "result": "БПЛА"}]
+    crumbs = tree_path_for_code(graph, "24010000")
+    assert [c["value"] for c in crumbs] == ["БПЛА", "готовят к запуску, летит"]
+
+
+def test_cascade_duplicate_path_offers_both():
+    graph = load_incident_graph()
+    step = get_tree_children(
+        graph, g=24,
+        p1="летит, готовят к запуску,упал/ столкнулся, нет взрыва возгорания",
+        p2="Регион",
+    )
+    assert step["buttons"] == []
+    assert {s["code"] for s in step["selectable"]} == {"24120100", "24120200"}
+
+
+def test_cascade_new_sections():
+    graph = load_incident_graph()
+    gas = get_tree_children(graph, g=13, p1="Запах газа на улице", p2="Коллектор")
+    assert gas["selectable"] == [
+        {"code": "13010100", "result": "Запах бытового газа в коллекторе"}
+    ]
+    man = get_tree_children(graph, g=17, p1="Человек в опасности", p2="Человек лежит")
+    assert man["selectable"] == [{"code": "17010100", "result": "Лежит человек"}]

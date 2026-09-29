@@ -43,7 +43,7 @@ def test_generate_classifier_cards_shape():
             assert len(payload["classifier_path"]) >= 1
             assert payload["tags"]["attr1"]
             assert payload["incident_category"]
-            assert payload["classifier_section"]["g"] in range(1, 10)
+            assert payload["classifier_section"]["g"] in range(1, 25)
             for service in payload["services"]:
                 assert service in names, service
             assert payload["factors"]
@@ -104,3 +104,20 @@ def test_api_generate_publish_creates_scenario():
     assert data["expected"]["incident_category"] in (
         "fire", "police", "ambulance", "gas", "dth",
     )
+
+
+def test_informed_never_dispatched():
+    from misc.incident_tree_api import get_classifier
+
+    graph = load_incident_graph()
+    informed_names = {
+        (s["catalog"] or s["title"])
+        for s in get_classifier(graph)["services"]
+        if not s.get("auto")
+    }
+    assert "Аппарат МЭРА" in informed_names
+    for seed in range(100):
+        payload = generate_card(seed=seed)["payload"]
+        assert "services_informed" not in payload
+        for service in payload["services"]:
+            assert service not in informed_names, (seed, service)

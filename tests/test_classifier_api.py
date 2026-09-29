@@ -9,10 +9,10 @@ def test_sections():
     response = client.get("/api/classifier/sections")
     assert response.status_code == 200, response.text
     body = response.json()
-    assert len(body) == 23
+    assert len(body) == 24
     filled = [s for s in body if s["filled"]]
-    assert [s["g"] for s in filled] == [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    assert sum(s["leaf_count"] for s in body) == 509
+    assert [s["g"] for s in filled] == list(range(1, 25))
+    assert sum(s["leaf_count"] for s in body) == 1283
 
 
 def test_search_finds_classifier_result():
@@ -20,9 +20,10 @@ def test_search_finds_classifier_result():
     assert response.status_code == 200, response.text
     items = response.json()["items"]
     assert items
-    assert items[0]["code"] == "1010101"
-    assert items[0]["result"] == "пожар: мусор"
-    assert items[0]["path"] == ["на улице", "мусор", "открытое пламя"]
+    codes = [i["code"] for i in items]
+    assert "1010101" in codes
+    first = items[0]
+    assert "мусор" in (first["result"] + " " + " ".join(first["path"])).lower()
 
 
 def test_leaf_and_dispatch():
@@ -48,7 +49,7 @@ def test_unknown_code_404():
     assert client.get("/api/classifier/dispatch", params={"code": "0000000"}).status_code == 404
 
 
-def test_tree_roots_are_nine_sections():
+def test_tree_roots_are_all_sections():
     response = client.get("/api/classifier/tree")
     assert response.status_code == 200, response.text
     body = response.json()
@@ -56,14 +57,15 @@ def test_tree_roots_are_nine_sections():
     assert body["level_labels"] == {
         "section": "Раздел", "p1": "Место", "p2": "Что", "p3": "Проявление",
     }
-    assert len(body["roots"]) == 9
+    assert len(body["roots"]) == 24
     assert body["roots"][0]["title"] == "Пожары и задымления"
+    assert body["roots"][-1]["title"] == "БПЛА"
 
 
 def test_children_cascade():
     step0 = client.get("/api/classifier/children")
     assert step0.status_code == 200
-    assert len(step0.json()["buttons"]) == 9
+    assert len(step0.json()["buttons"]) == 24
 
     step1 = client.get("/api/classifier/children", params={"g": 1})
     assert step1.status_code == 200
@@ -94,3 +96,24 @@ def test_breadcrumb():
         "Пожары и задымления", "на улице", "мусор", "открытое пламя",
     ]
     assert client.get("/api/classifier/breadcrumb/0000000").status_code == 404
+
+
+def test_dispatch_returns_informed_blue():
+    response = client.get("/api/classifier/dispatch", params={"code": "1010101"})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["services"][0].startswith("Служба 101")
+    assert "Аппарат МЭРА" in body["informed"]
+    assert "Аппарат МЭРА" not in body["services"]
+    assert body["detail"]["mchs101"]["mode"] == "respond"
+    for gid, item in body["detail"].items():
+        if item["display"] == "Аппарат МЭРА":
+            assert item["mode"] == "informed"
+
+
+def test_dispatch_strict_nd():
+    plain = client.get("/api/classifier/dispatch", params={"code": "1010101"})
+    flagged = client.get("/api/classifier/dispatch", params={"code": "1010101", "nd": True})
+    assert flagged.status_code == 200
+    assert any(s.startswith("Служба 101") for s in plain.json()["services"])
+    assert not any(s.startswith("Служба 101") for s in flagged.json()["services"])

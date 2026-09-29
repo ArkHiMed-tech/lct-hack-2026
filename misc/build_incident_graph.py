@@ -213,6 +213,31 @@ FLAGS = {
 NO_RESPONSE = "нет реагирования"
 HIDDEN_P1 = "Не отображается оператору 112"
 
+# Маркер информирования: карточка-112 и семейство опечаток
+# (Карточка-122, Карточки-112, Картточка-112, карточка-113/121, пробелы).
+# Группа только с такими значениями = уведомляемая, не auto-выезд.
+MARKER_RE = r"^картт?очк[аи][\s\-]*\d*$"
+# Известные опечатки маркера вне regex (расширять явно, не эвристикой).
+MARKER_TYPOS = {"картчока-112"}
+
+# Явные исключения из правила auto (group_id -> auto).
+AUTO_OVERRIDES: dict[str, bool] = {}
+
+
+def _is_marker(value: str | None) -> bool:
+    import re
+
+    if value is None:
+        return False
+    text = str(value).strip().lower().replace("ё", "е").replace(" ", "")
+    return bool(re.match(MARKER_RE, text)) or text in MARKER_TYPOS
+
+
+def _is_no_response(value: str | None) -> bool:
+    if value is None:
+        return False
+    return str(value).strip().lower() == NO_RESPONSE
+
 # Связь корней операторского выбора (v1) с разделами классификатора.
 # Разделы 10-23 в xlsx пустые -> покрытие остаётся рукотворным (v1), root_map пуст.
 ROOT_MAP: dict[str, dict] = {
@@ -276,7 +301,7 @@ def parse_xlsx(path: Path):
     last_group: str | None = None
     for row in rows[3:]:
         code = row[4]
-        if code is None or len(str(code)) != 7:
+        if code is None or len(str(code)) not in (7, 8):
             continue
         group = _clean(row[5]) or last_group
         last_group = _clean(row[5]) or last_group
@@ -306,7 +331,7 @@ def parse_xlsx(path: Path):
 
 
 def build_tree(
-    sections: dict[int, str], leaves: list[dict]
+    titles: dict[int, str], leaves: list[dict]
 ) -> list[dict]:
     """Явное дерево навигации: раздел -> Место(p1) -> Что(p2) -> Проявление(p3).
 
@@ -315,17 +340,20 @@ def build_tree(
     (узел может быть одновременно выбираемым листом и родителем).
     """
     visible = [leaf for leaf in leaves if leaf.get("operator_visible")]
-    seen: set[tuple] = set()
+    seen: dict[tuple, list[str]] = {}
     for leaf in visible:
         key = (leaf["g"], tuple(leaf["path"]))
-        assert key not in seen, f"дублирующийся путь: {key}"
-        seen.add(key)
-
+        seen.setdefault(key, []).append(leaf["code"])
+    dups = {k: v for k, v in seen.items() if len(v) > 1}
+    for key, codes in dups.items():
+        # Реальная неоднозначность источника (напр. БПЛА/БВС Регион):
+        # узел хранит оба кода, выбор — кнопками «Выбрать».
+        print(f"  внимание: путь {key} -> несколько листьев {codes}")
     roots: dict[int, dict] = {}
     for leaf in sorted(visible, key=lambda x: x["code"]):
         g = leaf["g"]
         node = roots.setdefault(
-            g, {"g": g, "title": sections.get(g, ""), "children": [], "leaves": []}
+            g, {"g": g, "title": titles.get(g, ""), "children": [], "leaves": []}
         )
         for part in leaf["path"]:
             child = next(
@@ -341,6 +369,19 @@ def build_tree(
 
 def build_graph(sections: dict[int, str], leaves: list[dict], source: str) -> dict:
     service_ids = sorted({gid for _, gid, _ in SERVICE_COLUMNS.values()})
+    # auto-выезд: есть хоть одно неподтипное (не маркер, не «нет реагирования»)
+    # значение хоть в одной вариантной колонке; иначе группа уведомляемая.
+    auto_map: dict[str, bool] = {}
+    for gid in service_ids:
+        cols = [c for c, (_, g2, _) in SERVICE_COLUMNS.items() if g2 == gid]
+        hit = any(
+            (leaf.get("dispatch") or {}).get(SERVICE_COLUMNS[c][0])
+            and not _is_marker((leaf.get("dispatch") or {}).get(SERVICE_COLUMNS[c][0]))
+            and not _is_no_response((leaf.get("dispatch") or {}).get(SERVICE_COLUMNS[c][0]))
+            for leaf in leaves
+            for c in cols
+        )
+        auto_map[gid] = AUTO_OVERRIDES.get(gid, hit)
     services = []
     for gid in service_ids:
         cols = sorted(c for c, (_, g2, _) in SERVICE_COLUMNS.items() if g2 == gid)
@@ -350,19 +391,32 @@ def build_graph(sections: dict[int, str], leaves: list[dict], source: str) -> di
         ]
         title, catalog = SERVICE_META[gid]
         services.append(
-            {"id": gid, "title": title, "catalog": catalog, "columns": variants}
+            {"id": gid, "title": title, "catalog": catalog,
+             "auto": auto_map[gid], "columns": variants}
         )
 
     filled = sorted({leaf["g"] for leaf in leaves})
+    titles = dict(sections)
+    for gid in filled:
+        if gid not in titles:
+            groups = [
+                leaf["group"] for leaf in leaves
+                if leaf["g"] == gid and leaf.get("group")
+            ]
+            titles[gid] = max(set(groups), key=groups.count) if groups else str(gid)
     sections_out = [
-        {"g": num, "title": title, "filled": num in filled}
-        for num, title in sorted(sections.items())
+        {"g": num, "title": titles[num], "filled": num in filled}
+        for num in sorted(set(titles) | set(filled))
     ]
 
     # Старый рукотворный граф (root_children/type_meta/tag_sets/children/flow,
     # словарь «101>Улица>…») удалён: навигация строится только из xlsx.
+    # v4: строгая диспетчеризация (пустой вариант + флаг = нет выезда) +
+    # per-group auto (уведомляемые группы не выезжают автоматически).
+    # v5: покрытие всего классификатора (7- и 8-значные Номера, разделы 1-24
+    # включая БПЛА), расширенный маппинг категорий — в reports.py.
     return {
-        "version": 3,
+        "version": 5,
         "source": source,
         "classifier": {
             "sections": sections_out,
@@ -371,7 +425,7 @@ def build_graph(sections: dict[int, str], leaves: list[dict], source: str) -> di
             "leaf_count": len(leaves),
             "hidden_leaf_count": sum(1 for leaf in leaves if not leaf["operator_visible"]),
             "leaves": sorted(leaves, key=lambda leaf: leaf["code"]),
-            "tree": build_tree(sections, leaves),
+            "tree": build_tree(titles, leaves),
             "root_map": ROOT_MAP,
             "no_response_marker": NO_RESPONSE,
         },
