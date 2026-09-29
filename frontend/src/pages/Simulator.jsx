@@ -376,7 +376,7 @@ export default function Simulator() {
               <div className="arm-blackhead">Происшествие {groupCode}</div>
               <div className="arm-sumrow">{tagSummary}</div>
               <div className="arm-sumrow">Класс.: {categoryLabel(sc.category)}{form.what ? `: ${form.what}` : ''} ;</div>
-              <div className="arm-sumrow">[ВИС] Класс.:</div>
+              <div className="arm-sumrow">[ВИС] Класс.: {sc.expected?.vis_class ?? sc.vis_class ?? ''}</div>
             </div>
             <CallInfoPanel scenario={sc} status={status} callerKnown={false} />
           </section>

@@ -374,6 +374,112 @@ def informed_for_leaf(
     return _dispatch_core(graph, leaf, flags, auto=False)
 
 
+# Главная служба классификатора (кол. 12 xlsx) -> группа ВИС
+# (колонки «Классификатор ...» / сервисная группа графа).
+# Непокрытые/составные main без маппинга -> fallback на Итоговый тип.
+MAIN_TO_VIS_GID: dict[str, str] = {
+    "MCHS": "mchs101",
+    "Police": "mvd",
+    "AMBULANCE": "smp",
+    "MOSGAZ": "mosgaz",
+    "MOSLIFT": "moslift",
+    "AUTOROADS": "avtodor",
+    "MOSVODOCANAL": "vodokanal",
+    "METRO": "metro",
+    "OEK": "oek",
+    "MOSGORTRANS": "mostrans",
+    "MOESK": "moesk",
+    "MOEK": "moek",
+    "MZD": "rzd",
+    "MGTS": "mgts",
+    "MOSVODOSTOK": "vodostok",
+    "MOSCOLLECTOR": "moskollektor",
+    "GORMOST": "gormost",
+    "GKH": "gorhoz",
+    "ZODD": "codd",
+    "MSPPN": "msppn",
+    "DepEco": "dppios",
+    "ZEMP": "cemp",
+    "Dep.tszn": "tszn",
+    "МСР": "gupmsr",
+}
+
+# Маркер информирования «карточка-112» (+ известные опечатки): для ВИС-класса
+# считается пустым значением -> fallback на Итоговый тип.
+_VIS_MARKER_RE = r"^картт?очк[аи][\s\-]*\d*$"
+_VIS_MARKER_TYPOS = {"картчока-112"}
+
+
+def _vis_value_empty(value: str | None) -> bool:
+    import re
+
+    if value is None:
+        return True
+    text = str(value).strip()
+    if not text:
+        return True
+    norm = normalize_token(text)
+    if norm == NO_RESPONSE_MARKER:
+        return True
+    squashed = text.lower().replace("ё", "е").replace(" ", "")
+    return bool(re.match(_VIS_MARKER_RE, squashed)) or squashed in _VIS_MARKER_TYPOS
+
+
+def resolve_vis_gid(main: str | None) -> str | None:
+    """Группа ВИС по Главной службе; составные ('METRO, MZD') — по первому
+    известному токену. None — нет маппинга (fallback на Итоговый тип)."""
+    for token in str(main or "").replace(",", " ").split():
+        if token in MAIN_TO_VIS_GID:
+            return MAIN_TO_VIS_GID[token]
+    return None
+
+
+def vis_class_for_leaf(
+    graph: dict[str, Any] | None,
+    leaf: dict[str, Any],
+    flags: dict[str, bool] | None = None,
+) -> dict[str, Any]:
+    """ВИС класс листа: одно значение по Главной службе.
+
+    Строгая семантика вариантов как в _dispatch_core: стоят свои флаги
+    группы -> только вариантные ячейки (пустое окошко = нет значения);
+    своих флагов нет -> базовая ячейка. Пустое/маркер («нет реагирования»,
+    «карточка-112») -> fallback на Итоговый тип (leaf.result).
+
+    Возвращает {gid, value, is_fallback}.
+    """
+    g = graph or load_incident_graph()
+    flags = flags or {}
+    result = (leaf.get("result") or "").strip()
+    gid = resolve_vis_gid(leaf.get("main"))
+    if gid is None:
+        return {"gid": None, "value": result, "is_fallback": True}
+    columns = []
+    for meta in get_classifier(g).get("services", []):
+        if meta.get("id") == gid:
+            columns = meta.get("columns", []) or []
+            break
+    dispatch = leaf.get("dispatch", {}) or {}
+    own_flags = [c for c in columns if c.get("flag") and flags.get(c["flag"])]
+    chosen: str | None = None
+    if own_flags:
+        for col in own_flags:
+            val = dispatch.get(col["variant"])
+            if val and not _vis_value_empty(val):
+                chosen = val
+                break
+    else:
+        base_variant = next(
+            (c["variant"] for c in columns if not c.get("flag")), gid
+        )
+        val = dispatch.get(base_variant)
+        if val and not _vis_value_empty(val):
+            chosen = val
+    if chosen:
+        return {"gid": gid, "value": chosen, "is_fallback": False}
+    return {"gid": gid, "value": result, "is_fallback": True}
+
+
 def service_display_name(
     graph: dict[str, Any] | None, group_id: str
 ) -> str:

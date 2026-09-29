@@ -27,6 +27,7 @@ from misc.incident_tree_api import (
     informed_for_leaf,
     load_incident_graph,
     service_display_name,
+    vis_class_for_leaf,
 )
 
 _MISC_DIR = Path(__file__).resolve().parent
@@ -270,6 +271,7 @@ def generate_card(
         }
         disp = dispatch_for_leaf(graph, leaf, flags)
         inform = informed_for_leaf(graph, leaf, flags)
+        vis = vis_class_for_leaf(graph, leaf, flags)
         services = [service_display_name(graph, gid) for gid in disp]
         services_informed = [service_display_name(graph, gid) for gid in inform]
         if fias:
@@ -296,6 +298,7 @@ def generate_card(
         main_service = None
         classifier_section = None
         factors = []
+        vis = {"value": what, "is_fallback": True, "gid": None}
 
     victims_phrase = (
         "Пострадавших нет." if victims_val == "нет"
@@ -327,6 +330,8 @@ def generate_card(
         "classifier_section": classifier_section,
         "incident_category": incident_category,
         "main_service": main_service,
+        "vis_class": vis["value"],
+        "vis_class_fallback": vis["is_fallback"],
         "address": addr_str,
         "address_obj": address_obj,
         "address_src": addr_src,

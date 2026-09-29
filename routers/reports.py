@@ -136,6 +136,8 @@ def _build_scenario_from_report(report_id: int, row: dict, payload: dict) -> dic
             "classifier_code": payload.get("classifier_code"),
             "classifier_path": payload.get("classifier_path") or [],
             "main_service": payload.get("main_service"),
+            "vis_class": payload.get("vis_class"),
+            "vis_class_fallback": payload.get("vis_class_fallback", False),
             "expected_services": services,
             "address": address_obj if isinstance(address_obj, dict) and address_obj else {"raw": address_str},
             "address_str": address_str,

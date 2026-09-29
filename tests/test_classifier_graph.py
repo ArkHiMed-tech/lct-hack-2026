@@ -318,3 +318,71 @@ def test_cascade_new_sections():
     ]
     man = get_tree_children(graph, g=17, p1="Человек в опасности", p2="Человек лежит")
     assert man["selectable"] == [{"code": "17010100", "result": "Лежит человек"}]
+
+
+def test_vis_class_base_by_main_service():
+    from misc.incident_tree_api import get_leaf_by_code, vis_class_for_leaf
+
+    graph = load_incident_graph()
+    leaf = get_leaf_by_code(graph, "1010101")
+    vis = vis_class_for_leaf(graph, leaf, {})
+    assert vis == {"gid": "mchs101", "value": "пожар: мусор", "is_fallback": False}
+    leaf = get_leaf_by_code(graph, "13010100")
+    vis = vis_class_for_leaf(graph, leaf, {})
+    assert vis["gid"] == "mosgaz"
+    assert vis["value"] == "Запах газа в коллекторе"
+    assert vis["is_fallback"] is False
+
+
+def test_vis_class_flag_variant():
+    from misc.incident_tree_api import get_leaf_by_code, vis_class_for_leaf
+
+    graph = load_incident_graph()
+    leaf = get_leaf_by_code(graph, "1010101")
+    vis = vis_class_for_leaf(graph, leaf, {"victims": True})
+    # MCHS-лист: флаг victims чужой группы не влияет, остается base mchs101
+    assert vis["gid"] == "mchs101"
+    mvd_leaf = next(
+        leaf for leaf in classifier_leaves(graph)
+        if leaf.get("main") == "Police" and leaf["dispatch"].get("mvd_viol")
+    )
+    base = vis_class_for_leaf(graph, mvd_leaf, {})
+    flagged = vis_class_for_leaf(graph, mvd_leaf, {"violation": True})
+    assert flagged["gid"] == "mvd"
+    assert flagged["value"] == mvd_leaf["dispatch"]["mvd_viol"]
+    assert flagged["is_fallback"] is False
+    assert base["gid"] == "mvd"
+
+
+def test_vis_class_fallback_to_result():
+    from misc.incident_tree_api import get_leaf_by_code, vis_class_for_leaf
+
+    graph = load_incident_graph()
+    # Пустое окошко варианта (smp_vict_absent отсутствует у листа) -> Итоговый тип
+    leaf = get_leaf_by_code(graph, "12080900")
+    assert leaf.get("main") == "AMBULANCE"
+    vis = vis_class_for_leaf(graph, leaf, {"victims_absent": True})
+    assert vis["gid"] == "smp"
+    assert vis["value"] == (leaf["result"] or "").strip()
+    assert vis["is_fallback"] is True
+    # Пустое окошко собственного варианта (mchs101_nd отсутствует) -> Итоговый тип
+    leaf = get_leaf_by_code(graph, "1010101")
+    vis = vis_class_for_leaf(graph, leaf, {"nd": True})
+    assert vis["gid"] == "mchs101"
+    assert vis["value"] == (leaf["result"] or "").strip()
+    assert vis["is_fallback"] is True
+    # main без маппинга -> Итоговый тип
+    orphan = dict(get_leaf_by_code(graph, "1010101"))
+    orphan["main"] = "UNKNOWN_SVC"
+    vis = vis_class_for_leaf(graph, orphan, {})
+    assert vis == {"gid": None, "value": orphan["result"], "is_fallback": True}
+
+
+def test_generated_payload_has_vis_class():
+    graph = load_incident_graph()
+    codes = {leaf["code"] for leaf in classifier_leaves(graph)}
+    for seed in range(20):
+        payload = generate_card(seed=seed)["payload"]
+        assert payload["vis_class"], seed
+        if payload.get("classifier_code"):
+            assert payload["classifier_code"] in codes

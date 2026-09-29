@@ -64,6 +64,7 @@ export default function Card112() {
   const [tagDesc, setTagDesc] = useState(''); // уточнение ТЭГа
   const [autoServices, setAutoServices] = useState([]); // диспетчеризация листа
   const [autoInformed, setAutoInformed] = useState([]); // уведомляемые (синие плашки)
+  const [visClass, setVisClass] = useState(null); // ВИС класс: {value, is_fallback, gid}
   const [refusal103, setRefusal103] = useState(false); // Отказ от реагирования (103)
   const [formError, setFormError] = useState('');
   const [manualServices, setManualServices] = useState([]);
@@ -159,6 +160,26 @@ export default function Card112() {
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [selectedLeaf, flags, victims, fiasWarn]);
+
+  // ВИС класс выбранного листа по Главной службе (бэкенд считает по графу,
+  // fallback — Итоговый тип). Пересчет при смене листа/флагов/пострадавших.
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedLeaf) { setVisClass(null); return () => { cancelled = true; }; }
+    const params = new URLSearchParams({ code: selectedLeaf.code });
+    if (flags.no_access) params.set('nd', 'true');
+    if (flags.threat) { params.set('threat', 'true'); params.set('ul', 'true'); }
+    if (flags.violation) params.set('violation', 'true');
+    if (flags.medical) params.set('medical', 'true');
+    if (flags.evac) params.set('evac', 'true');
+    if (flags.gas) params.set('gas', 'true');
+    if (victims !== 'Нет') { params.set('victims', 'true'); params.set('pp', 'true'); }
+    fetch(`/api/classifier/vis-class?${params}`).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))).then((data) => {
+      if (cancelled) return;
+      if (data && typeof data.vis_class === 'string') setVisClass({ value: data.vis_class, is_fallback: !!data.is_fallback, gid: data.gid ?? null });
+    }).catch(() => { if (!cancelled) setVisClass({ value: selectedLeaf.result, is_fallback: true, gid: null }); });
+    return () => { cancelled = true; };
+  }, [selectedLeaf, flags, victims]);
 
   const startedAtRef = useRef(Date.now());
   const typeListRef = useRef(null);
@@ -305,7 +326,7 @@ export default function Card112() {
     setFlags({ ...EMPTY_FLAGS }); setManualServices([]); setExcludedServices([]);
   };
   const clearIncident = () => {
-    setSelectedLeaf(null); setInfoType(''); setCascadePath([]); setQuery('');
+    setSelectedLeaf(null); setInfoType(''); setCascadePath([]); setQuery(''); setVisClass(null);
     setFlags({ ...EMPTY_FLAGS }); setTagDesc(''); setManualServices([]); setExcludedServices([]); setAutoServices([]); setAutoInformed([]);
   };
   const resetAll = () => {
@@ -436,6 +457,8 @@ export default function Card112() {
       classifier_section: selectedLeaf ? selectedLeaf.section : null,
       incident_category: selectedLeaf ? (selectedLeaf.group || '') : '',
       main_service: selectedLeaf ? (selectedLeaf.main || null) : null,
+      vis_class: selectedLeaf ? (visClass?.value ?? selectedLeaf.result) : null,
+      vis_class_fallback: selectedLeaf ? !!visClass?.is_fallback : false,
       address: addrStr, address_obj: addr,
       address_src: addrSrc, phones, phone_foreign: foreignNum, channel, caller_name: applicant,
       caller_status: appStatus, caller_foreign_lang: foreignLang, external_system: EXTERNAL_SYSTEM,
@@ -722,6 +745,7 @@ export default function Card112() {
                       <div className="arm-blackhead" title="Итоговый тип происшествия по классификатору">№{selectedLeaf.code} <span onClick={clearIncident}>×</span></div>
                       <div className="arm-selectedwhat">{selectedLeaf.result}</div>
                       <div className="arm-hint">Путь: {(selectedLeaf.path || []).join(' → ') || '—'}</div>
+                      <div className="arm-hint" title={visClass?.gid ? `ВИС-класс группы ${visClass.gid} по Главной службе ${selectedLeaf.main}` : 'Нет маппинга Главной службы — показан Итоговый тип'}>ВИС класс: {visClass ? (<><b>{visClass.value}</b>{visClass.is_fallback && <span style={{ opacity: 0.6 }}> (Итоговый тип)</span>}</>) : '…'}</div>
                       <div className="arm-tagpanel">
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2px 12px' }}>
                         {FLAG_DEFS.map(({ key, label }) => (

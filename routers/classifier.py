@@ -15,9 +15,11 @@ from misc.incident_tree_api import (
     get_tree_children,
     informed_for_leaf,
     load_incident_graph,
+    resolve_vis_gid,
     search_leaves,
     service_display_name,
     tree_path_for_code,
+    vis_class_for_leaf,
 )
 
 router = APIRouter(prefix="/api/classifier", tags=["classifier"])
@@ -143,6 +145,55 @@ async def dispatch(
                   "mode": "informed"}
             for gid, value in inform.items()
         },
+    }
+
+
+@router.get("/vis-class")
+async def vis_class(
+    code: str = Query(...),
+    nd: bool = False,
+    ul: bool = False,
+    pp: bool = False,
+    violation: bool = False,
+    victims: bool = False,
+    victims_absent: bool = False,
+    gas: bool = False,
+    threat: bool = False,
+    medical: bool = False,
+    evac: bool = False,
+    crowd: bool = False,
+    block: bool = False,
+    tunnel: bool = False,
+    pesh: bool = False,
+    av: bool = False,
+    sites: bool = False,
+    stroyka: bool = False,
+):
+    """ВИС класс листа: одно значение по Главной службе.
+
+    Пустая/маркерная ячейка своей группы, отсутствие маппинга main —
+    fallback на Итоговый тип (is_fallback=True).
+    """
+    graph = load_incident_graph()
+    leaf = get_leaf_by_code(graph, code)
+    if leaf is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Leaf not found"
+        )
+    flags = {
+        "nd": nd, "ul": ul, "pp": pp, "violation": violation,
+        "victims": victims, "victims_absent": victims_absent, "gas": gas,
+        "threat": threat, "medical": medical, "evac": evac, "crowd": crowd,
+        "block": block, "tunnel": tunnel, "pesh": pesh, "av": av,
+        "sites": sites, "stroyka": stroyka,
+    }
+    vis = vis_class_for_leaf(graph, leaf, flags)
+    return {
+        "code": leaf["code"],
+        "main": leaf.get("main"),
+        "gid": vis["gid"],
+        "vis_class": vis["value"],
+        "is_fallback": vis["is_fallback"],
     }
 
 
