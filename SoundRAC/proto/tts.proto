@@ -1,0 +1,20 @@
+syntax = "proto3";
+package tts;
+
+service TTSService {
+  // Текст → стриминг аудио
+  rpc Synthesize(SynthesisRequest) returns (stream AudioChunk);
+}
+
+message SynthesisRequest {
+  string text = 1;
+  string speaker = 2;      // "aidar", "baya", "xenia" и т.д.
+  int32 sample_rate = 3;   // 24000 (Silero native)
+  string session_id = 4;
+}
+
+message AudioChunk {
+  bytes data = 1;          // PCM 24kHz 16bit mono
+  int32 sample_rate = 2;
+  bool is_last = 3;
+}

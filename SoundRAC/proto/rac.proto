@@ -1,0 +1,18 @@
+syntax = "proto3";
+package rac;
+
+service RACService {
+  // Синхронный запрос (быстрый, < 50 мс)
+  rpc Process(DialogRequest) returns (DialogResponse);
+}
+
+message DialogRequest {
+  string text = 1;
+  string session_id = 2;
+}
+
+message DialogResponse {
+  string answer = 1;
+  float confidence = 2;    // Cosine similarity score
+  string matched_question = 3;
+}

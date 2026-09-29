@@ -1,0 +1,19 @@
+syntax = "proto3";
+package asr;
+
+service ASRService {
+  // Стриминг аудио → стриминг текста
+  rpc StreamRecognize(stream AudioChunk) returns (stream Transcript);
+}
+
+message AudioChunk {
+  bytes data = 1;          // PCM 16kHz 16bit mono
+  int32 sample_rate = 2;   // 16000
+  string session_id = 3;
+}
+
+message Transcript {
+  string text = 1;
+  bool is_final = 2;       // true = финальная фраза (после паузы VAD)
+  float confidence = 3;
+}

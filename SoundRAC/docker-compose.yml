@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  orchestrator:
+    build: ./orchestrator
+    ports:
+      - "8000:8000"
+    environment:
+      - ASR_HOST=asr_service
+      - RAC_HOST=rac_service
+      - TTS_HOST=tts_service
+    depends_on:
+      - asr_service
+      - rac_service
+      - tts_service
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+
+  asr_service:
+    build: ./asr_service
+    expose:
+      - "50051"
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+
+  rac_service:
+    build: ./rac_service
+    expose:
+      - "50052"
+    volumes:
+      - ./rac_service/knowledge_base.index:/app/knowledge_base.index
+      - ./rac_service/knowledge_base.json:/app/knowledge_base.json
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1.5G
+
+  tts_service:
+    build: ./tts_service
+    expose:
+      - "50053"
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+
+  client:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./client:/usr/share/nginx/html:ro
