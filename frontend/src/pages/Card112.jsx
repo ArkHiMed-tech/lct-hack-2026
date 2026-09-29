@@ -6,6 +6,7 @@ import SideNav from '../components/SideNav';
 import {
   CHANNELS,
   FLAG_DEFS,
+  FLAG_SERVICE,
   EMPTY_FLAGS,
   MAIN_SVC_GROUP,
   CASCADE_LEVELS,
@@ -16,7 +17,7 @@ import {
   cascadePathForLeaf,
 } from '../lib/incidentClassifier';
 import { INFO_TYPES } from '../lib/tagVisibility';
-import { SERVICE_CATALOG, SVC_103, serviceShortName, isMainService } from '../lib/serviceCatalog';
+import { SERVICE_CATALOG, serviceShortName, isMainService } from '../lib/serviceCatalog';
 
 // Таймер: отсчет с открытия до «Сохранить» для отчетов (норматив — только для скоринга тренажера).
 const CARD_SLA_SEC = 75;
@@ -30,6 +31,8 @@ const ADDR_SUGGEST = [
   { label: 'Москва, Манежная площадь, 1, стр. 2', src: 'Яндекс.Организации', warn: 'организации иногда теряют дом — проверьте', okrug: 'ЦАО', rayon: 'Тверской район', street: 'Манежная площадь', house: '1', corpus: '', stroenie: '2' },
   { label: 'Москва, Тверская улица, 7 (ФИАС)', src: 'ФИАС', fias: true, okrug: 'ЦАО', rayon: 'Тверской район', street: 'Тверская улица', house: '7', corpus: '', stroenie: '' },
 ];
+// Страна и город фиксированы: все происшествия — Россия, Москва.
+const FIXED_ADDR = { country: 'Россия', subject: 'Москва', settlement: 'Москва' };
 const SOCIAL_OBJECTS = [
   { name: 'Школа № 91', dist: 35 },
   { name: 'Станция метро "Александровский сад"', dist: 120 },
@@ -61,11 +64,13 @@ export default function Card112() {
   const [selectedLeaf, setSelectedLeaf] = useState(null); // {code,result,path,group,section,main}
   const [infoType, setInfoType] = useState(''); // инфо-тип без выезда (вне классификатора)
   const [flags, setFlags] = useState({ ...EMPTY_FLAGS }); // флаги ТЭГов классификатора
+  const [flagAdded, setFlagAdded] = useState({}); // provenance: {флаг: служба}, добавленная именно флагом
+  const flagSnapshots = useRef({}); // {флаг: службы на момент включения} — для уборки диспетчеризованных при выключении
+  const userAddedRef = useRef(new Set()); // службы, явно добавленные вручную (меню/+ВИС) — флагами не убираются
   const [tagDesc, setTagDesc] = useState(''); // уточнение ТЭГа
   const [autoServices, setAutoServices] = useState([]); // диспетчеризация листа
   const [autoInformed, setAutoInformed] = useState([]); // уведомляемые (синие плашки)
   const [visClass, setVisClass] = useState(null); // ВИС класс: {value, is_fallback, gid}
-  const [refusal103, setRefusal103] = useState(false); // Отказ от реагирования (103)
   const [formError, setFormError] = useState('');
   const [manualServices, setManualServices] = useState([]);
   const [excludedServices, setExcludedServices] = useState([]);
@@ -80,10 +85,9 @@ export default function Card112() {
   const [mapOpen, setMapOpen] = useState(false);
   const [coords, setCoords] = useState({ lat: '', lng: '' });
   const [mapRadius, setMapRadius] = useState(200);
-  const [addr, setAddr] = useState({ country: 'Россия', subject: 'Москва', settlement: 'Москва', object: '', okrug: '', rayon: '', street: '', house: '', corpus: '', stroenie: '', flat: '', entrance: '', floor: '', code: '', descr: '' });
+  const [addr, setAddr] = useState({ ...FIXED_ADDR, object: '', okrug: '', rayon: '', street: '', house: '', corpus: '', stroenie: '', flat: '', entrance: '', floor: '', code: '', descr: '' });
   // Телефоны
   const [phones, setPhones] = useState({ aon: '', provided: '', onsite: '' });
-  const [foreignNum, setForeignNum] = useState(false);
   const [channel, setChannel] = useState('');
   const [subscriberOpen, setSubscriberOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
@@ -92,7 +96,6 @@ export default function Card112() {
   // Заявитель
   const [applicant, setApplicant] = useState('');
   const [appStatus, setAppStatus] = useState('');
-  const [foreignLang, setForeignLang] = useState(false);
   // Нет контакта / срыв + пострадавшие
   const [emptyModal, setEmptyModal] = useState(null); // 'nocontact' | 'break'
   const [victims, setVictims] = useState('Нет');
@@ -232,10 +235,20 @@ export default function Card112() {
 
   const svcGroup = selectedLeaf ? (MAIN_SVC_GROUP[selectedLeaf.main] ?? '') : '';
 
-  const services = useMemo(
-    () => [...new Set([...autoServices.filter((s) => !excludedServices.includes(s)), ...manualServices.filter((s) => !excludedServices.includes(s))])],
-    [autoServices, manualServices, excludedServices],
-  );
+  // Стабильный порядок плашек: first-seen order, новички — в конец.
+  // Пересборка auto+manual при смене флагов порядок показанных не меняет.
+  const svcOrderRef = useRef([]);
+  const services = useMemo(() => {
+    const present = new Set(
+      [...autoServices, ...manualServices].filter((s) => !excludedServices.includes(s)),
+    );
+    const order = svcOrderRef.current.filter((s) => present.has(s));
+    for (const s of [...autoServices, ...manualServices]) {
+      if (present.has(s) && !order.includes(s)) order.push(s);
+    }
+    svcOrderRef.current = order;
+    return [...order];
+  }, [autoServices, manualServices, excludedServices]);
 
   // Уведомляемые службы — синие плашки (голубой = уведомлены, не выезд).
   const informed = useMemo(
@@ -318,20 +331,20 @@ export default function Card112() {
     setSelectedLeaf(leaf); setInfoType('');
     setCascadePath(cascadePathForLeaf(leaf));
     setQuery(leaf.section?.title || ''); setListOpen(false); setFormError(''); setSavedScenarioId(null);
-    setFlags({ ...EMPTY_FLAGS }); setManualServices([]); setExcludedServices([]);
+    setFlags({ ...EMPTY_FLAGS }); setManualServices([]); setExcludedServices([]); setFlagAdded({}); flagSnapshots.current = {}; userAddedRef.current = new Set();
   };
   const pickInfo = (title) => {
-    setInfoType(title); setSelectedLeaf(null); setAutoServices([]); setAutoInformed([]);
+    setInfoType(title); setSelectedLeaf(null); setAutoServices([]); setAutoInformed([]); setFlagAdded({}); flagSnapshots.current = {}; userAddedRef.current = new Set();
     setQuery(''); setListOpen(false); setFormError(''); setSavedScenarioId(null);
     setFlags({ ...EMPTY_FLAGS }); setManualServices([]); setExcludedServices([]);
   };
   const clearIncident = () => {
-    setSelectedLeaf(null); setInfoType(''); setCascadePath([]); setQuery(''); setVisClass(null);
+    setSelectedLeaf(null); setInfoType(''); setCascadePath([]); setQuery(''); setVisClass(null); setFlagAdded({}); flagSnapshots.current = {}; userAddedRef.current = new Set();
     setFlags({ ...EMPTY_FLAGS }); setTagDesc(''); setManualServices([]); setExcludedServices([]); setAutoServices([]); setAutoInformed([]);
   };
   const resetAll = () => {
     clearIncident();
-    setQuery(''); setRefusal103(false); setVictims('Нет'); setVictimsCount(''); setDesc(''); setSaved(false); setOtrab([]);
+    setQuery(''); setVictims('Нет'); setVictimsCount(''); setDesc(''); setSaved(false); setOtrab([]);
     setApplicant(''); setAppStatus(''); setPhones({ aon: '', provided: '', onsite: '' }); setAddrQuery('');
     setAddr((a) => ({ ...a, okrug: '', rayon: '', street: '', house: '', corpus: '', stroenie: '', flat: '', entrance: '', floor: '', code: '', descr: '' }));
     setFiasWarn(false); setAddrSrc('');
@@ -352,25 +365,44 @@ export default function Card112() {
       setQuery(p.what || '');
     }
     const pt = p.tags || {};
-    setFlags({
+    const genFlags = {
       no_access: !!pt.no_access, threat: !!pt.threat, violation: !!pt.violation,
       medical: !!pt.medical, evac: !!pt.evac, gas: !!pt.gas,
-    });
+    };
+    setFlags(genFlags);
+    // Снапшоты = службы генератора (были до флагов): снятие флага уберёт
+    // только накопленное диспетчеризацией, базовое вернёт свежий autoServices.
+    const snaps = {};
+    for (const k of Object.keys(genFlags)) if (genFlags[k]) snaps[k] = [...(p.services || [])];
+    flagSnapshots.current = snaps;
     setTagDesc(pt.tagDesc || '');
     // Службы генератора — как ручные: диспетчеризация листа их и так подтянет.
     setManualServices([]);
     setExcludedServices([]);
-    if (p.address_obj) setAddr((a) => ({ ...a, ...p.address_obj }));
+    // Гарантии флагов как при ручном нажатии: службы FLAG_SERVICE активных
+    // флагов, которых нет в службах генератора (пустые ячейки xlsx иначе
+    // ничего не добавят). Первый флаг забирает общий сервис в provenance.
+    {
+      const seen = new Set(p.services || []);
+      const add = [];
+      const fa = {};
+      for (const k of Object.keys(genFlags)) {
+        const gs = genFlags[k] && FLAG_SERVICE[k];
+        if (!gs || seen.has(gs)) continue;
+        seen.add(gs); add.push(gs); fa[k] = gs;
+      }
+      if (add.length) setManualServices((prev) => [...new Set([...prev, ...add])]);
+      setFlagAdded(fa);
+    }
+    if (p.address_obj) setAddr((a) => ({ ...a, ...p.address_obj, ...FIXED_ADDR }));
     setAddrQuery(p.address || '');
     setAddrSrc(p.address_src || '');
     setFiasWarn(p.address_src === 'ФИАС');
     setPhones({ aon: p.phones?.aon || '', provided: '', onsite: '' });
     if (p.channel) setChannel(p.channel);
     else if (p.phones?.aon) { const ch = autoChannel(p.phones.aon); if (ch) setChannel(ch); }
-    setForeignNum(!!p.phone_foreign);
     setApplicant(p.caller_name || '');
     setAppStatus(p.caller_status || '');
-    setForeignLang(!!p.caller_foreign_lang);
     if (p.victims && p.victims !== 'нет') { setVictims('Есть'); setVictimsCount(String(p.victims)); }
     setDesc(p.description || '');
     setSaved(false); setSavedScenarioId(null); setFormError('');
@@ -397,6 +429,51 @@ export default function Card112() {
 
   const setFlag = (key, v) => {
     setFlags((f) => ({ ...f, [key]: v })); setFormError('');
+    const svc = FLAG_SERVICE[key];
+    if (v) {
+      // Снапшот служб до включения: всё, что появится из диспетчеризации
+      // после (ОДС ПСЦ и т.п.), снимется при выключении флага.
+      flagSnapshots.current = { ...flagSnapshots.current, [key]: [...services] };
+      if (!svc) return;
+      // Включение: гарантированно добавляем службу флага, если её ещё нет.
+      // Была до флага — не записываем в provenance, снятие её не уберёт.
+      if (!services.includes(svc)) {
+        addService(svc, false, true);
+        setFlagAdded((p) => ({ ...p, [key]: svc }));
+      }
+      return;
+    }
+    // Выключение гарантированной службы флага.
+    if (svc && flagAdded[key]) {
+      // Убираем только добавленную флагом; исключения не трогаем,
+      // чтобы не блокировать бэкенд-диспетчеризацию. Если тот же сервис держит
+      // другой включённый флаг — передаём ему provenance вместо удаления.
+      const added = flagAdded[key];
+      const keeper = Object.keys(FLAG_SERVICE).find((k) => k !== key && flags[k] && FLAG_SERVICE[k] === added);
+      if (keeper) {
+        setFlagAdded((p) => { const n = { ...p }; delete n[key]; n[keeper] = added; return n; });
+      } else {
+        setManualServices((p) => p.filter((x) => x !== added));
+        setFlagAdded((p) => { const n = { ...p }; delete n[key]; return n; });
+      }
+    }
+    // Выключение: убираем из ручных всё, чего не было на момент включения
+    // (накопления диспетчеризации), кроме защищённого: ручные добавления,
+    // гарантии других включённых флагов и их снапшоты. Свежий autoServices
+    // (без флага) сам вернёт обоснованное классификатором.
+    const snap = flagSnapshots.current[key];
+    if (snap) {
+      const keep = new Set(snap);
+      for (const x of userAddedRef.current) keep.add(x);
+      for (const [k, gs] of Object.entries(FLAG_SERVICE)) {
+        if (k !== key && flags[k]) keep.add(gs);
+      }
+      for (const [k, s] of Object.entries(flagSnapshots.current)) {
+        if (k !== key && flags[k]) for (const x of s) keep.add(x);
+      }
+      setManualServices((p) => p.filter((x) => keep.has(x)));
+      const n = { ...flagSnapshots.current }; delete n[key]; flagSnapshots.current = n;
+    }
   };
 
   const validate = () => {
@@ -406,9 +483,10 @@ export default function Card112() {
     return '';
   };
 
-  const addService = (s, viaVis = false) => {
+  const addService = (s, viaVis = false, byFlag = false) => {
     setExcludedServices((p) => p.filter((x) => x !== s));
     setManualServices((p) => (p.includes(s) ? p : [...p, s]));
+    if (!byFlag) userAddedRef.current.add(s);
     if (viaVis) setVisServices((p) => (p.includes(s) ? p : [...p, s]));
     setSvcMenuOpen(false); setSvcSearch('');
   };
@@ -460,9 +538,9 @@ export default function Card112() {
       vis_class: selectedLeaf ? (visClass?.value ?? selectedLeaf.result) : null,
       vis_class_fallback: selectedLeaf ? !!visClass?.is_fallback : false,
       address: addrStr, address_obj: addr,
-      address_src: addrSrc, phones, phone_foreign: foreignNum, channel, caller_name: applicant,
-      caller_status: appStatus, caller_foreign_lang: foreignLang, external_system: EXTERNAL_SYSTEM,
-      victims: victims === 'Есть' ? victimsCount || '1' : 'нет', refusal103,
+      address_src: addrSrc, phones, channel, caller_name: applicant,
+      caller_status: appStatus, external_system: EXTERNAL_SYSTEM,
+      victims: victims === 'Есть' ? victimsCount || '1' : 'нет',
       factors: selectedLeaf ? leafFactors(selectedLeaf, flags, tagDesc) : (tagDesc ? [tagDesc] : []),
       tags, services: finalServices, services_informed: finalInformed, services_manual: manualServices.filter((s) => !excludedServices.includes(s)),
       services_vis: visServices, description: desc, elapsed_sec: elapsedSec, overtime, empty: asEmpty ? emptyModal : null, links,
@@ -571,9 +649,6 @@ export default function Card112() {
                 <input ref={refs.ch} list="channels" value={channel} onChange={(e) => setChannel(e.target.value)} placeholder="поиск по списку" style={{ minWidth: 140 }} />
                 <datalist id="channels">{CHANNELS.map((c) => <option key={c} value={c} />)}</datalist>
               </label>
-              <label style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <input type="checkbox" checked={foreignNum} onChange={(e) => setForeignNum(e.target.checked)} style={{ minWidth: 0 }} /> зарубежный номер (не +7)
-              </label>
               {channel && <span className="arm-typechip">канал: {channel} {autoChannel(phones.aon) === channel ? '(авто)' : ''}</span>}
               {subscriberOpen && <span className="arm-typechip">Данные абонента: ФИО/ДР/адрес от оператора связи (мок)</span>}
               {recordsOpen && <span className="arm-typechip">Записей не найдено · плеер мм:сс · скачать (мок)</span>}
@@ -596,9 +671,6 @@ export default function Card112() {
                   <option value="">—</option>
                   {APPLICANT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
-              </label>
-              <label style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} title="Признак вызова на иностранном языке">
-                <input type="checkbox" checked={foreignLang} onChange={(e) => setForeignLang(e.target.checked)} style={{ minWidth: 0 }} /> 🌐 иностранный язык
               </label>
               <span className="arm-typechip" title="Источник карточки">{EXTERNAL_SYSTEM}</span>
               <span style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
@@ -630,9 +702,9 @@ export default function Card112() {
                 </div>
                 {addrSrc && <div className="arm-hint">Источник: {addrSrc}{fiasWarn ? ' — службы добавьте вручную' : ''}</div>}
                 <div className="arm-grid3">
-                  <label>Страна:<input value={addr.country} onChange={setA('country')} /></label>
-                  <label>Субъект:<input value={addr.subject} onChange={setA('subject')} /></label>
-                  <label>Населенный пункт:<input value={addr.settlement} onChange={setA('settlement')} /></label>
+                  <label>Страна:<input value={FIXED_ADDR.country} readOnly disabled title="Всегда Россия" /></label>
+                  <label>Субъект:<input value={FIXED_ADDR.subject} readOnly disabled title="Всегда Москва" /></label>
+                  <label>Населенный пункт:<input value={FIXED_ADDR.settlement} readOnly disabled title="Всегда Москва" /></label>
                 </div>
                 <div className="arm-grid3">
                   <label>Объект:<input value={addr.object} onChange={setA('object')} /></label>
@@ -734,11 +806,6 @@ export default function Card112() {
                   )}
                   {/* Плашки каскада выше; здесь результат выбора и флаги. */}
                   <div className="arm-hint">Тип выбирается из классификатора (Итоговый тип + путь признаков). Совпадение кнопки «Совпадение»: {matchBy}.</div>
-                  {services.includes(SVC_103) && (
-                    <label style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 8 }}>
-                      <input type="checkbox" checked={refusal103} onChange={(e) => setRefusal103(e.target.checked)} /> Отказ от реагирования (103)
-                    </label>
-                  )}
                   {selectedLeaf && (
                     <>
                       <div className="arm-typechip">{selectedLeaf.group} · раздел {selectedLeaf.section?.g} «{selectedLeaf.section?.title}»{selectedLeaf.main ? ` · главная: ${selectedLeaf.main}` : ''}</div>

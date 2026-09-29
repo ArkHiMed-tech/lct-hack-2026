@@ -5,7 +5,7 @@
 // Полный индекс листьев грузится с /api/classifier/leaves, здесь —
 // локальный поиск, флаги ТЭГов и мелкие справочники.
 import {
-  SVC_101, SVC_102, SVC_103,
+  SVC_101, SVC_102, SVC_103, SVC_104, SVC_CEMP,
 } from './serviceCatalog';
 
 // Инфо-типы без выезда (в классификаторе отсутствуют, разделы 10-23 пустые).
@@ -25,6 +25,17 @@ export const FLAG_DEFS = [
   { key: 'gas', label: 'Газификация' },
 ];
 export const EMPTY_FLAGS = { no_access: false, threat: false, violation: false, medical: false, evac: false, gas: false };
+
+// Гарантированная служба флага панели: при включении флага добавляется,
+// если её ещё нет (независимо от вариантных ячеек xlsx).
+export const FLAG_SERVICE = {
+  no_access: SVC_101,
+  threat: SVC_CEMP,
+  violation: SVC_102,
+  medical: SVC_103,
+  evac: SVC_CEMP,
+  gas: SVC_104,
+};
 
 // Главная служба классификатора -> группа для подсветки основной службы.
 export const MAIN_SVC_GROUP = { MCHS: '101', Police: '102', AMBULANCE: '103', MOSGAZ: '104' };

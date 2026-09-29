@@ -231,18 +231,11 @@ def generate_card(
     }
 
     caller_cfg = card["caller"]
-    if rng.random() < float(caller_cfg.get("foreign_number_probability", 0.0)):
-        aon = f"+{rng.randint(370, 999)} {rng.randint(100000, 999999)}"
-        foreign_num = True
-    else:
-        aon = _phone(rng, _pick(rng, caller_cfg["aon_prefixes"]))
-        foreign_num = False
+    # Только российские номера +7: иностранных номеров и языка нет.
+    aon = _phone(rng, _pick(rng, caller_cfg["aon_prefixes"]))
     caller_name = ov.get("caller_name") or _pick(rng, caller_cfg["names"])
     caller_status = ov.get("caller_status") or _pick(rng, caller_cfg["statuses"])
     channel = ov.get("channel") or _pick(rng, caller_cfg["channels"])
-    foreign_lang = bool(
-        rng.random() < float(caller_cfg.get("foreign_lang_probability", 0.0))
-    )
 
     v_cfg = card["victims"]
     if ov.get("victims"):
@@ -336,14 +329,11 @@ def generate_card(
         "address_obj": address_obj,
         "address_src": addr_src,
         "phones": {"aon": aon, "provided": "", "onsite": ""},
-        "phone_foreign": foreign_num,
         "channel": channel,
         "caller_name": caller_name,
         "caller_status": caller_status,
-        "caller_foreign_lang": foreign_lang,
         "external_system": "Интеграция ВИС (мок)",
         "victims": victims_val,
-        "refusal103": False,
         "factors": factors,
         "tags": tags,
         "services": services,
