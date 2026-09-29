@@ -1,6 +1,8 @@
 services:
   orchestrator:
-    build: ./orchestrator
+    build:
+      context: .
+      dockerfile: orchestrator/Dockerfile
     ports:
       - "8000:8000"
     environment:
@@ -18,9 +20,13 @@ services:
           memory: 1G
 
   asr_service:
-    build: ./asr_service
+    build:
+      context: .
+      dockerfile: asr_service/Dockerfile
     expose:
       - "50051"
+    volumes:
+      - ~/.cache/torch:/root/.cache/torch
     deploy:
       resources:
         limits:
@@ -28,12 +34,15 @@ services:
           memory: 1G
 
   rac_service:
-    build: ./rac_service
+    build:
+      context: .
+      dockerfile: rac_service/Dockerfile
     expose:
       - "50052"
     volumes:
       - ./rac_service/knowledge_base.index:/app/knowledge_base.index
-      - ./rac_service/knowledge_base.json:/app/knowledge_base.json
+      - ./rac_service/knowledge_base_processed.json:/app/knowledge_base.json
+      - ~/.cache/torch:/root/.cache/torch
     deploy:
       resources:
         limits:
@@ -41,9 +50,13 @@ services:
           memory: 1.5G
 
   tts_service:
-    build: ./tts_service
+    build:
+      context: .
+      dockerfile: tts_service/Dockerfile
     expose:
       - "50053"
+    volumes:
+      - ~/.cache/torch:/root/.cache/torch
     deploy:
       resources:
         limits:
