@@ -32,6 +32,7 @@ export default function CallFeed({ messages, connected }) {
             data-fresh={i === messages.length - 1}
           >
             <SpeakerName sender={m.sender} />
+            {m.time && <span className="feed-time">{m.time}</span>}
             {m.emotion && <span className="feed-emotion">{m.emotion}</span>}
             <p>{m.text}</p>
           </div>

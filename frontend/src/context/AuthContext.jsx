@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 
 const STORAGE_KEY = 'sim112-user';
 
@@ -14,11 +14,49 @@ export function AuthProvider({ children }) {
     }
   });
 
+  useEffect(() => {
+    let active = true;
+
+    const restoreSession = async () => {
+      try {
+        const response = await fetch('/api/auth/me', { credentials: 'include' });
+        if (!response.ok) {
+          if (active) {
+            localStorage.removeItem(STORAGE_KEY);
+            setUser(null);
+          }
+          return;
+        }
+
+        const data = await response.json().catch(() => null);
+        if (!data || !active) return;
+
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        } catch {
+          /* ignore */
+        }
+        setUser(data);
+      } catch {
+        if (active) {
+          localStorage.removeItem(STORAGE_KEY);
+          setUser(null);
+        }
+      }
+    };
+
+    restoreSession();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // Возвращает null при успехе либо текст ошибки
   const signIn = async (login, password) => {
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ login, password }),
       });
@@ -40,7 +78,16 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch {
+      /* ignore */
+    }
+
     localStorage.removeItem(STORAGE_KEY);
     setUser(null);
   };
