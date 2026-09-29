@@ -18,7 +18,7 @@ const MONTHS = [
   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
 ];
 
-export default function AppHeader({ title = 'ГБУ Система 112', showCreateButton = true, actions = null }) {
+export default function AppHeader({ title = 'ГБУ Система 112', showCreateButton = true, actions = null, telStatus = null, onTelStatusChange = null }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const now = useClock();
@@ -34,7 +34,19 @@ export default function AppHeader({ title = 'ГБУ Система 112', showCre
       </div>
       {actions && <div className="header-actions">{actions}</div>}
       <div className="header-right">
-        {showCreateButton && user && (
+        {telStatus != null && (
+          <div className="header-tel" title="Статус телефонии (мок). Недоступен проставляется при открытой карточке">
+            <span>☎ {telStatus}</span>
+            {onTelStatusChange && (
+              <select value={telStatus} onChange={(e) => onTelStatusChange(e.target.value)} title="Переключить вручную">
+                <option value="доступен">доступен</option>
+                <option value="недоступен">недоступен</option>
+                <option value="не подключен">не подключен</option>
+                <option value="ошибка">ошибка</option>
+              </select>
+            )}
+          </div>
+        )}        {showCreateButton && user && (
           <button type="button" className="header-create-btn" onClick={() => navigate('/card')}>
             + Создать карточку
           </button>

@@ -13,6 +13,7 @@ import ChatInput from '../components/ChatInput';
 import QuickReplyPanel from '../components/QuickReplyPanel';
 import DispatchPanel from '../components/DispatchPanel';
 import ActionBar from '../components/ActionBar';
+import TopStrip from '../components/TopStrip';
 import { categoryLabel } from '../lib/meta';
 import { SERVICE_DOCK_ID, LEGACY_SERVICE_DOCK_ID } from '../lib/serviceCatalog';
 
@@ -285,44 +286,21 @@ export default function Simulator() {
       />
 
       <div className="arm-wrap">
-        {/* Верхний ряд как на Рисунке1: телефоны + инфо-блок + просмотр/дополнение */}
-        <div className="arm-toprow">
-          <div className="arm-phones arm-phones-sim">
-            <div className="arm-phone arm-off">
-              <span className="arm-tel-ico">📞</span>
-              <div><b>Отключение</b><div className="arm-minibtns"><span>записи звонков</span><span>список SMS</span></div></div>
-            </div>
-            <div className="arm-phone">
-              <span className="arm-tel-ico">📞</span>
-              <div><small>АОН</small><div className="arm-telnum">{sc.call?.phone ?? '+7 (__) __-__'}</div></div>
-              <span className="arm-chat">💬</span>
-            </div>
-            <div className="arm-phone">
-              <span className="arm-tel-ico">📞</span>
-              <div><small>предоставленный</small><div className="arm-telnum">+7 (__) __-__</div></div>
-              <span className="arm-aohtag">AOH</span>
-              <span className="arm-chat">💬</span>
-            </div>
-            <div className="arm-phone">
-              <span className="arm-tel-ico">📞</span>
-              <div><small>телефон на место</small><div className="arm-telnum">+7 (__) __-__</div></div>
-              <span className="arm-aohtag">AOH</span>
-              <span className="arm-chat">💬</span>
-            </div>
-          </div>
-          <div className="arm-incident">
-            <div className="arm-incident-info">
-              <b>Происшествие {incidentNum}</b>
-              <br />Сохр. 17.09.2026 в 11:12:43
-              <br />Опер. , АРМ 4, УМЦ О п
-            </div>
-            <div className="arm-sidebtns">
-              <button type="button" className="view">просмотр</button>
-              <button type="button" className="add">дополнение</button>
-            </div>
-            <CallTimer startedAtMs={startedAtRef.current} answeredAtMs={answeredAtRef.current} />
-          </div>
-        </div>
+        {/* Верхняя плашка по эталону (верхняя плашка.png / Пример.png) */}
+        <TopStrip
+          mode="view"
+          incidentNo={incidentNum}
+          savedAt="Сохр. 17.09.2026 в 11:12:43"
+          operInfo="Опер., АРМ 4, УМЦ О п"
+          phones={{ aon: sc.call?.phone ?? '', provided: '', onsite: '' }}
+          onCall={() => setToast('Исходящий вызов (мок).')}
+          onSms={() => setToast('СМС заявителю (мок).')}
+          onRecords={() => setToast('Записей не найдено · плеер мм:сс · скачать (мок).')}
+          onSmsList={() => setToast('История сообщений (мок).')}
+          timer={<CallTimer startedAtMs={startedAtRef.current} answeredAtMs={answeredAtRef.current} />}
+          onView={() => setToast('Режим «Просмотр» (мок).')}
+          onAdd={() => setToast('Режим «Дополнение» (мок).')}
+        />
 
         {/* Заявитель как на Рисунке1 */}
         <div className="arm-appline">

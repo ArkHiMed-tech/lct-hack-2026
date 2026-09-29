@@ -45,6 +45,12 @@ body {
 .brand-text strong { font-size: 15px; font-weight: 600; }
 .brand-text span { font-size: 11px; color: #777; }
 .header-right { display: flex; align-items: stretch; gap: 0; }
+.header-tel {
+  display: flex; align-items: center; gap: 8px;
+  border-left: 1px solid #cfcfcf; padding: 0 14px;
+  font-size: 13px; font-weight: 600; white-space: nowrap;
+}
+.header-tel select { font-size: 12px; padding: 3px 6px; border: 1px solid #999; background: #fff; font-family: inherit; }
 .header-actions { display: flex; align-items: stretch; gap: 0; margin-left: auto; padding: 0; align-self: stretch; overflow: visible; scrollbar-width: none; }
 .header-actions::-webkit-scrollbar { display: none; }
 .header-actions .arm-topbtn { background: var(--dds-bar-light); border: none; border-left: 1px solid #cfcfcf; color: var(--dds-text); font-size: 13px; font-weight: 600; padding: 0 16px; border-radius: 0; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; align-self: stretch; cursor: pointer; text-decoration: none; font-family: inherit; }

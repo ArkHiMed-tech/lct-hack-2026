@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import AppHeader from '../components/AppHeader';
 import SideNav from '../components/SideNav';
+import TopStrip from '../components/TopStrip';
 import {
   CHANNELS,
   FLAG_DEFS,
@@ -104,8 +105,7 @@ export default function Card112() {
   const [desc, setDesc] = useState('');
   const [toast, setToast] = useState(null);
   const [savedScenarioId, setSavedScenarioId] = useState(null);
-  const [saved, setSaved] = useState(false); // после сохранения: lock ФИО/статуса, признак «Создана вручную»
-  const [manualCreated] = useState(true);
+  const [saved, setSaved] = useState(false); // после сохранения: lock ФИО/статуса
   const [saving, setSaving] = useState(false);
   const [saveConfirm, setSaveConfirm] = useState(false);
   // Связи
@@ -590,6 +590,8 @@ export default function Card112() {
       <AppHeader
         title="Карточка происшествия 112"
         showCreateButton={false}
+        telStatus={telStatus}
+        onTelStatusChange={setTelStatus}
         actions={(
           <>
             <Link to="/" className="arm-topbtn">← К списку происшествий</Link>
@@ -603,61 +605,43 @@ export default function Card112() {
       <div className="layout">
         <SideNav role={user.role} />
         <main className="content">
-          <div className="arm-topbar">
-            <span className="arm-topmeta">Происшествие {INCIDENT_NO} · {today} · Опер., АРМ 2, УМЦ О п · {EXTERNAL_SYSTEM}</span>
-            {manualCreated && <span className="arm-typechip" title="Признак из инструкции 2.0">Создана вручную</span>}
-            {links.length > 0 && <span className="arm-typechip" title="Связанные карточки">🔗 {links.length}: {links.map((l) => `${l.id} (${l.role})`).join(', ')}</span>}
-            <span className="arm-topright">
-              <span title="Статус телефонии (мок). Недоступен проставляется при открытой карточке">☎ {telStatus}</span>
-              <select value={telStatus} onChange={(e) => setTelStatus(e.target.value)} title="Переключить вручную">
-                <option value="доступен">доступен</option>
-                <option value="недоступен">недоступен</option>
-                <option value="не подключен">не подключен</option>
-                <option value="ошибка">ошибка</option>
-              </select>
-              <span className={`arm-timer ${overtime ? 'over' : ''}`}>{mm}:{ss}<small>минут секунд</small></span>
-            </span>
-          </div>
-
           <div className="arm-wrap">
-            {/* Телефоны: АОН / предоставленный / на место + канал */}
-            <div className="arm-phones">
-              <div className="arm-phone arm-off">
-                <span className="arm-tel-ico">📞</span>
-                <div><b>Отключение</b>
-                  <div className="arm-minibtns">
-                    <button type="button" className="arm-minibtn" onClick={() => setRecordsOpen((v) => !v)}>записи звонков</button>
-                    <button type="button" className="arm-minibtn" onClick={() => setSmsOpen((v) => !v)}>список SMS{smsText ? ' •' : ''}</button>
-                  </div>
-                </div>
-              </div>
-              {[
-                ['АОН', 'aon', refs.f1, 'Alt+F1'],
-                ['предоставленный', 'provided', refs.f2, 'Alt+F2'],
-                ['телефон на место', 'onsite', refs.f3, 'Alt+F3'],
-              ].map(([label, key, ref, hint]) => (
-                <div className="arm-phone" key={key}>
-                  <span className="arm-tel-ico">📞</span>
-                  <div style={{ flex: 1 }}>
-                    <small>{label} <span style={{ opacity: 0.6 }}>({hint})</span></small>
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <input ref={ref} value={phones[key]} onChange={setP(key)} placeholder="+7 (__) __-__" style={{ border: 'none', borderBottom: '1px solid #1c7fb8', background: 'transparent', fontSize: 14, width: 150 }} />
-                      <button type="button" className="arm-minibtn" title="Исходящий звонок (мок)" onClick={() => setToast(`Исходящий вызов на ${phones[key] || label} (мок).`)}>📞</button>
-                      {key !== 'aon' && <button type="button" className="arm-minibtn" title="Скопировать АОН" onClick={() => setPhones((p) => ({ ...p, [key]: p.aon }))}>АОН</button>}
-                      {key === 'aon' && <button type="button" className="arm-minibtn" title="Данные абонента (нов. 2.1)" onClick={() => setSubscriberOpen((v) => !v)}>👤</button>}
-                      <button type="button" className="arm-minibtn" title="Отправить СМС (нов. 1.8)" onClick={() => setSmsOpen(true)}>💬</button>
-                    </div>
-                    {key === 'aon' && !phones.aon && <small style={{ color: '#777' }}>Без SIM карты — поле пустое (вариант по инструкции)</small>}
-                  </div>
-                </div>
-              ))}
+            {links.length > 0 && (
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span className="arm-typechip" title="Связанные карточки">🔗 {links.length}: {links.map((l) => `${l.id} (${l.role})`).join(', ')}</span>
             </div>
+            )}
+            {/* Верхняя плашка по эталону: Отключение | АОН | предоставленный | на место | Происшествие | таймер */}
+            <TopStrip
+              mode="edit"
+              incidentNo={INCIDENT_NO}
+              savedAt={today}
+              operInfo={`Опер., АРМ 2, УМЦ О п · ${EXTERNAL_SYSTEM}`}
+              phones={phones}
+              onPhoneChange={(k, v) => {
+                setPhones((p) => ({ ...p, [k]: v }));
+                if (k === 'aon') { const ch = autoChannel(v); if (ch) setChannel(ch); }
+              }}
+              phoneRefs={{ aon: refs.f1, provided: refs.f2, onsite: refs.f3 }}
+              phoneHints={{ aon: 'Alt+F1', provided: 'Alt+F2', onsite: 'Alt+F3' }}
+              onCall={(k) => setToast(`Исходящий вызов на ${phones[k] || k} (мок).`)}
+              onCopyAon={(k) => setPhones((p) => ({ ...p, [k]: p.aon }))}
+              onSms={() => setSmsOpen(true)}
+              onRecords={() => setRecordsOpen((v) => !v)}
+              onSmsList={() => setSmsOpen((v) => !v)}
+              timerOver={overtime}
+              timer={<><span>{mm}:{ss}</span><small>минут секунд</small></>}
+              onView={() => setToast('Режим «Просмотр»: карточка только для чтения (мок).')}
+              onAdd={() => { setSupplement(true); setToast('Режим «Дополнение»: доступны пустые поля + описание (мок).'); }}
+            />
+            {!phones.aon && <div className="arm-hint">АОН пуст — вариант «Без SIM карты» по инструкции.</div>}
             <div className="arm-appline" style={{ gap: 16 }}>
               <label>Канал связи (Alt+K)
                 <input ref={refs.ch} list="channels" value={channel} onChange={(e) => setChannel(e.target.value)} placeholder="поиск по списку" style={{ minWidth: 140 }} />
                 <datalist id="channels">{CHANNELS.map((c) => <option key={c} value={c} />)}</datalist>
               </label>
               {channel && <span className="arm-typechip">канал: {channel} {autoChannel(phones.aon) === channel ? '(авто)' : ''}</span>}
+              <button type="button" className="arm-minibtn" title="Данные абонента (нов. 2.1)" onClick={() => setSubscriberOpen((v) => !v)}>👤 абонент</button>
               {subscriberOpen && <span className="arm-typechip">Данные абонента: ФИО/ДР/адрес от оператора связи (мок)</span>}
               {recordsOpen && <span className="arm-typechip">Записей не найдено · плеер мм:сс · скачать (мок)</span>}
               {smsOpen && (

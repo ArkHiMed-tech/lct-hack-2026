@@ -247,6 +247,62 @@
 .arm-cols .panel { min-width: 0; }
 .arm-card .incident-form { padding: 0; background: transparent; }
 
+/* ===== Верхняя плашка АРМ 112 (эталон: верхняя плашка.png / Пример.png) ===== */
+.topstrip { display: flex; gap: 2px; align-items: stretch; }
+.topstrip-cell {
+  background: #e8e8e8; border: 1px solid #c4c4c4;
+  display: flex; gap: 6px; align-items: flex-start;
+  padding: 4px 6px; min-width: 0; flex: 1; overflow: hidden;
+}
+.topstrip-off { flex: 0 0 200px; }
+.topstrip-ico { font-size: 16px; filter: grayscale(1); flex-shrink: 0; line-height: 1.2; }
+.topstrip-body { min-width: 0; flex: 1; }
+.topstrip-label { font-size: 11px; color: #444; font-weight: 600; line-height: 1.2; }
+.topstrip-hint { font-weight: 400; opacity: .6; }
+.topstrip-row { display: flex; gap: 4px; align-items: center; margin-top: 1px; min-width: 0; }
+.topstrip-num {
+  font-size: 15px; font-weight: 600; border-bottom: 1px solid #1c7fb8; line-height: 1.3;
+  min-width: 0; flex: 1; color: #222; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.topstrip-input {
+  border: none; border-bottom: 1px solid #1c7fb8; background: transparent;
+  font-size: 15px; font-weight: 600; line-height: 1.3; min-width: 0; flex: 1; width: 100%; outline: none; font-family: inherit; padding: 0 0 1px;
+}
+/* кнопки у номера — компактным столбиком, не вылезают за границы */
+.topstrip-actions { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+.topstrip-actions .topstrip-mini { padding: 0 5px; font-size: 10px; line-height: 1.5; text-align: center; }
+.topstrip-btns { display: flex; gap: 4px; margin-top: 2px; flex-wrap: wrap; }
+.topstrip-mini {
+  border: 1px solid #999; background: #dcdcdc; font-size: 10px;
+  padding: 2px 8px; cursor: pointer; white-space: nowrap; font-family: inherit;
+}
+.topstrip-mini:hover { background: #cfcfcf; }
+.topstrip-incident { flex: 0 0 280px; display: flex; align-items: stretch; padding: 0; }
+.topstrip-incident-info { padding: 4px 8px; font-size: 11px; flex: 1; line-height: 1.3; min-width: 0; }
+.topstrip-incident-info b { font-size: 12px; }
+.topstrip-sidebtns { display: flex; flex-direction: column; min-width: 92px; flex-shrink: 0; }
+.topstrip-sidebtns button { border: none; font-size: 11px; padding: 6px 8px; cursor: pointer; color: #fff; flex: 1; font-family: inherit; }
+.topstrip-view { background: var(--dds-blue); }
+.topstrip-view:hover { background: var(--dds-blue-dark); }
+.topstrip-add { background: #232c36; }
+.topstrip-timer {
+  flex: 0 0 88px; background: #232c36; color: #fff;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1;
+  padding: 4px 6px; flex-shrink: 0;
+}
+.topstrip-timer small { font-size: 10px; font-weight: 400; opacity: .8; }
+.topstrip-timer.over { background: #c0392b; }
+.topstrip-timer .call-timer { background: transparent; padding: 0; }
+.topstrip-timer .call-timer-clock { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.topstrip-timer .call-timer-label { font-size: 10px; font-weight: 400; opacity: .8; }
+.topstrip-timer .call-timer.is-breached { background: transparent; }
+@media (max-width: 1100px) { .topstrip { flex-wrap: wrap; } .topstrip-cell, .topstrip-off, .topstrip-incident { flex: 1 1 240px; } }
+/* компактные отступы после плашки — без пустых полос */
+.arm-wrap > .arm-hint { margin-top: 2px; }
+.arm-wrap > .topstrip + .arm-hint + .arm-appline,
+.arm-wrap > .topstrip + .arm-appline { margin-top: 2px; }
+
 /* вложенные исполнители над доком (ОАТИ / поселения), как в ДДС */
 .dds-service.chosen { box-shadow: inset 0 -3px 0 var(--dds-blue); }
 .dds-children {
