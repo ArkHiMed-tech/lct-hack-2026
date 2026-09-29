@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "source": "incident_graph.json v2 (classifier/листья xlsx) + Card112.jsx / serviceCatalog.js",
+  "description": "Граф карточки 112. Обход seed→лист классификатора (Номер + путь Признак1→2→3)→address→caller→victims→services(диспетчеризация листа)→narrative даёт payload для POST /api/reports/create.",
+  "info_probability": 0.15,
+  "section_weights": {
+    "1": 30,
+    "2": 15,
+    "3": 8,
+    "4": 5,
+    "5": 5,
+    "6": 8,
+    "7": 6,
+    "8": 3,
+    "9": 1
+  },
+  "address": {
+    "okruga": ["ЦАО", "САО", "СВАО", "ВАО", "ЮВАО", "ЮАО", "ЮЗАО", "ЗАО", "СЗАО"],
+    "streets": [
+      "Новая Басманная улица",
+      "Тверская улица",
+      "Манежная площадь",
+      "Ленинский проспект",
+      "Проспект Мира",
+      "Щёлковское шоссе",
+      "Улица Вавилова",
+      "Рязанский проспект"
+    ],
+    "house_range": [1, 50],
+    "flat_range": [1, 120],
+    "entrance_range": [1, 6],
+    "floor_range": [1, 17],
+    "fias_probability": 0.1,
+    "social_objects": ["Школа № 91", "Больница № 1", "Станция метро"]
+  },
+  "caller": {
+    "names": [
+      "Иванова Мария Петровна",
+      "Смирнов Алексей Сергеевич",
+      "Петрова Анна Владимировна",
+      "Кузнецов Никита Андреевич",
+      "Соколова Дарья Викторовна",
+      "Морозов Игорь Олегович",
+      "Козлова Елена Дмитриевна",
+      "Новиков Павел Андреевич"
+    ],
+    "statuses": ["очевидец", "пострадавший", "родственник", "знакомый", "ребенок", "участник"],
+    "channels": ["Теле2", "МТС", "Мегафон", "Билайн", "Городской", "SIP"],
+    "aon_prefixes": ["903", "905", "910", "915", "920", "926", "960", "965"],
+    "foreign_number_probability": 0.05,
+    "foreign_lang_probability": 0.05
+  },
+  "victims": {
+    "has_victims_probability": 0.45,
+    "count_range": [1, 4]
+  },
+  "flags": {
+    "no_access_probability": 0.2,
+    "threat_probability": 0.25,
+    "violation_probability": 0.15,
+    "medical_probability": 0.3,
+    "evac_probability": 0.15,
+    "gas_probability": 0.15
+  },
+  "narrative": {
+    "desc_templates_classifier": [
+      "Со слов заявителя: {result} ({path}). {access_phrase} {victims_phrase}",
+      "{result}. Место: {path}. {access_phrase} {victims_phrase}"
+    ],
+    "desc_templates_info": [
+      "{what}. {victims_phrase} Адрес: {address}.",
+      "Заявитель ({status}) сообщает: {what} по адресу {address}. {victims_phrase}"
+    ],
+    "tag_desc_pool": ["", "", "", "со слов заявителя", "уточнено при перезвоне"],
+    "timeline_templates": [
+      {"speaker": "citizen", "emotion": "тревога", "text": "{description}"},
+      {"speaker": "citizen", "emotion": "тревога", "text": "Нахожусь на месте, {address}. {victims_phrase}"},
+      {"speaker": "system", "emotion": null, "text": "Службы {services_line} направлены."}
+    ]
+  }
+}

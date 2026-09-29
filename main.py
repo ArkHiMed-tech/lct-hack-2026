@@ -6,6 +6,7 @@ from fastapi import FastAPI, Query
 from database import DB_PATH, FRONTEND_DIST, initialize_database, initialize_dev_data
 from misc.incident_tree_api import get_incident_next_levels, get_incident_types, load_incident_graph
 from routers.auth import router as auth_router
+from routers.classifier import router as classifier_router
 from routers.connection import router as connection_router
 from routers.reports import router as reports_router
 from routers.results import router as results_router
@@ -71,6 +72,7 @@ async def incident_types():
 
 
 app.include_router(auth_router)
+app.include_router(classifier_router)
 app.include_router(users_router)
 app.include_router(roles_router)
 app.include_router(scenarios_router)

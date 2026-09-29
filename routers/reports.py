@@ -54,11 +54,38 @@ async def create_report(report: dict):
 
 CATEGORY_TO_SCENARIO = {"101": "fire", "102": "police", "103": "ambulance", "104": "gas"}
 
+# Главная служба классификатора -> категория тренажёра.
+MAIN_TO_CATEGORY = {"MCHS": "fire", "Police": "police"}
+# Раздел классификатора -> категория тренажёра (для main=None).
+SECTION_TO_CATEGORY = {1: "fire", 2: "dth", 3: "fire", 4: "fire", 5: "fire",
+                       6: "fire", 7: "fire", 8: "fire", 9: "fire"}
+
+
+def _scenario_category(payload: dict, row: dict) -> tuple[str, str]:
+    """(category, group_label): категория тренажёра + группа карточки.
+
+    Новые карточки: Главная служба / раздел классификатора.
+    Старые карточки: incident_category вида '101' (legacy-маппинг).
+    """
+    main = payload.get("main_service")
+    if main in MAIN_TO_CATEGORY:
+        category = MAIN_TO_CATEGORY[main]
+    else:
+        section = payload.get("classifier_section") or {}
+        category = SECTION_TO_CATEGORY.get(section.get("g"), "")
+    group = str(payload.get("incident_category") or row.get("incident_category") or "")
+    if not category:
+        category = CATEGORY_TO_SCENARIO.get(
+            group, group if group in ("fire", "police", "ambulance", "gas", "dth") else "fire"
+        )
+    section = payload.get("classifier_section") or {}
+    group_label = group or section.get("title") or category
+    return category, group_label
+
 
 def _build_scenario_from_report(report_id: int, row: dict, payload: dict) -> dict:
     scenario_id = f"card-{report_id}"
-    group = str(payload.get("incident_category") or row.get("incident_category") or "101")
-    category = CATEGORY_TO_SCENARIO.get(group, group if group in ("fire", "police", "ambulance", "gas") else "fire")
+    category, group_label = _scenario_category(payload, row)
     what = payload.get("what") or row.get("what") or "Происшествие"
     address_obj = payload.get("address_obj") or {}
     address_str = payload.get("address") or row.get("address") or ""
@@ -83,8 +110,10 @@ def _build_scenario_from_report(report_id: int, row: dict, payload: dict) -> dic
         "call": {"phone": "", "caller_name_known": bool(caller), "address_auto": {"known": False}},
         "expected": {
             "incident_category": category,
-            "incident_group": group,
-            "incident_kind": payload.get("incident_kind"),
+            "incident_group": group_label,
+            "classifier_code": payload.get("classifier_code"),
+            "classifier_path": payload.get("classifier_path") or [],
+            "main_service": payload.get("main_service"),
             "expected_services": services,
             "address": address_obj if isinstance(address_obj, dict) and address_obj else {"raw": address_str},
             "address_str": address_str,

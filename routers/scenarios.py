@@ -1,8 +1,9 @@
 import json
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 
 from database import get_connection, initialize_database, seed_scenarios_from_json
+from misc.card_generator import generate_card, validate_card_payload
 
 router = APIRouter(prefix="/api/scenarios", tags=["scenarios"])
 
@@ -62,6 +63,125 @@ async def list_scenarios():
     return result
 
 
+@router.get("/generate")
+async def generate_scenarios(
+    seed: int | None = Query(default=None),
+    count: int = Query(default=1, ge=1, le=50),
+    type: str | None = Query(default=None),
+    publish: bool = Query(default=False),
+    user_id: str | None = Query(default=None),
+):
+    """Генератор карточек обходом дерева классификатора.
+
+    Обход: seed -> лист классификатора (Номер + Признак1→2→3) -> address ->
+    caller -> victims -> services (диспетчеризация листа). Тип происшествия —
+    Итоговый тип классификатора. Параметр type: Номер, точный Итоговый тип
+    или подстрока. При publish=true сохраняет карточки в БД
+    (incident_reports + dispatched_services) и публикует сценарии card-{id}.
+    """
+    import random as _random
+
+    base_seed = seed if seed is not None else _random.SystemRandom().randint(0, 2**31 - 1)
+    overrides = {"type": type} if type else None
+    cards = []
+    for i in range(count):
+        try:
+            item = generate_card(
+                seed=base_seed + i, overrides=dict(overrides) if overrides else None
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            )
+        payload = item["payload"]
+        if user_id is not None:
+            payload["user_id"] = user_id
+        error = validate_card_payload(payload)
+        if error:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Generated invalid card (seed={base_seed + i}): {error}",
+            )
+        cards.append(item)
+
+    scenario_ids: list[str] = []
+    report_ids: list[int] = []
+    if publish:
+        from routers.reports import _build_scenario_from_report
+
+        initialize_database()
+        with get_connection() as connection:
+            cursor = connection.cursor()
+            for item in cards:
+                report = item["payload"]
+                cursor.execute(
+                    """
+                    INSERT INTO incident_reports (
+                        user_id, scenario_id, what, incident_category, address, time,
+                        caller_name, victims, conditions, threat, factors, actions, landmarks, payload
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        report.get("user_id"),
+                        None,
+                        report.get("what", ""),
+                        report.get("incident_category", ""),
+                        report.get("address", ""),
+                        "",
+                        report.get("caller_name", ""),
+                        report.get("victims", ""),
+                        "",
+                        "",
+                        ";".join(report.get("factors", [])),
+                        "",
+                        None,
+                        json.dumps(report, ensure_ascii=False),
+                    ),
+                )
+                report_id = cursor.lastrowid
+                report_ids.append(report_id)
+                for service in report.get("services", []):
+                    cursor.execute(
+                        "INSERT INTO dispatched_services (report_id, service_id) VALUES (?, ?)",
+                        (report_id, service),
+                    )
+                row = cursor.execute(
+                    "SELECT * FROM incident_reports WHERE id = ?", (report_id,)
+                ).fetchone()
+                scenario = _build_scenario_from_report(
+                    report_id, dict(row), json.loads(dict(row).get("payload") or "{}")
+                )
+                cursor.execute(
+                    """
+                    INSERT OR REPLACE INTO scenarios (
+                        id, title, category, difficulty, severity, rubric_id,
+                        sla_answer_sec, payload, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    """,
+                    (
+                        scenario["id"],
+                        scenario["title"],
+                        scenario["category"],
+                        scenario["difficulty"],
+                        scenario["severity"],
+                        scenario["rubric_id"],
+                        scenario["sla_answer_sec"],
+                        json.dumps(scenario, ensure_ascii=False),
+                    ),
+                )
+                scenario_ids.append(scenario["id"])
+            connection.commit()
+
+    return {
+        "seed": base_seed,
+        "count": len(cards),
+        "cards": cards,
+        "published": publish,
+        "report_ids": report_ids,
+        "scenario_ids": scenario_ids,
+    }
+
+
 @router.get("/{scenario_id}")
 async def get_scenario(scenario_id: str):
     initialize_database()
@@ -86,8 +206,3 @@ async def get_scenario(scenario_id: str):
 
     return json.loads(row["payload"])
 
-
-@router.get("/generate")
-async def generate_scenarios():
-    ...
-    return {"message": "Scenarios generated"}
