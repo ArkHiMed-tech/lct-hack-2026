@@ -834,6 +834,9 @@ export default function Card112() {
                           <input className="arm-tagdesc" value={tagDesc} onChange={(e) => setTagDesc(e.target.value)} placeholder="уточнение ТЭГа" />
                         </div>
                       </div>
+                      {informed.length > 0 && (
+                        <div className="arm-hint" style={{ overflowWrap: 'anywhere' }}>Уведомляемые: {informed.join('; ')}</div>
+                      )}
                     </>
                   )}
                   {infoType && !selectedLeaf && (
@@ -852,13 +855,6 @@ export default function Card112() {
                   <span key={s} className={`arm-svc ${isMainService(svcGroup, s) ? 'main' : ''}`} title={`${s}${isMainService(svcGroup, s) ? ' — основная (двойное подчеркивание)' : ''}${visServices.includes(s) ? ' · добавлена ВИС' : ''}`}>
                     <span className="arm-svctel">📞</span>
                     <span className="arm-svcname">{serviceShortName(s)}{visServices.includes(s) ? ' [ВИС]' : ''}</span>
-                    <button type="button" onClick={() => removeService(s)} title="убрать">×</button>
-                  </span>
-                ))}
-                {informed.map((s) => (
-                  <span key={`inf-${s}`} className="arm-svc informed" title={`${s} — уведомлена (не выезд)`}>
-                    <span className="arm-svctel">✉</span>
-                    <span className="arm-svcname">{serviceShortName(s)}</span>
                     <button type="button" onClick={() => removeService(s)} title="убрать">×</button>
                   </span>
                 ))}
